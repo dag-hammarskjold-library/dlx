@@ -13,28 +13,21 @@ import sys, os, json, re
 sys.path.append(os.path.dirname(__file__) + '/..')
 
 from bson import BSON
-from dlx import DB, JBIB, match
+#from dlx import DB, JBIB, JAUTH, match
+
+import dlx
 
 def MAIN():
 	connection_string = sys.argv[1]
 	tag = sys.argv[2]
 	code = sys.argv[3]
 	val = sys.argv[4]
-
-	db = DB(connection_string)
 	
-	query = match(tag,code,val)
-	cursor = db.bibs.find(query)
-
-	i = 0
-	size = 0
+	# connect to DB
+	dlx.DB(connection_string)
 	
-	for dict in cursor:
-		i += 1
-		size += len(BSON.encode(dict))
-		
-		jmarc = JBIB(dict)
-
+	for jmarc in dlx.JBIB.find(tag,code,val):
+	
 		print('symbols: ' + '; '.join(jmarc.symbols()))
 		print('title: ' + jmarc.title())
 		print('date: ' + jmarc.get_value('269','a'))
@@ -47,12 +40,5 @@ def MAIN():
 			print(lang + ': ' + jmarc.file(lang))
 		
 		print('-' * 100)
-		
-	if cursor.retrieved == 0:
-		print('no results :(')
-		exit()
-
-	print(str(i) + ' results')
-	print(str(size) + ' bytes')
-
+	
 MAIN()
