@@ -26,7 +26,7 @@ def MAIN():
 	# connect to DB
 	dlx.DB(connection_string)
 	
-	for jmarc in dlx.JBIB.find('191','a',re.compile('^S/PV')):
+	for jmarc in dlx.JBIB.find(tag,code,val):
 	
 		print('symbols: ' + '; '.join(jmarc.symbols()))
 		print('title: ' + jmarc.title())
@@ -40,5 +40,7 @@ def MAIN():
 			print(lang + ': ' + jmarc.file(lang))
 		
 		print('-' * 100)
+		
+
 	
 MAIN()
