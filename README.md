@@ -7,7 +7,9 @@ Provides a Python API to the DLX database
 
 from dlx import DB, JMARC, match
 
-db = DB()
+connection_string = 'valid Mongo connection string'
+
+db = DB(connection_string)
 query = match('269','a','2005-01-05')
 cursor = db.bibs.find(query)
 
