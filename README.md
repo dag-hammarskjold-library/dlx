@@ -1,19 +1,31 @@
 # dlx
 Provides a Python API to the DLX database
 
+### Installation:
+```bash
+pip install git+https://github.com/dag-hammarskjold-library/dlx
+```
+
 ### Usage:
 ```python
 #/usr/bin/env python
 
-from dlx import DB, JMARC, match
+import dlx
 
-connection_string = 'valid Mongo connection string'
+# connect to DB
+dlx.DB('valid Mongo connection string')
 
-db = DB(connection_string)
-query = match('269','a','2005-01-05')
-cursor = db.bibs.find(query)
+# iterate through bibs
+for jmarc in dlx.JBIB.find(tag,code,val):
 
-for doc in cursor:
-    jmarc = JMARC(doc)
-    print('symbol: ' + jmarc.get_value('191','a'))
+    print('symbols: ' + '; '.join(jmarc.symbols()))
+    print('title: ' + jmarc.title())
+    print('date: ' + jmarc.get_value('269','a'))
+    print('subjects: ' + '; '.join(jmarc.get_values('650','a')))
+		
+    for lang in ('EN','FR'):
+        print(lang + ': ' + jmarc.file(lang))
+		
+    print('-' * 100)
+    
 ```
