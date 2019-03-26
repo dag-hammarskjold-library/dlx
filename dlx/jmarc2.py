@@ -11,7 +11,7 @@ from .db import DB
 from .query import *
 
 class LocalDBH(object):
-	# provides a common db handle
+	# provides a local db handle
 	db = None
 	
 	def __init__(self):

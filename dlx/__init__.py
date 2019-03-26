@@ -1,5 +1,5 @@
 
 from .db import DB
 from .query import match
-from .jmarc2 import JMARC, JBIB, JAUTH
+from .jmarc import JMARC, JBIB, JAUTH
 

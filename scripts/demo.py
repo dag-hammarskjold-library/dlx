@@ -47,6 +47,12 @@ def MAIN():
 			print(lang + ': ' + jmarc.file(lang))
 		
 		print('-' * 100)
+		
+	if cursor.retrieved == 0:
+		print('no results :(')
+		exit()
 
 	print(str(i) + ' results')
 	print(str(size) + ' bytes')
+
+MAIN()

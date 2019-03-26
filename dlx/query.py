@@ -8,7 +8,7 @@ from .db import DB
 from .config import Configs
 
 class LocalDBH(object):
-	# provides a cached db handle
+	# provides a local db handle
 	db = None
 	
 	def __init__(self):
