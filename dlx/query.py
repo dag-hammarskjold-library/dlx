@@ -7,18 +7,6 @@ from bson import SON
 from .db import DB
 from .config import Configs
 
-class LocalDBH(object):
-	# provides a local db handle
-	db = None
-	
-	def __init__(self):
-		if LocalDBH.db is None:
-			LocalDBH.db = DB(DB.config['connection_string'])
-					
-		self.bibs = LocalDBH.db.bibs
-		self.auths = LocalDBH.db.auths
-		self.files = LocalDBH.db.files
-	
 # JMARC queries
 
 def match(tag,code,val):
@@ -83,7 +71,7 @@ def in_xrefs(tag,code,*xrefs):
 	)
 	
 def get_xrefs(tag,code,val):
-	cur = LocalDBH().auths.find(match(tag,code,val),{'_id':1})
+	cur = DB.auths.find(match(tag,code,val),{'_id':1})
 	
 	ret_vals = []
 	

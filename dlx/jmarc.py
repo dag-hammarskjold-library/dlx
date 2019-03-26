@@ -6,22 +6,10 @@ This file will probably replace jmarc.py
 import sys
 import json
 from bson import SON
-from pymarc import JSONReader
+#from pymarc import JSONReader
 from .db import DB
 from .query import *
 
-class LocalDBH(object):
-	# provides a local db handle
-	db = None
-	
-	def __init__(self):
-		if LocalDBH.db is None:
-			LocalDBH.db = DB(DB.config['connection_string'])
-					
-		self.bibs = LocalDBH.db.bibs
-		self.auths = LocalDBH.db.auths
-		self.files = LocalDBH.db.files
-		
 class Controlfield(object):
 	def __init__(self,tag,value):
 		self.tag = tag
@@ -53,7 +41,6 @@ class Literal(Subfield):
 		self.value = value
 	
 class Linked(Subfield):	
-	#db = DB()
 	_cache = {}
 	
 	def __init__(self,code,xref):
@@ -70,7 +57,7 @@ class Linked(Subfield):
 			pass
 			
 		if self._value is None:
-			doc = LocalDBH().auths.find_one({'_id' : self.xref})
+			doc = DB.auths.find_one({'_id' : self.xref})
 			auth = JAUTH(doc)
 			
 			self._value = auth.header.get_value(self.code)
@@ -110,7 +97,7 @@ class Datafield(object):
 			}
 		)
 				
-class JMARC(object):	
+class JMARC(object):			
 	def __init__(self,dict={}):
 		self.controlfields = []
 		self.datafields = []
@@ -224,7 +211,12 @@ class JMARC(object):
 		return json.dumps(mij)
 
 class JBIB(JMARC):
-	#db = DB()
+	
+	def find(tag,sub,val):
+		cursor = DB.bibs.find(match(tag,sub,val))
+		
+		for dict in cursor:
+			yield JBIB(dict)
 	
 	def __init__(self,dict={}):
 		super().__init__(dict)
@@ -247,7 +239,7 @@ class JBIB(JMARC):
 		
 	def files(self,*langs):
 		symbol = self.symbol()
-		cursor = LocalDBH().files.find(files_by_symbol(symbol))
+		cursor = DB.files.find(files_by_symbol(symbol))
 		
 		ret_vals = []
 		
@@ -262,11 +254,18 @@ class JBIB(JMARC):
 		symbol = self.symbol()
 		
 		try:
-			return LocalDBH().files.find_one(file_by_symbol_lang(symbol,lang))['uri']
+			return DB.files.find_one(file_by_symbol_lang(symbol,lang))['uri']
 		except:
 			return ''
 		
 class JAUTH(JMARC):
+
+	def find(tag,sub,val):
+		cursor = DB.auths.find(match(tag,sub,val))
+		
+		for dict in cursor:
+			yield JAUTH(dict)
+	
 	def __init__(self,dict={}):
 		super().__init__(dict)
 		

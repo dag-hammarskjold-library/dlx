@@ -32,9 +32,9 @@ class DB(object):
 			exit()
 			
 		DB.handle = client[DB.config['database_name']]
-		self.bibs = DB.handle[DB.config['bibs_collection_name']]
-		self.auths = DB.handle[DB.config['auths_collection_name']]
-		self.files = DB.handle[DB.config['files_collection_name']]
+		DB.bibs = DB.handle[DB.config['bibs_collection_name']]
+		DB.auths = DB.handle[DB.config['auths_collection_name']]
+		DB.files = DB.handle[DB.config['files_collection_name']]
 	
 	def literal_index(self,tag):
 		field = tag + '.subfields'
