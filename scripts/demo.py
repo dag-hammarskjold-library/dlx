@@ -26,7 +26,7 @@ def MAIN():
 	# connect to DB
 	dlx.DB(connection_string)
 	
-	for jmarc in dlx.JBIB.find(tag,code,val):
+	for jmarc in dlx.JBIB.find('191','a',re.compile('^S/PV')):
 	
 		print('symbols: ' + '; '.join(jmarc.symbols()))
 		print('title: ' + jmarc.title())
