@@ -2,6 +2,7 @@
 '''
 import re
 from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 
 class DB(object):
 	handle = None
@@ -12,10 +13,10 @@ class DB(object):
 	}
 	
 	def __init__(self,connection_string,**kwargs):
-		client = MongoClient()
+		client = MongoClient(connection_string,serverSelectionTimeoutMS=2)
 		
 		try:
-			client = MongoClient(connection_string)
+			client.admin.command('ismaster')
 		except:
 			print('Database connection failed')
 			exit()
@@ -23,7 +24,12 @@ class DB(object):
 		DB.config['connection_string'] = connection_string
 			
 		match = re.search('\?authSource=([\w]+)',connection_string)
-		DB.config['database_name'] = match.group(1)
+		
+		if match:
+			DB.config['database_name'] = match.group(1)
+		else:
+			print('Could not parse database name from connection string')
+			exit()
 			
 		DB.handle = client[DB.config['database_name']]
 		self.bibs = DB.handle[DB.config['bibs_collection_name']]
