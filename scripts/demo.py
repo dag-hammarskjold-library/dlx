@@ -26,7 +26,11 @@ def MAIN():
 	# connect to DB
 	dlx.DB(connection_string)
 	
-	for jmarc in dlx.JBIB.find(tag,code,val):
+	print(dlx.JAUTH.find_id(4).to_json())
+	
+	exit()
+	
+	for jmarc in dlx.JBIB.find_values(tag,code,val):
 	
 		print('symbols: ' + '; '.join(jmarc.symbols()))
 		print('title: ' + jmarc.title())

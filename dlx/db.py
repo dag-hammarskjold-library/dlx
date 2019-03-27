@@ -5,6 +5,7 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 
 class DB(object):
+	connected = False
 	handle = None
 	config = {
 		'bibs_collection_name' : 'bibs',
@@ -20,7 +21,8 @@ class DB(object):
 		except:
 			print('Database connection failed')
 			exit()
-			
+		
+		DB.connected = True		
 		DB.config['connection_string'] = connection_string
 			
 		match = re.search('\?authSource=([\w]+)',connection_string)

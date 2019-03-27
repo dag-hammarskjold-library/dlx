@@ -1,23 +1,14 @@
 '''
-JMARC 2.0
 
-This file will probably replace jmarc.py
 '''
-import sys
+
 import json
 from bson import SON
-#from pymarc import JSONReader
 from .db import DB
 from .query import *
 
-class Controlfield(object):
-	def __init__(self,tag,value):
-		self.tag = tag
-		self.value = value
-	
-	def to_bson(self):
-		return self.value
-	
+### subfield classes
+
 class Subfield(object):
 	def __init__(self):
 		pass
@@ -66,6 +57,16 @@ class Linked(Subfield):
 			Linked._cache[self.xref][self.code] = self._value
 		
 		return self._value
+
+### field classes
+
+class Controlfield(object):
+	def __init__(self,tag,value):
+		self.tag = tag
+		self.value = value
+	
+	def to_bson(self):
+		return self.value
 	
 class Datafield(object):
 	def __init__(self,tag,ind1,ind2,subfields):
@@ -78,6 +79,7 @@ class Datafield(object):
 		for sub in self.subfields:
 			if sub.code == code:
 				return sub.value
+		
 		return None
 
 	def get_values(self,*codes):
@@ -96,8 +98,11 @@ class Datafield(object):
 				'subfields' : [sub.to_bson() for sub in self.subfields]
 			}
 		)
-				
-class JMARC(object):			
+
+### record classes
+		
+class JMARC(object):
+	
 	def __init__(self,dict={}):
 		self.controlfields = []
 		self.datafields = []
@@ -211,12 +216,33 @@ class JMARC(object):
 		return json.dumps(mij)
 
 class JBIB(JMARC):
+	@staticmethod
+	def find_id(id):
+		return JBIB(DB.bibs.find_one({'_id' : id}))
 	
-	def find(tag,sub,val):
-		cursor = DB.bibs.find(match(tag,sub,val))
+	@staticmethod
+	def find_value(tag,code,val):
+		return JBIB(DB.bibs.find_one(match(tag,code,val)))
+	
+	@staticmethod
+	def find_values(tag,code,val):
+		cursor = DB.bibs.find(match(tag,code,val))
 		
 		for dict in cursor:
 			yield JBIB(dict)
+	
+	@staticmethod
+	def query_one(doc):
+		return JBIB(DB.bibs.find_one(doc))
+		
+	@staticmethod
+	def query(doc):
+		cursor = DB.bibs.find(doc)
+		
+		for dict in cursor:
+			yield JBIB(dict)
+	
+	# constructor
 	
 	def __init__(self,dict={}):
 		super().__init__(dict)
@@ -259,9 +285,17 @@ class JBIB(JMARC):
 			return ''
 		
 class JAUTH(JMARC):
-
-	def find(tag,sub,val):
-		cursor = DB.auths.find(match(tag,sub,val))
+	@staticmethod
+	def find_id(id):
+		return JAUTH(DB.auths.find_one({'_id' : id}))
+		
+	@staticmethod
+	def find_value(tag,code,val):
+		return JAUTH(DB.auths.find_one(match(tag,code,val)))
+	
+	@staticmethod
+	def find_values(tag,code,val):
+		cursor = DB.auths.find(match(tag,code,val))
 		
 		for dict in cursor:
 			yield JAUTH(dict)
