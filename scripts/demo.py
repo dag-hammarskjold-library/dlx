@@ -26,7 +26,12 @@ def MAIN():
 	# connect to DB
 	dlx.DB(connection_string)
 	
-	print(dlx.JAUTH.find_id(4).to_json())
+	#print(dlx.JAUTH.find_id(4).to_json())
+	
+	query = dlx.query.match_value('245','a',re.compile('^Japan'))
+	
+	for j in dlx.JBIB.find(query):
+			print(j.title())
 	
 	exit()
 	

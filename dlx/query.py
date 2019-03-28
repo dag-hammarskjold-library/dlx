@@ -9,7 +9,7 @@ from .config import Configs
 
 # JMARC queries
 
-def match(tag,code,val):
+def match_value(tag,code,val):
 	valtype = val.__class__.__name__
 	
 	auth_tag = auth_controlled(tag,code)

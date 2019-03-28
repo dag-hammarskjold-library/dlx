@@ -222,21 +222,21 @@ class JBIB(JMARC):
 	
 	@staticmethod
 	def find_value(tag,code,val):
-		return JBIB(DB.bibs.find_one(match(tag,code,val)))
+		return JBIB(DB.bibs.find_one(match_value(tag,code,val)))
 	
 	@staticmethod
 	def find_values(tag,code,val):
-		cursor = DB.bibs.find(match(tag,code,val))
+		cursor = DB.bibs.find(match_value(tag,code,val))
 		
 		for dict in cursor:
 			yield JBIB(dict)
 	
 	@staticmethod
-	def query_one(doc):
+	def find_one(doc):
 		return JBIB(DB.bibs.find_one(doc))
 		
 	@staticmethod
-	def query(doc):
+	def find(doc):
 		cursor = DB.bibs.find(doc)
 		
 		for dict in cursor:
@@ -291,11 +291,22 @@ class JAUTH(JMARC):
 		
 	@staticmethod
 	def find_value(tag,code,val):
-		return JAUTH(DB.auths.find_one(match(tag,code,val)))
+		return JAUTH(DB.auths.find_one(match_value(tag,code,val)))
 	
 	@staticmethod
 	def find_values(tag,code,val):
-		cursor = DB.auths.find(match(tag,code,val))
+		cursor = DB.auths.find(match_value(tag,code,val))
+		
+		for dict in cursor:
+			yield JAUTH(dict)
+			
+	@staticmethod
+	def find_one(doc):
+		return JAUTH(DB.auths.find_one(doc))
+		
+	@staticmethod
+	def find(doc):
+		cursor = DB.auths.find(doc)
 		
 		for dict in cursor:
 			yield JAUTH(dict)
