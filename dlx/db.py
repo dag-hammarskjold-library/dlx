@@ -16,6 +16,13 @@ class DB(object):
 		'files_collection_name' : 'files',
 	}
 	
+	@staticmethod
+	def check_connection():
+		if DB.connected == False:
+			raise Exception('Not connected to database')
+		else:
+			return True
+	
 	def __init__(self,connection_string,**kwargs):
 		client = MongoClient(connection_string,serverSelectionTimeoutMS=2)
 		

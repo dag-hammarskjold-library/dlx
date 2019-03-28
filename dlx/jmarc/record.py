@@ -5,14 +5,6 @@ from dlx.db import DB
 from dlx.query import *
 from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
-
-### utilities
-
-def check_connection():
-		if DB.connected == False:
-			raise Exception('Not connected to database')
-
-###
 			
 class JMARC(object):	
 	_cache = {}
@@ -141,19 +133,19 @@ class JMARC(object):
 class JBIB(JMARC):
 	@staticmethod
 	def find_id(id):
-		check_connection()
+		DB.check_connection()
 		
 		return JBIB(DB.bibs.find_one({'_id' : id}))
 	
 	@staticmethod
 	def find_value(tag,code,val):
-		check_connection()
+		DB.check_connection()
 		
 		return JBIB(DB.bibs.find_one(match_value(tag,code,val)))
 	
 	@staticmethod
 	def find_values(tag,code,val):
-		check_connection()
+		DB.check_connection()
 		
 		cursor = DB.bibs.find(match_value(tag,code,val))
 		
@@ -162,13 +154,13 @@ class JBIB(JMARC):
 	
 	@staticmethod
 	def find_one(doc):
-		check_connection()
+		DB.check_connection()
 		
 		return JBIB(DB.bibs.find_one(doc))
 		
 	@staticmethod
 	def find(doc):
-		check_connection()
+		DB.check_connection()
 		
 		cursor = DB.bibs.find(doc)
 		
@@ -220,19 +212,19 @@ class JBIB(JMARC):
 class JAUTH(JMARC):
 	@staticmethod
 	def find_id(id):
-		check_connection()
+		DB.check_connection()
 		
 		return JAUTH(DB.auths.find_one({'_id' : id}))
 		
 	@staticmethod
 	def find_value(tag,code,val):
-		check_connection()
+		DB.check_connection()
 		
 		return JAUTH(DB.auths.find_one(match_value(tag,code,val)))
 	
 	@staticmethod
 	def find_values(tag,code,val):
-		check_connection()
+		DB.check_connection()
 		
 		cursor = DB.auths.find(match_value(tag,code,val))
 		
@@ -241,13 +233,13 @@ class JAUTH(JMARC):
 	
 	@staticmethod
 	def find_one(doc):
-		check_connection()
+		DB.check_connection()
 		
 		return JAUTH(DB.auths.find_one(doc))
 		
 	@staticmethod
 	def find(doc):
-		check_connection()
+		DB.check_connection()
 		
 		cursor = DB.auths.find(doc)
 		
