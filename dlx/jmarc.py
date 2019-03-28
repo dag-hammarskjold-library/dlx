@@ -32,31 +32,9 @@ class Literal(Subfield):
 		self.value = value
 	
 class Linked(Subfield):	
-	_cache = {}
-	
 	def __init__(self,code,xref):
 		self.code = code
 		self.xref = int(xref)
-		self._value = None
-	
-	@property
-	def value(self):
-		try:
-			self._value = Linked._cache[self.xref][self.code]
-			return self._value
-		except:
-			pass
-			
-		if self._value is None:
-			doc = DB.auths.find_one({'_id' : self.xref})
-			auth = JAUTH(doc)
-			
-			self._value = auth.header.get_value(self.code)
-			
-			Linked._cache[self.xref] = {}
-			Linked._cache[self.xref][self.code] = self._value
-		
-		return self._value
 
 ### field classes
 
@@ -74,23 +52,7 @@ class Datafield(object):
 		self.ind1 = ind1
 		self.ind2 = ind2
 		self.subfields = subfields
-	
-	def get_value(self,code):
-		for sub in self.subfields:
-			if sub.code == code:
-				return sub.value
-		
-		return None
-
-	def get_values(self,*codes):
-		ret_vals = []
-		
-		for sub in self.subfields:
-			if sub.code in codes:
-				ret_vals.append(sub.value)
-		
-		return ret_vals
-		
+			
 	def to_bson(self):
 		return SON (
 			data = {
@@ -102,7 +64,22 @@ class Datafield(object):
 ### record classes
 		
 class JMARC(object):
+	_cache = {}
 	
+	@staticmethod
+	def lookup(xref,code):
+		try:
+			return JMARC._cache[xref][code]
+		except:
+			auth = JAUTH.find_id(xref)
+			
+			value = auth.header_value(code)
+			
+			JMARC._cache[xref] = {}
+			JMARC._cache[xref][code] = value
+			
+			return value
+		
 	def __init__(self,dict={}):
 		self.controlfields = []
 		self.datafields = []
@@ -136,36 +113,27 @@ class JMARC(object):
 							
 	def get_field(self,tag):
 		return next(self.get_fields(tag), None)
-
-	def get_value(self,tag,code = None):
-		# returns the first value found
-		
-		field = self.get_field(tag)
-		
-		if field is None:
-			return None
-		
-		if field.__class__.__name__ == 'Controlfield':
-			return field.value
-		
-		return field.get_value(code)
-
+			
 	def get_values(self,tag,*codes):
-		# returns list of values
-		
-		ret_vals = []
+		# returns lazy list of values
 		
 		for field in self.get_fields(tag):
-			vals = field.get_values(*codes)
+			if field.__class__.__name__ == 'Controlfield':
+				yield field.value
+				raise StopIteration
 			
-			if not vals:
-				pass
-			else:
-				ret_vals.append(field.get_values(*codes))
+			for code in codes:
+				for sub in filter(lambda sub: sub.code == code, field.subfields):
+					if sub.__class__.__name__ == 'Literal':
+						yield sub.value
+					elif sub.__class__.__name__ == 'Linked':
+						yield JMARC.lookup(sub.xref,code)
+	
+	def get_value(self,tag,code=None):
+		# returns the first value found
 		
-		# this is the only way to flatten a list in python?? ðŸ˜•
-		return [x for y in ret_vals for x in y]
-		
+		return next(self.get_values(tag,code), None)
+	
 	def tags(self):
 		# trying list comprehension instead of map
 		return sorted([x.tag for x in self.get_fields()])
@@ -315,5 +283,9 @@ class JAUTH(JMARC):
 		super().__init__(dict)
 		
 		self.header = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()))
+		
+	def header_value(self,code):
+		for sub in filter(lambda sub: sub.code == code, self.header.subfields):
+			return sub.value
 
 	
