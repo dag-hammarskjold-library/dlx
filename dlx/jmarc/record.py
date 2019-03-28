@@ -1,68 +1,11 @@
 '''
-
 '''
 
-import json
-from bson import SON
-from .db import DB
-from .query import *
+from dlx.db import DB
+from dlx.query import *
+from .subfield import Literal, Linked
+from .field import Controlfield, Datafield
 
-### subfield classes
-
-class Subfield(object):
-	def __init__(self):
-		pass
-		
-	def to_bson(self):
-		dict = self.__dict__
-		bson = SON()
-		
-		bson['code'] = self.code
-		
-		if self.__class__.__name__ == 'Literal':
-			bson['value'] = self.value
-		elif self.__class__.__name__ == 'Linked':
-			bson['xref'] = self.xref
-			
-		return bson
-
-class Literal(Subfield):
-	def __init__(self,code,value):
-		self.code = code
-		self.value = value
-	
-class Linked(Subfield):	
-	def __init__(self,code,xref):
-		self.code = code
-		self.xref = int(xref)
-
-### field classes
-
-class Controlfield(object):
-	def __init__(self,tag,value):
-		self.tag = tag
-		self.value = value
-	
-	def to_bson(self):
-		return self.value
-	
-class Datafield(object):
-	def __init__(self,tag,ind1,ind2,subfields):
-		self.tag = tag
-		self.ind1 = ind1
-		self.ind2 = ind2
-		self.subfields = subfields
-			
-	def to_bson(self):
-		return SON (
-			data = {
-				'indicators' : [self.ind1, self.ind2],
-				'subfields' : [sub.to_bson() for sub in self.subfields]
-			}
-		)
-
-### record classes
-		
 class JMARC(object):
 	_cache = {}
 	
@@ -72,9 +15,7 @@ class JMARC(object):
 			return JMARC._cache[xref][code]
 		except:
 			auth = JAUTH.find_id(xref)
-			
 			value = auth.header_value(code)
-			
 			JMARC._cache[xref] = {}
 			JMARC._cache[xref][code] = value
 			
@@ -287,5 +228,3 @@ class JAUTH(JMARC):
 	def header_value(self,code):
 		for sub in filter(lambda sub: sub.code == code, self.header.subfields):
 			return sub.value
-
-	
