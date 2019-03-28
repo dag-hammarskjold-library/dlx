@@ -71,7 +71,7 @@ def in_xrefs(tag,code,*xrefs):
 	)
 	
 def get_xrefs(tag,code,val):
-	cur = DB.auths.find(match(tag,code,val),{'_id':1})
+	cur = DB.auths.find(match_value(tag,code,val),{'_id':1})
 	
 	ret_vals = []
 	
