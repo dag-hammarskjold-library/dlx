@@ -7,6 +7,9 @@ from pymongo.errors import ConnectionFailure
 class DB(object):
 	connected = False
 	handle = None
+	bibs = None
+	auths = None
+	files = None
 	config = {
 		'bibs_collection_name' : 'bibs',
 		'auths_collection_name' : 'auths',
