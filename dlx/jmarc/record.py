@@ -6,7 +6,15 @@ from dlx.query import *
 from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
 
-class JMARC(object):
+### utilities
+
+def check_connection():
+		if DB.connected == False:
+			raise Exception('Not connected to database')
+
+###
+			
+class JMARC(object):	
 	_cache = {}
 	
 	@staticmethod
@@ -22,10 +30,17 @@ class JMARC(object):
 			return value
 		
 	def __init__(self,dict={}):
+		if dict is None:
+			dict = {}
+		
 		self.controlfields = []
 		self.datafields = []
 		
+		if '_id' in dict.keys():
+			self.id = str(dict['_id'])
+		
 		for tag in filter(lambda x: False if x == '_id' else True, dict.keys()):
+			
 			if tag == '000':
 				self.leader = dict['000'][0]
 				
@@ -76,7 +91,6 @@ class JMARC(object):
 		return next(self.get_values(tag,code), None)
 	
 	def tags(self):
-		# trying list comprehension instead of map
 		return sorted([x.tag for x in self.get_fields()])
 
 	
@@ -127,14 +141,20 @@ class JMARC(object):
 class JBIB(JMARC):
 	@staticmethod
 	def find_id(id):
+		check_connection()
+		
 		return JBIB(DB.bibs.find_one({'_id' : id}))
 	
 	@staticmethod
 	def find_value(tag,code,val):
+		check_connection()
+		
 		return JBIB(DB.bibs.find_one(match_value(tag,code,val)))
 	
 	@staticmethod
 	def find_values(tag,code,val):
+		check_connection()
+		
 		cursor = DB.bibs.find(match_value(tag,code,val))
 		
 		for dict in cursor:
@@ -142,10 +162,14 @@ class JBIB(JMARC):
 	
 	@staticmethod
 	def find_one(doc):
+		check_connection()
+		
 		return JBIB(DB.bibs.find_one(doc))
 		
 	@staticmethod
 	def find(doc):
+		check_connection()
+		
 		cursor = DB.bibs.find(doc)
 		
 		for dict in cursor:
@@ -192,29 +216,39 @@ class JBIB(JMARC):
 			return DB.files.find_one(file_by_symbol_lang(symbol,lang))['uri']
 		except:
 			return ''
-		
+				
 class JAUTH(JMARC):
 	@staticmethod
 	def find_id(id):
+		check_connection()
+		
 		return JAUTH(DB.auths.find_one({'_id' : id}))
 		
 	@staticmethod
 	def find_value(tag,code,val):
+		check_connection()
+		
 		return JAUTH(DB.auths.find_one(match_value(tag,code,val)))
 	
 	@staticmethod
 	def find_values(tag,code,val):
+		check_connection()
+		
 		cursor = DB.auths.find(match_value(tag,code,val))
 		
 		for dict in cursor:
 			yield JAUTH(dict)
-			
+	
 	@staticmethod
 	def find_one(doc):
+		check_connection()
+		
 		return JAUTH(DB.auths.find_one(doc))
 		
 	@staticmethod
 	def find(doc):
+		check_connection()
+		
 		cursor = DB.auths.find(doc)
 		
 		for dict in cursor:
