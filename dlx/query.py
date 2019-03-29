@@ -1,7 +1,9 @@
 """
 Functions for building PyMongo queries. 
 
-All functions return BSON objects suitable for use in PyMongo queries. The returned objects can be embedded in dicts in order to compose more complex queries.
+All functions return BSON objects suitable for use in PyMongo queries. 
+The returned objects can be embedded in dicts in order to compose more 
+complex queries.
 """
 
 import re
@@ -12,10 +14,9 @@ from .config import Configs
 # JMARC queries
 
 def match_value(tag,code,val):
-	
 	"""Builds a query document for matching single subfield values. 
 	
-	parameters
+	Parameters
 	----------
 	param1 : str
 		The field tag to match.
@@ -24,11 +25,11 @@ def match_value(tag,code,val):
 	param3 : str / Pattern
 		Value to match against. Exact string or a compiled Pattern.
 	
-	returns
+	Returns
 	-------
 	bson.son.BSON 
 	
-	examples
+	Examples
 	-------
 	>>> query = match_value('269', 'a', '1999')
 	>>> complex_query = { '$and' : [ match_value('008', None, re.compile('1999')), match_value('245', 'a', re.compile('United Nations')) ] }
@@ -36,19 +37,19 @@ def match_value(tag,code,val):
 	
 	valtype = val.__class__.__name__
 	
-	auth_tag = __auth_controlled(tag,code)
+	auth_tag = _auth_controlled(tag,code)
 	
 	if auth_tag is not None:
-		xrefs = __get_xrefs(auth_tag,code,val)
+		xrefs = _get_xrefs(auth_tag,code,val)
 		
 		return in_xrefs(tag,code,*xrefs)
 
 	if valtype == 'str':
-		return __exact_value(tag,code,val)
+		return _exact_value(tag,code,val)
 	elif valtype == 'Pattern':
-		return __re_value(tag,code,val)
+		return _re_value(tag,code,val)
 		
-def __exact_value(tag,code,val):
+def _exact_value(tag,code,val):
 	return SON (
 		data = {
 			tag + '.subfields' : {
@@ -58,7 +59,7 @@ def __exact_value(tag,code,val):
 		}
 	)
 	
-def __re_value(tag,code,re):
+def _re_value(tag,code,re):
 	return SON (
 		data = {
 			tag + '.subfields' : {
@@ -71,10 +72,9 @@ def __re_value(tag,code,re):
 	)
 	
 def exact_xref(tag,code,xref):
-	
 	"""Builds a query document for matching a single subfield xref.
 	
-	parameters
+	Parameters
 	---------
 	param1 : str
 		The field tag to match.
@@ -83,11 +83,11 @@ def exact_xref(tag,code,xref):
 	param3 : int
 		The xref to match.
 	
-	returns
+	Returns
 	-------
 	bson.son.BSON
 	
-	examples
+	Examples
 	--------
 	>>> query = exact_xref('650','a',268584)
 	"""
@@ -102,10 +102,9 @@ def exact_xref(tag,code,xref):
 	)
 
 def in_xrefs(tag,code,*xrefs):
-	
 	"""Builds a query document for matching single subfield xrefs against a list of xrefs.
 	
-	parameters
+	Parameters
 	----------
 	param1 : str
 		The field tag to match.
@@ -114,11 +113,11 @@ def in_xrefs(tag,code,*xrefs):
 	*args : int
 		List of xrefs to match against.
 			
-	returns
+	Returns
 	-------
 	bson.son.BSON
 		
-	examples
+	Examples
 	--------
 	>>> query = in_xrefs('650','a',268584,274431)
 	"""
@@ -136,7 +135,7 @@ def in_xrefs(tag,code,*xrefs):
 		}
 	)
 	
-def __get_xrefs(tag,code,val):
+def _get_xrefs(tag,code,val):
 	cur = DB.auths.find(match_value(tag,code,val),{'_id':1})
 	
 	ret_vals = []
@@ -146,7 +145,7 @@ def __get_xrefs(tag,code,val):
 		
 	return ret_vals
 	
-def __auth_controlled(tag,code):
+def _auth_controlled(tag,code):
 	try:
 		return Configs.authority_controlled[tag][code]
 	except:
