@@ -9,6 +9,8 @@ from .field import Controlfield, Datafield
 class JMARC(object):	
 	_cache = {}
 	
+	## static 
+	
 	@staticmethod
 	def lookup(xref,code):
 		try:
@@ -21,10 +23,52 @@ class JMARC(object):
 			
 			return value
 		
-	def __init__(self,dict={}):
-		if dict is None:
-			dict = {}
+	## class
 		
+	#### database query handlers
+			
+	@classmethod
+	def handle(cls):
+		DB.check_connection()
+		col = 'bibs' if cls.__name__ == 'JBIB' else 'auths'
+		return getattr(DB,col)
+		
+	@classmethod
+	def find_id(cls,id):
+		DB.check_connection()
+		return cls(cls.handle().find_one({'_id' : id}))
+		
+	@classmethod
+	def find_value(cls,tag,code,val):
+		DB.check_connection()
+		return cls(cls.handle().find_one(match_value(tag,code,val)))
+		
+	@classmethod
+	def find_values(cls,tag,code,val):
+		DB.check_connection()
+		
+		cursor = cls.handle().find(match_value(tag,code,val))
+		
+		for dict in cursor:
+			yield cls(dict)
+	
+	@classmethod
+	def find_one(cls,doc):
+		DB.check_connection()
+		return cls(cls.handle().find_one(doc))
+		
+	@classmethod
+	def find(cls,doc):
+		DB.check_connection()
+		
+		cursor = cls.handle().find(doc)
+		
+		for dict in cursor:
+			yield cls(dict)
+	
+	## instance 
+	
+	def __init__(self,dict={}):
 		self.controlfields = []
 		self.datafields = []
 		
@@ -63,13 +107,11 @@ class JMARC(object):
 		return next(self.get_fields(tag), None)
 			
 	def get_values(self,tag,*codes):
-		# returns lazy list of values
-		
 		for field in self.get_fields(tag):
 			if field.__class__.__name__ == 'Controlfield':
 				yield field.value
 				raise StopIteration
-			
+	
 			for code in codes:
 				for sub in filter(lambda sub: sub.code == code, field.subfields):
 					if sub.__class__.__name__ == 'Literal':
@@ -78,20 +120,17 @@ class JMARC(object):
 						yield JMARC.lookup(sub.xref,code)
 	
 	def get_value(self,tag,code=None):
-		# returns the first value found
-		
 		return next(self.get_values(tag,code), None)
 	
 	def tags(self):
 		return sorted([x.tag for x in self.get_fields()])
 
-	
-	# utlities 
+	### utlities 
 	
 	def diff(self,jmarc):
 		pass
 	
-	# serializations
+	### serializations
 	
 	def to_bson(self):
 		bson = SON()
@@ -130,49 +169,12 @@ class JMARC(object):
 		
 		return json.dumps(mij)
 
+
 class JBIB(JMARC):
-	@staticmethod
-	def find_id(id):
-		DB.check_connection()
-		
-		return JBIB(DB.bibs.find_one({'_id' : id}))
-	
-	@staticmethod
-	def find_value(tag,code,val):
-		DB.check_connection()
-		
-		return JBIB(DB.bibs.find_one(match_value(tag,code,val)))
-	
-	@staticmethod
-	def find_values(tag,code,val):
-		DB.check_connection()
-		
-		cursor = DB.bibs.find(match_value(tag,code,val))
-		
-		for dict in cursor:
-			yield JBIB(dict)
-	
-	@staticmethod
-	def find_one(doc):
-		DB.check_connection()
-		
-		return JBIB(DB.bibs.find_one(doc))
-		
-	@staticmethod
-	def find(doc):
-		DB.check_connection()
-		
-		cursor = DB.bibs.find(doc)
-		
-		for dict in cursor:
-			yield JBIB(dict)
-	
-	# constructor
-	
 	def __init__(self,dict={}):
 		super().__init__(dict)
 		
-	# shorctuts
+	### shorctuts
 	
 	def symbol(self):
 		return self.get_value('191','a')
@@ -186,7 +188,7 @@ class JBIB(JMARC):
 	def date(self):
 		return self.get_value('269','a')
 		
-	# files 
+	### files 
 		
 	def files(self,*langs):
 		symbol = self.symbol()
@@ -208,44 +210,9 @@ class JBIB(JMARC):
 			return DB.files.find_one(file_by_symbol_lang(symbol,lang))['uri']
 		except:
 			return ''
+
 				
 class JAUTH(JMARC):
-	@staticmethod
-	def find_id(id):
-		DB.check_connection()
-		
-		return JAUTH(DB.auths.find_one({'_id' : id}))
-		
-	@staticmethod
-	def find_value(tag,code,val):
-		DB.check_connection()
-		
-		return JAUTH(DB.auths.find_one(match_value(tag,code,val)))
-	
-	@staticmethod
-	def find_values(tag,code,val):
-		DB.check_connection()
-		
-		cursor = DB.auths.find(match_value(tag,code,val))
-		
-		for dict in cursor:
-			yield JAUTH(dict)
-	
-	@staticmethod
-	def find_one(doc):
-		DB.check_connection()
-		
-		return JAUTH(DB.auths.find_one(doc))
-		
-	@staticmethod
-	def find(doc):
-		DB.check_connection()
-		
-		cursor = DB.auths.find(doc)
-		
-		for dict in cursor:
-			yield JAUTH(dict)
-	
 	def __init__(self,dict={}):
 		super().__init__(dict)
 		
@@ -254,3 +221,4 @@ class JAUTH(JMARC):
 	def header_value(self,code):
 		for sub in filter(lambda sub: sub.code == code, self.header.subfields):
 			return sub.value
+
