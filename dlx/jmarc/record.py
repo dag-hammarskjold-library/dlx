@@ -66,6 +66,30 @@ class JMARC(object):
 		for dict in cursor:
 			yield cls(dict)
 	
+	#### database index creation
+	
+	@classmethod
+	def controlfield_index(cls,tag):
+		cls.handle().create_index({tag : 1})
+	
+	@classmethod	
+	def literal_index(cls,tag):
+		field = tag + '.subfields'
+		cls.handle().create_index({field : 1})
+		cls.handle().create_index({field + '.code' : 1, field + '.value' : 1})
+	
+	@classmethod	
+	def linked_index(cls,tag):
+		field = tag + '.subfields'
+		cls.handle().create_index({field : 1})
+		cls.handle().create_index({field + '.code' : 1, field + '.xref' : 1})
+	
+	@classmethod	
+	def hybrid_index(cls,tag):
+		field = tag + '.subfields'
+		cls.handle().create_index({field : 1})
+		cls.handle().create_index({field + '.code' : 1, field + '.value' : 1, field + '.xref' : 1})
+	
 	## instance 
 	
 	def __init__(self,dict={}):
@@ -125,12 +149,12 @@ class JMARC(object):
 	def tags(self):
 		return sorted([x.tag for x in self.get_fields()])
 
-	### utlities 
+	#### utlities 
 	
 	def diff(self,jmarc):
 		pass
 	
-	### serializations
+	#### serializations
 	
 	def to_bson(self):
 		bson = SON()
@@ -174,7 +198,7 @@ class JBIB(JMARC):
 	def __init__(self,dict={}):
 		super().__init__(dict)
 		
-	### shorctuts
+	#### shorctuts
 	
 	def symbol(self):
 		return self.get_value('191','a')
@@ -188,7 +212,7 @@ class JBIB(JMARC):
 	def date(self):
 		return self.get_value('269','a')
 		
-	### files 
+	#### files 
 		
 	def files(self,*langs):
 		symbol = self.symbol()
