@@ -1,10 +1,29 @@
-'''
-'''
+"""
+Provides the DB class for connecting to and accessing the database.
+"""
+
 import re
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+from .exceptions import NotConnected
 
 class DB(object):
+	"""A class providing a global database connection.
+	
+	The DB class does not get instantiated. When class method DB.connect() 
+	is called and a succesful connection is made, all relevant database 
+	handles are stored as class attributes.
+	
+	Class attributes
+	-----------
+	connected : bool
+	handle : pymongo.database.Database
+	bibs : pymongo.collection.Collection
+	auths : pymongo.collection.Collection
+	file : pymongo.collection.Collection
+	config : dict
+	"""
+		
 	connected = False
 	handle = None
 	bibs = None
@@ -16,20 +35,34 @@ class DB(object):
 		'files_collection_name' : 'files',
 	}
 	
-	@staticmethod
-	def check_connection():
-		if DB.connected == False:
-			raise Exception('Not connected to database')
-		else:
-			return True
+	## class 
 	
-	def __init__(self,connection_string,**kwargs):
+	@classmethod
+	def connect(cls,connection_string):
+		"""Connects to the database and stores database and collection handles
+		as class variables.
+		
+		Parameters
+		----------
+		param1 : str
+			MongoDB connection string.
+		
+		Returns
+		-------
+		pymongo.database.Database
+			The database handle automatically gets stored as class attribute 'handle'.
+		
+		Raises
+		------
+		pymongo.errors.ConnectionFailure
+			If connection fails.
+		"""
+		
 		client = MongoClient(connection_string,serverSelectionTimeoutMS=2)
 		
 		try:
 			client.admin.command('ismaster')
-		except:
-			print('Database connection failed')
+		except ConnectionFailure:
 			exit()
 		
 		DB.connected = True		
@@ -47,18 +80,34 @@ class DB(object):
 		DB.bibs = DB.handle[DB.config['bibs_collection_name']]
 		DB.auths = DB.handle[DB.config['auths_collection_name']]
 		DB.files = DB.handle[DB.config['files_collection_name']]
+		
+		return DB.handle
 	
-	def literal_index(self,tag):
-		field = tag + '.subfields'
-		self.bibs.create_index({field : 1})
-		self.bibs.create_index({field + '.code' : 1, field + '.value' : 1})
+	## static
+	
+	@staticmethod
+	def check_connection():
+		"""Raises an exception if the database has not been connected to.
 		
-	def linked_index(self,tag):
-		field = tag + '.subfields'
-		self.bibs.create_index({field : 1})
-		self.bibs.create_index({field + '.code' : 1, field + '.xref' : 1})
+		This is used to prevent attempts at database operations without
+		being connected, which can create hard-to-trace errors.
 		
-	def hybrid_index(self,tag):
-		field = tag + '.subfields'
-		self.bibs.create_index({field : 1})
-		self.bibs.create_index({field + '.code' : 1, field + '.value' : 1, field + '.xref' : 1})
+		Returns
+		-------
+		None
+		
+		Raises
+		------
+		dlx.exceptions.NotConnected
+			If the database has not been connected to yet.
+		
+		"""
+		if DB.connected == False:
+			raise NotConnected
+		
+	
+	
+	
+	
+	
+	
