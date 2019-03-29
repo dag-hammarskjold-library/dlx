@@ -1,7 +1,7 @@
 """
-Functions for building pymongo queries. 
+Functions for building PyMongo queries. 
 
-All functions return BSON objects suitable for use in pymongo queries. The returned objects can be embedded in dicts in order to compose more complex queries.
+All functions return BSON objects suitable for use in PyMongo queries. The returned objects can be embedded in dicts in order to compose more complex queries.
 """
 
 import re
@@ -12,6 +12,7 @@ from .config import Configs
 # JMARC queries
 
 def match_value(tag,code,val):
+	
 	"""Builds a query document for matching single subfield values. 
 	
 	parameters
@@ -20,24 +21,17 @@ def match_value(tag,code,val):
 		The field tag to match.
 	param2 : str / None
 		The subfield code to match. Use None as the code if matching a controlfield value.
-	param3 : str / Pattern 
+	param3 : str / Pattern
 		Value to match against. Exact string or a compiled Pattern.
 	
 	returns
 	-------
-		BSON 
+	bson.son.BSON 
 	
 	examples
 	-------
 	>>> query = match_value('269', 'a', '1999')
-	>>> first_result = dlx.JBIB.find_one(query)
-	
-	>>> complex_query = {
-		'$and' : [
-			match_value('008', None, re.compile('1999')),
-			match_value('245', 'a', re.compile('United Nations')),
-		]
-	}
+	>>> complex_query = { '$and' : [ match_value('008', None, re.compile('1999')), match_value('245', 'a', re.compile('United Nations')) ] }
 	"""
 	
 	valtype = val.__class__.__name__
@@ -77,6 +71,27 @@ def __re_value(tag,code,re):
 	)
 	
 def exact_xref(tag,code,xref):
+	
+	"""Builds a query document for matching a single subfield xref.
+	
+	parameters
+	---------
+	param1 : str
+		The field tag to match.
+	param2 : str
+		The subfield code to match.
+	param3 : int
+		The xref to match.
+	
+	returns
+	-------
+	bson.son.BSON
+	
+	examples
+	--------
+	>>> query = exact_xref('650','a',268584)
+	"""
+	
 	return SON (
 		data = {
 			tag + '.subfields' : {
@@ -87,30 +102,31 @@ def exact_xref(tag,code,xref):
 	)
 
 def in_xrefs(tag,code,*xrefs):
-	"""Builds a query document for matching single subfield xrefs against a list of xrefs. 
+	
+	"""Builds a query document for matching single subfield xrefs against a list of xrefs.
 	
 	parameters
 	----------
-		param1 : str
-			The field Tag to match.
-		param2 : str
-			The subfield code to match.
-		*args : int
-			Xrefs (authority IDs) to match against.
+	param1 : str
+		The field tag to match.
+	param2 : str
+		The subfield code to match.
+	*args : int
+		List of xrefs to match against.
 			
 	returns
 	-------
-		BSON
+	bson.son.BSON
 		
 	examples
 	--------
-		>>> query = in_xrefs('650','a',268584,274431)
-		>>> dlx.JBIB.find(query)
+	>>> query = in_xrefs('650','a',268584,274431)
 	"""
+	
 	return SON (
 		data = {
 			tag + '.subfields' : {
-				'$elemMatch' : {		
+				'$elemMatch' : {
 					'code' : code,
 					'xref' : {
 						'$in' : [*xrefs]
