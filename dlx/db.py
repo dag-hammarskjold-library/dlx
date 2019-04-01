@@ -4,18 +4,15 @@ Provides the DB class for connecting to and accessing the database.
 
 import re
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
-from .exceptions import NotConnected
+from pymongo.errors import ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
 
 class DB(object):
-	"""A class providing a global database connection.
-	
-	The DB class does not get instantiated. When class method DB.connect() 
-	is called and a succesful connection is made, all relevant database 
-	handles are stored as class attributes.
+	"""Provides a global database connection.
 	
 	Class attributes
 	-----------
+		All class attributes are set automatically by DB.connect()
+	
 	connected : bool
 	handle : pymongo.database.Database
 	bibs : pymongo.collection.Collection
@@ -40,7 +37,7 @@ class DB(object):
 	@classmethod
 	def connect(cls,connection_string):
 		"""Connects to the database and stores database and collection handles
-		as class variables.
+		as class attributes.
 		
 		Parameters
 		----------
@@ -54,16 +51,16 @@ class DB(object):
 		
 		Raises
 		------
-		pymongo.errors.ConnectionFailure
-			If connection fails.
+		pymongo.errors.ServerSelectionTimeoutError
+			If the server is not found.
+		pymongo.errors.AuthenticationFailure
+			If the supplied credentials are invalid.
 		"""
 		
 		client = MongoClient(connection_string,serverSelectionTimeoutMS=2)
 		
-		try:
-			client.admin.command('ismaster')
-		except ConnectionFailure:
-			exit()
+		# raises pymongo exceptions if connection fails
+		client.admin.command('ismaster')
 		
 		DB.connected = True		
 		DB.config['connection_string'] = connection_string
@@ -73,8 +70,8 @@ class DB(object):
 		if match:
 			DB.config['database_name'] = match.group(1)
 		else:
-			print('Could not parse database name from connection string')
-			exit()
+			# this should be impossible
+			raise Exception('Could not parse database name from connection string')
 			
 		DB.handle = client[DB.config['database_name']]
 		DB.bibs = DB.handle[DB.config['bibs_collection_name']]
@@ -98,12 +95,12 @@ class DB(object):
 		
 		Raises
 		------
-		dlx.exceptions.NotConnected
+		Exception
 			If the database has not been connected to yet.
-		
 		"""
+		
 		if DB.connected == False:
-			raise NotConnected
+			raise Exception('Not connected to database yet')
 		
 	
 	
