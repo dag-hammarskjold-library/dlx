@@ -83,8 +83,7 @@ def match_value(tag,code,val):
 		
 		return match_xrefs(tag,code,*xrefs)
 
-# provisional
-def _and_values(*tuples):
+def and_values(*tuples):
 	return SON (
 		data = {
 			'$and' : [match_value(*t) for t in tuples]
