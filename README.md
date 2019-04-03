@@ -13,10 +13,10 @@ pip install git+https://github.com/dag-hammarskjold-library/dlx
 import dlx
 
 # connect to DB
-dlx.DB('valid Mongo connection string')
+dlx.DB.connect('valid Mongo connection string')
 
 # iterate through bibs
-for jmarc in dlx.JBIB.find(tag,code,val):
+for jmarc in dlx.JBIB.match_value(tag,code,val):
 
     print('symbols: ' + '; '.join(jmarc.symbols()))
     print('title: ' + jmarc.title())
