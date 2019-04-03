@@ -32,6 +32,7 @@ cursor = dlx.JBIB.match_field('245', ('a','Copyright law survey /'), ('c','World
 # iterate
 for jmarc in cursor:
 
+    # `jmarc` is a `dlx.JBIB` object
     print('title: ' + ' '.join(jmarc.get_values('245','a','b','c')))
     print('date: ' + jmarc.get_value('269',a'))
     print('authors: ' + '; '.join(get_values('710','a')))
