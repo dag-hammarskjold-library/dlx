@@ -7,7 +7,7 @@ from dlx.db import DB
 from dlx.query import jmarc as Q
 from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
-			
+		
 class JMARC(object):
 	_cache = {}
 	
@@ -28,101 +28,109 @@ class JMARC(object):
 	## class
 		
 	#### database query handlers
+	
+	# decorator
+	def check_connection(f):
+		def wrapper(*args):
+			DB.check_connection()
 			
-	@classmethod
-	def handle(cls):
-		DB.check_connection()
+			return f(*args)
 		
+		return wrapper
+
+	@classmethod
+	@check_connection
+	def handle(cls):
 		if cls.__name__ == 'JBIB':
 			col = 'bibs'
 		elif cls.__name__ == 'JAUTH':
 			col = 'auths'
 		else:
-			raise Exception('Must call "handle()" from JBIB or JAUTH')
+			raise Exception('Must call `handle()` from JBIB or JAUTH')
 			
 		return getattr(DB,col)
 		
 	@classmethod
+	@check_connection
 	def match_id(cls,id):
-		DB.check_connection()
 		return cls(cls.handle().find_one({'_id' : id}))
 	
 	@classmethod
+	@check_connection
 	def match_value(cls,tag,code,val):
-		DB.check_connection()
-		
 		cursor = cls.handle().find(Q.match_value(tag,code,val))
 		
 		for dict in cursor:
 			yield cls(dict)
 	
 	@classmethod
+	@check_connection
 	def match_value_one(cls,tag,code,val):
-		DB.check_connection()
 		return cls(cls.handle().find_one(Q.match_value(tag,code,val)))
 	
 	@classmethod	
+	@check_connection
 	def match_values(cls,*tuples):
-		DB.check_connection()
-		
 		cursor = cls.handle().find(Q.and_values(*tuples))
 		
 		for dict in cursor:
 			yield cls(dict)
 	
 	@classmethod	
+	@check_connection
 	def match_values_one(cls,*tuples):
-		DB.check_connection()
 		return cls.handle().find_one(Q.and_values(*tuples))
 	
-	@classmethod	
+	@classmethod
+	@check_connection
 	def match_field(cls,tag,*tuples):
-		DB.check_connection()
-		
 		cursor = cls.handle().find(Q.match_field(tag,*tuples))
 		
 		for dict in cursor:
 			yield cls(dict)
 			
-	@classmethod	
+	@classmethod
+	@check_connection	
 	def match_field_one(cls,tag,*tuples):
-		DB.check_connection()
 		return cls.handle().find_one(Q.match_field(tag,*tuples))
 
 	
 	@classmethod
+	@check_connection
 	def find(cls,doc):
-		DB.check_connection()
-		
 		cursor = cls.handle().find(doc)
 		
 		for dict in cursor:
 			yield cls(dict)
 	
 	@classmethod
+	@check_connection
 	def find_one(cls,doc):
-		DB.check_connection()
 		return cls(cls.handle().find_one(doc))
 		
 	#### database index creation
 	
 	@classmethod
+	@check_connection
 	def controlfield_index(cls,tag):
 		cls.handle().create_index({tag : 1})
 	
-	@classmethod	
+	@classmethod
+	@check_connection
 	def literal_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index({field : 1})
 		cls.handle().create_index({field + '.code' : 1, field + '.value' : 1})
 	
-	@classmethod	
+	@classmethod
+	@check_connection
 	def linked_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index({field : 1})
 		cls.handle().create_index({field + '.code' : 1, field + '.xref' : 1})
 	
-	@classmethod	
+	@classmethod
+	@check_connection
 	def hybrid_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index({field : 1})
