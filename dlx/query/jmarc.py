@@ -123,15 +123,14 @@ def match_field(tag,*tuples):
 		
 	for t in tuples:
 		code = t[0]
-		val_or_xref = t[1]
+		val = t[1]
 		auth_tag = _auth_controlled(tag,code)
 			
 		if auth_tag is None:
-			val = val_or_xref
 			conditions.append(_match_subfield_value(code,val))
 		else:
-			xref = val_or_xref
-			conditions.append(_match_subfield_xref(code,xref))
+			xrefs = _get_xrefs(auth_tag,code,val)
+			conditions.append(_match_subfield_xrefs(code,*xrefs))
 	
 	return SON (
 		data = {
