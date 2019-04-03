@@ -1,12 +1,14 @@
 '''
 '''
 
+import json
+from bson import SON
 from dlx.db import DB
-from dlx.query import *
+from dlx.query import jmarc as Q
 from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
 			
-class JMARC(object):	
+class JMARC(object):
 	_cache = {}
 	
 	## static 
@@ -16,7 +18,7 @@ class JMARC(object):
 		try:
 			return JMARC._cache[xref][code]
 		except:
-			auth = JAUTH.find_id(xref)
+			auth = JAUTH.match_id(xref)
 			value = auth.header_value(code)
 			JMARC._cache[xref] = {}
 			JMARC._cache[xref][code] = value
@@ -30,33 +32,64 @@ class JMARC(object):
 	@classmethod
 	def handle(cls):
 		DB.check_connection()
-		col = 'bibs' if cls.__name__ == 'JBIB' else 'auths'
+		
+		if cls.__name__ == 'JBIB':
+			col = 'bibs'
+		elif cls.__name__ == 'JAUTH':
+			col = 'auths'
+		else:
+			raise Exception('Must call "handle()" from JBIB or JAUTH')
+			
 		return getattr(DB,col)
 		
 	@classmethod
-	def find_id(cls,id):
+	def match_id(cls,id):
 		DB.check_connection()
 		return cls(cls.handle().find_one({'_id' : id}))
-		
+	
 	@classmethod
-	def find_value(cls,tag,code,val):
-		DB.check_connection()
-		return cls(cls.handle().find_one(match_value(tag,code,val)))
-		
-	@classmethod
-	def find_values(cls,tag,code,val):
+	def match_value(cls,tag,code,val):
 		DB.check_connection()
 		
-		cursor = cls.handle().find(match_value(tag,code,val))
+		cursor = cls.handle().find(Q.match_value(tag,code,val))
 		
 		for dict in cursor:
 			yield cls(dict)
 	
 	@classmethod
-	def find_one(cls,doc):
+	def match_value_one(cls,tag,code,val):
 		DB.check_connection()
-		return cls(cls.handle().find_one(doc))
+		return cls(cls.handle().find_one(Q.match_value(tag,code,val)))
+	
+	@classmethod	
+	def match_values(cls,*tuples):
+		DB.check_connection()
 		
+		cursor = cls.handle().find(Q.and_values(*tuples))
+		
+		for dict in cursor:
+			yield cls(dict)
+	
+	@classmethod	
+	def match_values_one(cls,*tuples):
+		DB.check_connection()
+		return cls.handle().find_one(Q.and_values(*tuples))
+	
+	@classmethod	
+	def match_field(cls,tag,*tuples):
+		DB.check_connection()
+		
+		cursor = cls.handle().find(Q.match_field(tag,*tuples))
+		
+		for dict in cursor:
+			yield cls(dict)
+			
+	@classmethod	
+	def match_field_one(cls,tag,*tuples):
+		DB.check_connection()
+		return cls.handle().find_one(Q.match_field(tag,*tuples))
+
+	
 	@classmethod
 	def find(cls,doc):
 		DB.check_connection()
@@ -66,6 +99,11 @@ class JMARC(object):
 		for dict in cursor:
 			yield cls(dict)
 	
+	@classmethod
+	def find_one(cls,doc):
+		DB.check_connection()
+		return cls(cls.handle().find_one(doc))
+		
 	#### database index creation
 	
 	@classmethod
