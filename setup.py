@@ -1,7 +1,7 @@
 
 version = '1.0'
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 classifiers = """
 Intended Audience :: Education
@@ -28,8 +28,9 @@ setup(
     author = 'United Nations Dag Hammarskjöld Library',
     author_email = 'library-ny@un.org',
     license = 'http://www.opensource.org/licenses/bsd-license.php',
-    packages = ['dlx'],
-    install_requires = ['pymongo'],
+    #packages = ['dlx'],
+    packages = find_packages(),
+	install_requires = ['pymongo'],
     description = 'Read, write and modify DLX data.',
     long_description = long_description,
     long_description_content_type = "text/markdown",

@@ -4,7 +4,7 @@
 import json
 from bson import SON
 from dlx.db import DB
-from dlx.query import marc as Q
+from dlx.query import jmarc as Q
 from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
 		
