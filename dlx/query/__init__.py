@@ -1,5 +1,5 @@
 
-from .jmarc import *
+from .marc import *
 from .jfile import *
 
 
