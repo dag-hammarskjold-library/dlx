@@ -1,5 +1,5 @@
 
-from .db import DB
-from .query import *
-from .jmarc import JMARC, JBIB, JAUTH
+from dlx.db import DB
+from dlx.query import *
+from dlx.jmarc import JMARC, JBIB, JAUTH
 
