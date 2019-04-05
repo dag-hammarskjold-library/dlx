@@ -75,6 +75,14 @@ class JMARC(object):
 		
 		for dict in cursor:
 			yield cls(dict)
+			
+	@classmethod	
+	@check_connection
+	def match_values_or(cls,*tuples):
+		cursor = cls.handle().find(Q.or_values(*tuples))
+		
+		for dict in cursor:
+			yield cls(dict)
 	
 	@classmethod	
 	@check_connection
@@ -193,6 +201,14 @@ class JMARC(object):
 	
 	def tags(self):
 		return sorted([x.tag for x in self.get_fields()])
+		
+	def xrefs(self,*tags):
+		ret_vals = []
+		
+		for f in self.datafields:
+			ret_vals = ret_vals + f.xrefs()
+		
+		return ret_vals
 
 	#### utlities 
 	
