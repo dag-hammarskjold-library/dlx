@@ -31,6 +31,9 @@ cursor = dlx.JBIB.match_value('269','a','2012-12-31')
 # match multiple values from different fields
 cursor = dlx.JBIB.match_values(('269','a','2012-12-31'), ('245','a',re.compile('report',re.IGNORECASE)))
 
+# match multiple values using boolean `or`
+cursor = dlx.JBIB.match_values_or(('269','a','2012-12-31'), ('269','a','2013-01-02'))
+
 # match multiple subfield values from same field
 cursor = dlx.JBIB.match_field('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.'))
 
