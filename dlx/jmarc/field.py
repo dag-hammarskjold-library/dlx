@@ -17,6 +17,9 @@ class Datafield(object):
 		self.ind1 = ind1
 		self.ind2 = ind2
 		self.subfields = subfields
+		
+	def xrefs(self):
+		return [sub.xref for sub in filter(lambda x: hasattr(x,'xref'), self.subfields)]
 			
 	def to_bson(self):
 		return SON (
