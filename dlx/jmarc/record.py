@@ -53,7 +53,7 @@ class JMARC(object):
 	@classmethod
 	@check_connection
 	def match_id(cls,id):
-		return cls(cls.handle().find_one({'_id' : id}))
+		return cls.find_one({'_id' : id})
 	
 	@classmethod
 	@check_connection
@@ -93,7 +93,6 @@ class JMARC(object):
 	@check_connection	
 	def match_field_one(cls,tag,*tuples):
 		return cls.handle().find_one(Q.match_field(tag,*tuples))
-
 	
 	@classmethod
 	@check_connection
