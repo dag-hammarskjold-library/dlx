@@ -14,6 +14,7 @@ Connect to the database using a [MongoDB connection string](https://docs.mongodb
 ```python
 #/usr/bin/env python
 
+import re
 import dlx
 
 # connect to DB
