@@ -1,3 +1,4 @@
+
 # dlx
 Provides a Python API to the DLX database
 
@@ -7,13 +8,16 @@ pip install git+https://github.com/dag-hammarskjold-library/dlx
 ```
 
 ### Usage:
+
+Connect to the database using a [MongoDB connection string](https://docs.mongodb.com/manual/reference/connection-string/).
+
 ```python
 #/usr/bin/env python
 
 import dlx
 
 # connect to DB
-dlx.DB.connect('valid Mongo connection string')
+dlx.DB.connect('connection string')
 
 # get JMARC record by ID
 jmarc = dlx.JBIB.match_id(6020)
