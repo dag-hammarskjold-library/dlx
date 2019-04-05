@@ -91,7 +91,7 @@ def and_values(*tuples):
 	)
 
 # provisional				
-def _or_values(*tuples):
+def or_values(*tuples):
 	return SON (
 		data = {
 			'$or' : [match_value(*t) for t in tuples]
