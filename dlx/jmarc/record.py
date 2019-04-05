@@ -1,7 +1,7 @@
 '''
 '''
 
-import json
+import string, json
 from bson import SON
 from dlx.db import DB
 from dlx.query import jmarc as Q
@@ -20,9 +20,12 @@ class JMARC(object):
 		except:
 			auth = JAUTH.match_id(xref)
 			value = auth.header_value(code)
-			JMARC._cache[xref] = {}
-			JMARC._cache[xref][code] = value
 			
+			if xref not in JMARC._cache.keys():
+				JMARC._cache[xref] = {}
+				
+			JMARC._cache[xref][code] = value
+				
 			return value
 		
 	## class
@@ -54,6 +57,11 @@ class JMARC(object):
 	@check_connection
 	def match_id(cls,id):
 		return cls.find_one({'_id' : id})
+		
+	@classmethod
+	@check_connection
+	def match_ids(cls,*ids):
+		return cls.find({'_id' : {'$in' : [*ids]}})
 	
 	@classmethod
 	@check_connection
@@ -101,6 +109,14 @@ class JMARC(object):
 	@check_connection	
 	def match_field_one(cls,tag,*tuples):
 		return cls.handle().find_one(Q.match_field(tag,*tuples))
+		
+	@classmethod
+	@check_connection	
+	def match_xrefs(cls,tag,*xrefs):
+		cursor = cls.handle().find(Q.match_xrefs(tag,*xrefs))
+		
+		for dict in cursor:
+			yield cls(dict)
 	
 	@classmethod
 	@check_connection
@@ -174,27 +190,29 @@ class JMARC(object):
 						
 					self.datafields.append(Datafield(tag,ind1,ind2,subfields))
 	
-	def get_fields(self,tag=None):
-		if tag is None:
+	def get_fields(self,*tags):
+		if len(tags) == 0:
 			return self.controlfields + self.datafields
 			
-		return filter(lambda x: True if x.tag == tag else False, self.controlfields + self.datafields)
+		return filter(lambda x: True if x.tag in tags else False, self.controlfields + self.datafields)
 							
 	def get_field(self,tag):
 		return next(self.get_fields(tag), None)
 			
 	def get_values(self,tag,*codes):
+		if len(codes) == 0:
+			codes = list(string.ascii_lowercase + string.digits)
+					
 		for field in self.get_fields(tag):
 			if field.__class__.__name__ == 'Controlfield':
 				yield field.value
 				raise StopIteration
-	
-			for code in codes:
-				for sub in filter(lambda sub: sub.code == code, field.subfields):
-					if sub.__class__.__name__ == 'Literal':
-						yield sub.value
-					elif sub.__class__.__name__ == 'Linked':
-						yield JMARC.lookup(sub.xref,code)
+			
+			for sub in filter(lambda sub: sub.code in codes, field.subfields):
+				if sub.__class__.__name__ == 'Literal':
+					yield sub.value
+				elif sub.__class__.__name__ == 'Linked':
+					yield JMARC.lookup(sub.xref,sub.code)
 	
 	def get_value(self,tag,code=None):
 		return next(self.get_values(tag,code), None)
@@ -253,8 +271,7 @@ class JMARC(object):
 		mij['fields'] = fields
 		
 		return json.dumps(mij)
-
-
+		
 class JBIB(JMARC):
 	def __init__(self,dict={}):
 		super().__init__(dict)
