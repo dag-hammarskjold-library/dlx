@@ -57,7 +57,7 @@ class DB(object):
 			If the supplied credentials are invalid.
 		"""
 		
-		client = MongoClient(connection_string,serverSelectionTimeoutMS=2)
+		client = MongoClient(connection_string,serverSelectionTimeoutMS=10)
 		
 		# raises pymongo exceptions if connection fails
 		client.admin.command('ismaster')
