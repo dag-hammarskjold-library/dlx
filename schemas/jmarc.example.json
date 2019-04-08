@@ -1,0 +1,29 @@
+{
+	"_id" : 999,
+	"000" : ["leader"],
+	"245" : [
+		{
+			"indicators" : [" "," "],
+			"subfields" : [
+				{
+					"code" : "a",
+					"value" : "This"
+				},
+				{
+					"code" : "b",
+					"value" : "is the"
+				},
+				{
+					"code" : "c",
+					"value" : "title"
+				}
+			]
+		}
+	],
+	"650" : [
+		{
+			"indicators" : [" ", " "],
+			"subfields" : [{"code" : "a", "xref" : 777}]
+		}
+	]
+}

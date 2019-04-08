@@ -1,0 +1,56 @@
+{
+	"_notes:" : [
+		"This schema is only meant to validate the data strucuture, not its values"
+	],
+	
+	"type" : "object",
+	"properties" : {
+		"_id" : true
+	},
+	"patternProperties" : {
+		"^00" :  {
+			"$ref" : "#/subschemas/controlfield"
+		},
+		"^([1-9]..|0[1-9]..)$" : {
+			"$ref" : "#/subschemas/datafield"
+		}
+	},
+	"additionalProperties": false,
+	"required" : ["_id"],
+	
+	"subschemas" : {
+		"controlfield" : {
+			"type" : "array",
+			"items" : {
+				"type" : "string"
+			}
+		},
+		"datafield" : {
+            "type" : "array",
+			"items" : {
+				"type" : "object",
+				"properties" : {
+					"indicators" : {
+						"type" : "array",
+						"items" : {
+							"type" : "string"
+						}
+					},
+					"subfields" : {
+						"type" : "array",
+						"items" : {
+							"type" : "object",
+							"properties" : {
+								"anyOf" : [
+									{"code" : "string"},
+									{"value" : "string"},
+									{"xref" : "int"}
+								]
+							}
+						}
+					}
+				}
+			}
+		}	
+	}
+}
