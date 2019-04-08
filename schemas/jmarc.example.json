@@ -1,6 +1,10 @@
 {
 	"_id" : 999,
 	"000" : ["leader"],
+	"007" : [
+		"another controlfield",
+		"which is repeatable"
+	],
 	"245" : [
 		{
 			"indicators" : [" "," "],

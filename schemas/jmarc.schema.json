@@ -1,5 +1,6 @@
 {
 	"_notes:" : [
+		"This schema is an instance of JSON Schema (http://json-schema.org)",
 		"This schema is only meant to validate the data strucuture, not its values"
 	],
 	
