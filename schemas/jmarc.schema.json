@@ -27,7 +27,7 @@
 			}
 		},
 		"datafield" : {
-            "type" : "array",
+			"type" : "array",
 			"items" : {
 				"type" : "object",
 				"properties" : {
@@ -35,7 +35,9 @@
 						"type" : "array",
 						"items" : {
 							"type" : "string"
-						}
+						},
+						"minItems" : 2,
+						"maxItems" : 2
 					},
 					"subfields" : {
 						"type" : "array",
