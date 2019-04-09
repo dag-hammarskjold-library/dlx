@@ -29,7 +29,7 @@ setup(
     author_email = 'library-ny@un.org',
     license = 'http://www.opensource.org/licenses/bsd-license.php',
     packages = find_packages(),
-    install_requires = ['pymongo>=3'],
+    install_requires = ['pymongo>=3','mongomock'],
     description = 'Read, write and modify DLX data.',
     long_description = long_description,
     long_description_content_type = "text/markdown",

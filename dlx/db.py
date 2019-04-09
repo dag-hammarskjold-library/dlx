@@ -5,6 +5,7 @@ Provides the DB class for connecting to and accessing the database.
 import re
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
+from mongomock import MongoClient as MockClient	
 
 class DB(object):
 	"""Provides a global database connection.
@@ -35,7 +36,7 @@ class DB(object):
 	## class 
 	
 	@classmethod
-	def connect(cls,connection_string):
+	def connect(cls,connection_string,**kwargs):
 		"""Connects to the database and stores database and collection handles
 		as class attributes.
 		
@@ -57,10 +58,16 @@ class DB(object):
 			If the supplied credentials are invalid.
 		"""
 		
-		client = MongoClient(connection_string,serverSelectionTimeoutMS=10)
+		if 'mock' in kwargs.keys():
+			client = MockClient(connection_string,serverSelectionTimeoutMS=10)
+		else:	
+			client = MongoClient(connection_string,serverSelectionTimeoutMS=10)
 		
 		# raises pymongo exceptions if connection fails
-		client.admin.command('ismaster')
+		try:
+			client.admin.command('ismaster')
+		except NotImplementedError:
+			pass
 		
 		DB.connected = True		
 		DB.config['connection_string'] = connection_string
@@ -101,6 +108,8 @@ class DB(object):
 		
 		if DB.connected == False:
 			raise Exception('Not connected to database yet')
+		else:
+			return True
 		
 	
 	
