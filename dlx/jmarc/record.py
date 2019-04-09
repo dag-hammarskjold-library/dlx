@@ -9,7 +9,7 @@ from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
 
 		
-class JMARC(object):
+class MARC(object):
 	_cache = {}
 	
 	## static 
@@ -77,12 +77,12 @@ class JMARC(object):
 	@classmethod
 	@check_connection
 	def handle(cls):
-		if cls.__name__ == 'JBIB':
+		if cls.__name__ in ('Bib', 'JBIB'):
 			col = 'bibs'
-		elif cls.__name__ == 'JAUTH':
+		elif cls.__name__ in ('Auth', 'JAUTH'):
 			col = 'auths'
 		else:
-			raise Exception('Must call `handle()` from JBIB or JAUTH')
+			raise Exception('Must call `handle()` from subclass `Bib` or `Auth`, or `JBIB` or `JAUTH` (deprecated)')
 			
 		return getattr(DB,col)
 		
@@ -346,8 +346,14 @@ class JMARC(object):
 		
 	def to_xml(self):
 		pass
-				
-class JBIB(JMARC):
+
+### deprecated class name (now a subclass of dlx.MARC)
+class JMARC(MARC):
+	def __init__(self,doc={}):
+		super().__init__(doc)
+
+
+class Bib(MARC):
 	def __init__(self,doc={}):
 		super().__init__(doc)
 		
@@ -387,8 +393,14 @@ class JBIB(JMARC):
 			return DB.files.find_one(file_by_symbol_lang(symbol,lang))['uri']
 		except:
 			return ''
-			
-class JAUTH(JMARC):
+
+### deprecated class name (now a subclass of dlx.Bib)
+class JBIB(Bib):
+	def __init__(self,doc={}):
+		super().__init__(doc)
+		
+					
+class Auth(MARC):
 	def __init__(self,doc={}):
 		super().__init__(doc)
 		
@@ -400,3 +412,10 @@ class JAUTH(JMARC):
 			
 		for sub in filter(lambda sub: sub.code == code, self.header.subfields):
 			return sub.value
+			
+### deprecated class name (now a subclass of dlx.Bib)
+class JAUTH(Auth):
+	def __init__(self,doc={}):
+		super().__init__(doc)
+
+		
