@@ -27,7 +27,12 @@
 	"650" : [
 		{
 			"indicators" : [" ", " "],
-			"subfields" : [{"code" : "a", "xref" : 777}]
+			"subfields" : [
+				{
+					"code" : "a", 
+					"xref" : 777
+				}
+			]
 		}
 	]
 }
