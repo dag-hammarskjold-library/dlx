@@ -228,11 +228,15 @@ class MARC(object):
 						
 					self.datafields.append(Datafield(tag,ind1,ind2,subfields))
 	
+	#### "get"-type methods
+	
 	def get_fields(self,*tags):
 		if len(tags) == 0:
 			return self.controlfields + self.datafields
 			
 		return filter(lambda x: True if x.tag in tags else False, self.controlfields + self.datafields)
+		
+		#todo: return sorted by tag
 			
 	def get_field(self,tag):
 		return next(self.get_fields(tag), None)
@@ -265,10 +269,24 @@ class MARC(object):
 			ret_vals = ret_vals + f.xrefs()
 		
 		return ret_vals
-
+		
+	#### "set"-type methods
+	
+	def set_value(self,match_tag,match_code,match_val,new_val):
+		pass
+	
+	def change_tag(self,old_tag,new_tag):
+		pass
+		
+	def delete_tag(self,tag):
+		pass
+	
 	#### utlities 
 	
-	def diff(self,jmarc):
+	def check(self,tag,val):
+		pass
+	
+	def diff(self,marc):
 		pass
 	
 	#### serializations
@@ -327,7 +345,7 @@ class MARC(object):
 			
 		directory += field_terminator
 		data += record_terminator
-		leader_dir_len = len(directory.encode('utf-8')) + 24
+		leader_dir_len = len(directory.encode('utf-8')) + 24 
 		base_address = str(leader_dir_len).zfill(5)
 		total_len = str(leader_dir_len + len(data.encode('utf-8'))).zfill(5)
 		
@@ -345,6 +363,28 @@ class MARC(object):
 		pass	
 		
 	def to_xml(self):
+		pass
+		
+	#### de-serializations
+	# these formats don't fully support linked values.
+	
+	# todo: data coming from these formats should be somehow flagged as 
+	# "externally sourced" and not committed to the DB without revision.
+	#
+	# alternatively, we can try to match string values from known DLX auth-
+	# controlled fields with DLX authority strings and automatically assign
+	# the xref (basically, the Horizon approach)
+		
+	def from_mij(self,string):
+		pass
+		
+	def from_mrc(self,string):
+		pass
+		
+	def from_mrk(self,string):
+		pass
+		
+	def from_xml(self,string):
 		pass
 
 ### deprecated class name (now a subclass of dlx.MARC)
@@ -418,4 +458,3 @@ class JAUTH(Auth):
 	def __init__(self,doc={}):
 		super().__init__(doc)
 
-		
