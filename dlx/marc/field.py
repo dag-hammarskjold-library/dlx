@@ -3,7 +3,14 @@
 
 from bson import SON
 
-class Controlfield(object):
+class Field(object):
+	def __init__(self):
+		raise Exception('Cannot instantiate fom base class')
+		
+	def to_bson(self):
+		raise Exception('This is a stub')
+		
+class Controlfield(Field):
 	def __init__(self,tag,value):
 		self.tag = tag
 		self.value = value
@@ -11,7 +18,7 @@ class Controlfield(object):
 	def to_bson(self):
 		return self.value
 	
-class Datafield(object):
+class Datafield(Field):
 	def __init__(self,tag,ind1,ind2,subfields):
 		self.tag = tag
 		self.ind1 = ind1
