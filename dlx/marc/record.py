@@ -8,6 +8,14 @@ from dlx.query import jmarc as Q
 from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
 
+# decorator
+def check_connection(f):
+	def wrapper(*args):
+		DB.check_connection()
+		
+		return f(*args)
+	
+	return wrapper
 		
 class MARC(object):
 	_cache = {}
@@ -60,19 +68,8 @@ class MARC(object):
 		text += field_terminator
 		
 		return text
-
-	## class
 		
 	#### database query handlers
-	
-	# decorator
-	def check_connection(f):
-		def wrapper(*args):
-			DB.check_connection()
-			
-			return f(*args)
-		
-		return wrapper
 
 	@classmethod
 	@check_connection
@@ -280,8 +277,28 @@ class MARC(object):
 		
 	def delete_tag(self,tag):
 		pass
+		
+		
+	
+	### store
+	
+	def commit(self):
+		# clear the cache so the new value is available
+		MARC._cache = {}
+		
+		# upsert (replace if exists, else new)
+		self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), True)
 	
 	#### utlities 
+	
+	## class
+		
+	def collection(self):
+		name = self.__class__.__name__
+		if self.__class__.__name__ == 'Bib':
+			return DB.bibs
+		elif self.__class__.__name__ == 'Auth':
+			return DB.auths
 	
 	def check(self,tag,val):
 		pass
@@ -433,7 +450,7 @@ class Bib(MARC):
 			return DB.files.find_one(file_by_symbol_lang(symbol,lang))['uri']
 		except:
 			return ''
-
+	
 ### deprecated class name (now a subclass of dlx.Bib)
 class JBIB(Bib):
 	def __init__(self,doc={}):
