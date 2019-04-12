@@ -41,12 +41,12 @@ cursor = dlx.Bib.match_values_or(('269','a','2012-12-31'), ('269','a','2013-01-0
 cursor = dlx.Bib.match_field('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.'))
 
 # iterate
-for marc in cursor:
+for jmarc in cursor:
 
     # `jmarc` is a `dlx.Bib` object
     print('title: ' + ' '.join(jmarc.get_values('245','a','b','c')))
-    print('date: ' + jmarc.get_value('269',a'))
-    print('authors: ' + '; '.join(get_values('710','a')))
+    print('date: ' + jmarc.get_value('269','a'))
+    print('authors: ' + '; '.join(jmarc.get_values('710','a')))
     print('subjects: ' + '; '.join(jmarc.get_values('650','a')))
 		
     print('-' * 100)
