@@ -25,19 +25,19 @@ class MARC(object):
 	@staticmethod
 	def lookup(xref,code):
 		try:
-			return JMARC._cache[xref][code]
+			return MARC._cache[xref][code]
 		except:
-			auth = JAUTH.match_id(xref)
+			auth = Auth.match_id(xref)
 			
 			if auth is None:
 				value = 'N/A'
 			else:	
 				value = auth.header_value(code)
 				
-			if xref not in JMARC._cache.keys():
-				JMARC._cache[xref] = {}
+			if xref not in MARC._cache.keys():
+				MARC._cache[xref] = {}
 				
-			JMARC._cache[xref][code] = value
+			MARC._cache[xref][code] = value
 				
 			return value
 			
@@ -256,10 +256,10 @@ class MARC(object):
 	def get_value(self,tag,code=None):
 		return next(self.get_values(tag,code), None)
 	
-	def tags(self):
+	def get_tags(self):
 		return sorted([x.tag for x in self.get_fields()])
 		
-	def xrefs(self,*tags):
+	def get_xrefs(self,*tags):
 		ret_vals = []
 		
 		for f in self.datafields:
@@ -284,14 +284,13 @@ class MARC(object):
 	
 	def commit(self):
 		# clear the cache so the new value is available
-		MARC._cache = {}
+		if isinstance(self,Auth):	
+			MARC._cache = {}
 		
 		# upsert (replace if exists, else new)
-		self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), True)
+		return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), True)
 	
 	#### utlities 
-	
-	## class
 		
 	def collection(self):
 		name = self.__class__.__name__
@@ -312,7 +311,7 @@ class MARC(object):
 		bson = SON()
 		bson['_id'] = int(self.id)
 		
-		for tag in self.tags():
+		for tag in self.get_tags():
 			bson[tag] = [field.to_bson() for field in self.get_fields(tag)]
 		
 		return bson
