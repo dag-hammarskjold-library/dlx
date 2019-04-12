@@ -5,9 +5,7 @@ Tests for dlx.marc
 from unittest import TestCase
 from dlx import DB, marc, MARC, Bib, Auth
 
-class Test(TestCase):
-	DB.connect('mongodb://.../?authSource=dummy',mock=True)
-		
+class Test(TestCase):	
 	bib_data = {
 		'_id' : 999,
 		'000' : ['leader'],
@@ -53,7 +51,23 @@ class Test(TestCase):
 		'650' : [
 			{
 				'indicators' : [' ', ' '],
-				'subfields' : [{'code' : 'a', 'xref' : 777}]
+				'subfields' : [
+					{
+						'code' : 'a', 
+						'xref' : 777
+					}
+				]
+			}
+		],
+		'710' : [
+			{
+				'indicators' : [' ',' '],
+				'subfields' : [
+					{
+						'code' : 'a',
+						'xref' : 333
+					}
+				]
 			}
 		]
 	}
@@ -72,60 +86,78 @@ class Test(TestCase):
 			}
 		]
 	}
+	
+	def setUp(self):
+		# note: this runs before every test method and clears the mock database
+		DB.connect('mongodb://.../?authSource=dummy',mock=True)
 		
 	def test_record(self):
+		# test instantiation
+		
 		record = MARC(Test.bib_data)
 		self.assertIsInstance(record,MARC)
 		
-		for f in record.controlfields:
+		record = MARC(Test.auth_data)
+		self.assertIsInstance(record,MARC)
+		
+		bib = Bib(Test.bib_data)
+		self.assertIsInstance(bib,Bib)
+		
+		for f in bib.controlfields:
 			self.assertIsInstance(f,marc.field.Controlfield)
 			
-		for f in record.datafields:
+		for f in bib.datafields:
 			self.assertIsInstance(f,marc.field.Datafield)
 			
 			for s in f.subfields:
 				self.assertIsInstance(s,marc.subfield.Subfield)
-			
-	def test_bib(self):
-		Test.bib = Bib(Test.bib_data)
-		self.assertIsInstance(Test.bib,Bib)
-		
-	def test_auth(self):
-		Test.auth = Auth(Test.auth_data)
-		self.assertIsInstance(Test.auth,Auth)
-		
-	def test_commit(self):
-		Test.bib.commit()
-		
-	def test_get_methods(self):
-		record = Test.bib
-		
-		self.assertIsInstance(record.get_field('245'),marc.field.Field)
-		
-		for x in [f for f in record.get_fields()]: 
-			self.assertIsInstance(x,marc.field.Field)
-			
-		self.assertEqual(record.get_value('000'),'leader')	
-		
-		self.assertEqual(record.get_value('245','a'), 'This')
-		
-		self.assertEqual(' '.join(record.get_values('245','a','b','c')), 'This is the title')
-		
-		self.assertEqual(['description','another description'],list(record.get_values('520','a')))
-		
-		# auth lookup returns 'N/A' because there is no auth data in the mock DB yet
-		self.assertEqual(record.get_value('650','a'),'N/A')	
 
-		Test.auth.commit()
+		auth = Auth(Test.auth_data)
+		self.assertIsInstance(auth,Auth)
 		
-		self.assertEqual(record.get_value('650','a'),'header text')
+		# test commit
 		
-		self.assertEqual(record.tags(),['000','245','520','520','650'])
+		self.assertTrue(bib.commit().acknowledged)
+		self.assertTrue(auth.commit().acknowledged)
 		
-	def test_set_methods(self):
+		# test queries
+		
+		self.assertIsInstance(Bib.match_id(999),Bib)		
+		self.assertIsInstance(Auth.match_id(777),Auth)
+		
+		# test get methods
+		
+		self.assertIsInstance(bib.get_field('245'),marc.field.Field)
+		
+		for f in record.get_fields(): 
+			self.assertIsInstance(f,marc.field.Field)
+			
+		self.assertEqual(bib.get_value('000'),'leader')
+		self.assertEqual(bib.get_value('245','a'), 'This')
+		self.assertEqual(' '.join(bib.get_values('245','a','b','c')), 'This is the title')
+		self.assertEqual(['description','another description'],list(bib.get_values('520','a')))
+
+		self.assertEqual(bib.get_value('650','a'),'header text')
+		self.assertEqual(bib.get_value('710','a'),'N/A')
+		
+		self.assertEqual(bib.get_tags(),['000','245','520','520','650','710'])
+		self.assertEqual(bib.get_xrefs(),[777,333])
+		
+		# test set methods
+		#todo
+		
+		# test utility methods
+		#todo
+		
+		# test serializations
+		#todo
+		
+		# test de-serializations
+		#todo
+		
+	def test_bib(self):
 		pass
-		
-	def test_queries(self):
+	
+	def test_auth(self):
 		pass
-		
 		
