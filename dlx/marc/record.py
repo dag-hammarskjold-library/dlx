@@ -73,7 +73,11 @@ class MARC(object):
 	
 	@staticmethod
 	def validate(doc):
-		validate(instance=doc,schema=Configs.jmarc_schema)
+		try:
+			validate(instance=doc,schema=Configs.jmarc_schema)
+		except X.ValidationError as e:
+			msg = '{} in {} : {}'.format(e.message, str(list(e.path)), json.dumps(doc,indent=4))
+			raise X.ValidationError(msg) 
 		
 	#### database query handlers
 
@@ -207,11 +211,7 @@ class MARC(object):
 		if doc is None: 
 			doc = {}
 		else:
-			try:
-				self.validate(doc)
-			except X.ValidationError as e:
-				# todo: parse e to write error msg
-				raise e
+			MARC.validate(doc)
 		
 		if '_id' in doc.keys():
 			self.id = str(doc['_id'])
