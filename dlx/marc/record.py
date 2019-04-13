@@ -284,12 +284,12 @@ class MARC(object):
 		return sorted([x.tag for x in self.get_fields()])
 		
 	def get_xrefs(self,*tags):
-		ret_vals = []
+		xrefs = []
 		
 		for f in self.datafields:
-			ret_vals = ret_vals + f.xrefs()
+			xrefs = xrefs + f.xrefs()
 		
-		return ret_vals
+		return sorted(xrefs)
 		
 	#### "set"-type methods
 	
