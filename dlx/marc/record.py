@@ -2,7 +2,9 @@
 '''
 
 import string, json
+from jsonschema import validate, exceptions as X
 from bson import SON
+from dlx.config import Configs
 from dlx.db import DB
 from dlx.query import jmarc as Q
 from .subfield import Literal, Linked
@@ -68,6 +70,10 @@ class MARC(object):
 		text += field_terminator
 		
 		return text
+	
+	@staticmethod
+	def validate(doc):
+		validate(instance=doc,schema=Configs.jmarc_schema)
 		
 	#### database query handlers
 
@@ -198,7 +204,14 @@ class MARC(object):
 		self.controlfields = []
 		self.datafields = []
 		
-		if doc is None: doc = {}
+		if doc is None: 
+			doc = {}
+		else:
+			try:
+				self.validate(doc)
+			except X.ValidationError as e:
+				# todo: parse e to write error msg
+				raise e
 		
 		if '_id' in doc.keys():
 			self.id = str(doc['_id'])
