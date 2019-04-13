@@ -44,7 +44,7 @@ class MARC(object):
 	@staticmethod
 	def serialize_subfield(sub):
 		if sub.__class__.__name__ == 'Linked':
-			return {sub.code : JMARC.lookup(sub.xref,sub.code)}
+			return {sub.code : MARC.lookup(sub.xref,sub.code)}
 		else:
 			return {sub.code : sub.value}
 			
@@ -63,7 +63,7 @@ class MARC(object):
 				if hasattr(sub,'value'):
 					text += delim + sub.code + sub.value
 				else:
-					text += delim + sub.code + JMARC.lookup(sub.xref,sub.code)
+					text += delim + sub.code + MARC.lookup(sub.xref,sub.code)
 		
 		text += field_terminator
 		
@@ -241,20 +241,31 @@ class MARC(object):
 	def get_values(self,tag,*codes):
 		if len(codes) == 0:
 			codes = list(string.ascii_lowercase + string.digits)
+			
+		vals = []
 					
 		for field in self.get_fields(tag):
 			if field.__class__.__name__ == 'Controlfield':
-				yield field.value
-				raise StopIteration
-			
+				#yield field.value
+				#raise StopIteration
+				return [field.value]
+				
 			for sub in filter(lambda sub: sub.code in codes, field.subfields):
 				if sub.__class__.__name__ == 'Literal':
-					yield sub.value
+					#yield sub.value
+					vals.append(sub.value)
 				elif sub.__class__.__name__ == 'Linked':
-					yield JMARC.lookup(sub.xref,sub.code)
+					#yield MARC.lookup(sub.xref,sub.code)
+					vals.append(MARC.lookup(sub.xref,sub.code))
+					
+		return vals
 	
 	def get_value(self,tag,code=None):
-		return next(self.get_values(tag,code), None)
+		#return next(self.get_values(tag,code), None)
+		try: 
+			return self.get_values(tag,code)[0]
+		except:
+			return None
 	
 	def get_tags(self):
 		return sorted([x.tag for x in self.get_fields()])
@@ -334,7 +345,7 @@ class MARC(object):
 			fields.append(
 				{
 					f.tag : {
-						'subfields' : [JMARC.serialize_subfield(sub) for sub in f.subfields],
+						'subfields' : [MARC.serialize_subfield(sub) for sub in f.subfields],
 						'ind1' : f.ind1,
 						'ind2' : f.ind2,
 					}
@@ -353,7 +364,7 @@ class MARC(object):
 		record_terminator = u'\u001d'
 		
 		for f in filter(lambda x: x.tag != '000', self.get_fields()):
-			text = JMARC.field_text(f)
+			text = MARC.field_text(f)
 			data += text
 			field_length = len(text.encode('utf-8'))
 			directory += f.tag + str(field_length).zfill(4) + str(next_start).zfill(5)
