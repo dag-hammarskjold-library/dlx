@@ -31,4 +31,4 @@ class Linked(Subfield):
 		self.xref = int(xref)
 		
 	def to_bson(self):
-		return SON(data = {'code' : self.xref, 'xref' : self.xref})
+		return SON(data = {'code' : self.code, 'xref' : self.xref})
