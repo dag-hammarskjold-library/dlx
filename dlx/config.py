@@ -1,11 +1,13 @@
 
+import os
 import json
 
 class Configs(object):
 	
 	# schemas
-	with open('schemas/jmarc.schema.json') as x: jmarc_schema = json.loads(x.read())
-	#with open('schemas/jfile.schema.json') as x: jfile_schema = json.loads(x.read())
+	schema_dir = os.path.dirname(__file__) + '/../schemas/'
+	with open(schema_dir + 'jmarc.schema.json') as x: jmarc_schema = json.loads(x.read())
+	#with open(schema_dir + '/jfile.schema.json') as x: jfile_schema = json.loads(x.read())
 	
 	# this is used by dlx.query to locate the linked value
 	authority_controlled = {
