@@ -45,7 +45,7 @@ class MARC(object):
 			
 	@staticmethod
 	def serialize_subfield(sub):
-		if sub.__class__.__name__ == 'Linked':
+		if isinstance(sub,Linked):
 			return {sub.code : MARC.lookup(sub.xref,sub.code)}
 		else:
 			return {sub.code : sub.value}
@@ -56,7 +56,7 @@ class MARC(object):
 		field_terminator = u'\u001e'
 		text = ''
 
-		if f.__class__.__name__ == 'Controlfield':
+		if isinstance(f,Controlfield):
 			text = f.value
 		else:
 			text += f.ind1 + f.ind2
@@ -258,17 +258,13 @@ class MARC(object):
 		vals = []
 					
 		for field in self.get_fields(tag):
-			if field.__class__.__name__ == 'Controlfield':
-				#yield field.value
-				#raise StopIteration
+			if isinstance(field,Controlfield):
 				return [field.value]
 				
 			for sub in filter(lambda sub: sub.code in codes, field.subfields):
-				if sub.__class__.__name__ == 'Literal':
-					#yield sub.value
+				if isinstance(sub,Literal):
 					vals.append(sub.value)
-				elif sub.__class__.__name__ == 'Linked':
-					#yield MARC.lookup(sub.xref,sub.code)
+				elif isinstance(sub,Linked):
 					vals.append(MARC.lookup(sub.xref,sub.code))
 					
 		return vals
@@ -317,10 +313,9 @@ class MARC(object):
 	#### utlities 
 		
 	def collection(self):
-		name = self.__class__.__name__
-		if self.__class__.__name__ == 'Bib':
+		if isinstance(self,Bib):
 			return DB.bibs
-		elif self.__class__.__name__ == 'Auth':
+		elif isinstance(self,Auth):
 			return DB.auths
 	
 	def check(self,tag,val):
