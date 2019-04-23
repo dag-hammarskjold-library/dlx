@@ -127,11 +127,7 @@ class Data(object):
 	
 	invalid = {
 		'_id' : 'string invalid',
-<<<<<<< HEAD
 		'150' : [
-=======
-		'100' : [
->>>>>>> ae91d94cb77cfad9edbf5231def197929eaab427
 			{
 				'indicators' : [' ', ' '],
 				'subfields' : [
@@ -213,7 +209,6 @@ class Query(TestCase):
 		bib = Bib.match_id(999)	
 		self.assertIsInstance(bib,Bib)
 		self.assertEqual(bib.id,999)
-<<<<<<< HEAD
 		
 		auth = Auth.match_id(777)		
 		self.assertIsInstance(auth,Auth)
@@ -285,8 +280,6 @@ class Query(TestCase):
 		bibs = list(bibs)
 		for bib in bibs: self.assertIsInstance(bib,Bib)
 		self.assertEqual(len(bibs),2)
-	
-=======
 		
 		auth = Auth.match_id(777)		
 		self.assertIsInstance(auth,Auth)
@@ -343,7 +336,6 @@ class Query(TestCase):
 		#todo
 		pass
 		
->>>>>>> ae91d94cb77cfad9edbf5231def197929eaab427
 	def test_match_xrefs(self):
 		bibs = Bib.match_xrefs('650','a',777)
 		self.assertIsInstance(bibs,Generator)
@@ -375,12 +367,8 @@ class Get(TestCase):
 		Auth(Data.jauth).commit()
 		
 		auth = Auth.match_id(777)
-		
-<<<<<<< HEAD
+
 		self.assertEqual(auth.get_value('150','a'), 'header text')
-=======
-		self.assertEqual(auth.get_value('100','a'), 'header text')
->>>>>>> ae91d94cb77cfad9edbf5231def197929eaab427
 		
 	def test_lookup(self):
 		# test auth lookup
