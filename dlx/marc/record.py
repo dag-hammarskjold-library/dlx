@@ -153,10 +153,32 @@ class MARC(object):
 	@classmethod
 	@check_connection	
 	def match_fields(cls,*tuples):
-		for t in tuples:
-			pass
+		field_matchers = []
 		
-		#todo	
+		for t in tuples:
+			tag = t[0]
+			pairs = t[1:]
+			field_matchers.append(Q.match_field(tag,*pairs))
+				
+		cursor = cls.handle().find({'$and' : field_matchers})
+		
+		for doc in cursor:
+			yield cls(doc)
+			
+	@classmethod
+	@check_connection	
+	def match_fields_or(cls,*tuples):
+		field_matchers = []
+		
+		for t in tuples:
+			tag = t[0]
+			pairs = t[1:]
+			field_matchers.append(Q.match_field(tag,*pairs))
+				
+		cursor = cls.handle().find({'$or' : field_matchers})
+		
+		for doc in cursor:
+			yield cls(doc)
 		
 	@classmethod
 	@check_connection	
