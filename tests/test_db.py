@@ -18,3 +18,5 @@ class Test(TestCase):
 		self.assertIsInstance(DB.auths,mongomock.Collection)
 		self.assertIsInstance(DB.files,mongomock.Collection)
 		self.assertIsInstance(DB.config,dict)
+
+	

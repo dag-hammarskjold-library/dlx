@@ -37,17 +37,29 @@ cursor = dlx.Bib.match_values(('269','a','2012-12-31'), ('245','a',re.compile('r
 # match multiple values using boolean `or`
 cursor = dlx.Bib.match_values_or(('269','a','2012-12-31'), ('269','a','2013-01-02'))
 
-# match multiple subfield values from same field
+# match multiple subfield values within the same field
 cursor = dlx.Bib.match_field('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.'))
 
-# iterate
-for jmarc in cursor:
+# match multiple fields using subfield values within the same field 
+cursor = dlx.Bib.match_fields (
+    ('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.')),
+    ('260',('a',re.compile('Geneva')))
+)
 
-    # `jmarc` is a `dlx.Bib` object
-    print('title: ' + ' '.join(jmarc.get_values('245','a','b','c')))
-    print('date: ' + jmarc.get_value('269','a'))
-    print('authors: ' + '; '.join(jmarc.get_values('710','a')))
-    print('subjects: ' + '; '.join(jmarc.get_values('650','a')))
+# match multiple fields using subfield values withing the same field using boolean `or`
+cursor = dlx.Bib.match_fields_or (
+    ('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.')),
+    ('245',('a',re.compile('^Report of the Symposium on Stock Enhancement in the Management of Freshwater Fisheries')))
+)
+
+# iterate
+for bib in cursor:
+
+    # `bib` is a `dlx.Bib` object
+    print('title: ' + ' '.join(bib.get_values('245','a','b','c')))
+    print('date: ' + bib.get_value('269','a'))
+    print('authors: ' + '; '.join(bib.get_values('710','a')))
+    print('subjects: ' + '; '.join(bib.get_values('650','a')))
 		
     print('-' * 100)
     
