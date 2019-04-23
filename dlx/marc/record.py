@@ -148,12 +148,20 @@ class MARC(object):
 	@classmethod
 	@check_connection	
 	def match_field_one(cls,tag,*tuples):
-		return cls.handle().find_one(Q.match_field(tag,*tuples))
+		return cls(cls.handle().find_one(Q.match_field(tag,*tuples)))
+	
+	@classmethod
+	@check_connection	
+	def match_fields(cls,*tuples):
+		for t in tuples:
+			pass
+		
+		#todo	
 		
 	@classmethod
 	@check_connection	
-	def match_xrefs(cls,tag,*xrefs):
-		cursor = cls.handle().find(Q.match_xrefs(tag,*xrefs))
+	def match_xrefs(cls,tag,code,*xrefs):
+		cursor = cls.handle().find(Q.match_xrefs(tag,code,*xrefs))
 		
 		for doc in cursor:
 			yield cls(doc)
