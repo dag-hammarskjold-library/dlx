@@ -135,7 +135,7 @@ class MARC(object):
 	@classmethod	
 	@check_connection
 	def match_values_one(cls,*tuples):
-		return cls.handle().find_one(Q.and_values(*tuples))
+		return cls(cls.handle().find_one(Q.and_values(*tuples)))
 	
 	@classmethod
 	@check_connection
@@ -214,7 +214,7 @@ class MARC(object):
 			MARC.validate(doc)
 		
 		if '_id' in doc.keys():
-			self.id = str(doc['_id'])
+			self.id = int(doc['_id'])
 		
 		for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
 			
@@ -298,14 +298,13 @@ class MARC(object):
 	def delete_tag(self,tag):
 		pass
 		
-		
-	
 	### store
 	
 	def commit(self):
 		# clear the cache so the new value is available
-		if isinstance(self,Auth):	
-			MARC._cache = {}
+		if isinstance(self,Auth): MARC._cache = {}
+		
+		MARC.validate(self.to_dict())
 		
 		# upsert (replace if exists, else new)
 		return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), True)

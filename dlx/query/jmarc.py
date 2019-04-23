@@ -70,6 +70,13 @@ def match_value(tag,code,val):
 	
 	valtype = val.__class__.__name__
 	
+	if code is None:
+		return SON (
+			data = {
+				tag : val
+			}
+		)
+	
 	auth_tag = _auth_controlled(tag,code)
 	
 	if auth_tag is None:
@@ -108,6 +115,8 @@ def match_field(tag,*tuples):
 	*tuples : (code [str], val [str / Pattern])
 		Accepts arbitrary number of tuples composed of the code and value to 
 		match against. Value can be a str or Pattern.
+	
+		Use `None` as the subfield code if the field is a controlfield.
 	
 	Returns
 	-------
