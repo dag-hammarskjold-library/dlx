@@ -27,11 +27,7 @@ class DB(object):
 	bibs = None
 	auths = None
 	files = None
-	config = {
-		'bibs_collection_name' : 'bibs',
-		'auths_collection_name' : 'auths',
-		'files_collection_name' : 'files',
-	}
+	config = {}
 	
 	## class 
 	
@@ -81,9 +77,9 @@ class DB(object):
 			raise Exception('Could not parse database name from connection string')
 			
 		DB.handle = client[DB.config['database_name']]
-		DB.bibs = DB.handle[DB.config['bibs_collection_name']]
-		DB.auths = DB.handle[DB.config['auths_collection_name']]
-		DB.files = DB.handle[DB.config['files_collection_name']]
+		DB.bibs = DB.handle['bibs']
+		DB.auths = DB.handle['auths']
+		DB.files = DB.handle['files']
 		
 		return DB.handle
 	
