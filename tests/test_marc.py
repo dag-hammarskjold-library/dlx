@@ -220,7 +220,8 @@ class Query(TestCase):
 		bibs = list(bibs)
 		self.assertEqual(len(bibs),2)
 		for bib in bibs: self.assertIsInstance(bib,Bib)
-		
+	
+	def test_match_controlfield_value_one(self):		
 		bib = Bib.match_value_one('000',None,'leader')
 		self.assertIsInstance(bib,Bib)
 		self.assertEqual(bib.id,999)
@@ -231,7 +232,8 @@ class Query(TestCase):
 		bibs = list(bibs)
 		for bib in bibs: self.assertIsInstance(bib,Bib)
 		self.assertEqual(len(bibs),2)
-		
+	
+	def test_match_datafield_value_one(self):	
 		bib = Bib.match_value_one('245','c','title')
 		self.assertIsInstance(bib,Bib)
 		self.assertEqual(bib.id,999)
@@ -287,7 +289,26 @@ class Query(TestCase):
 		bibs = list(bibs)
 		for bib in bibs: self.assertIsInstance(bib,Bib)
 		self.assertEqual(len(bibs),2)
+
+class Index(TestCase):
+	def setUp(self):
+		DB.connect('mongodb://.../?authSource=dummy',mock=True)
 		
+		Bib(Data.jbib).commit()
+		Auth(Data.jauth).commit()
+	
+	def test_controlfield_index(self):
+		Bib.literal_index('000')
+	
+	def test_literal_index(self):
+		Bib.literal_index('245')
+		
+	def test_linked_index(self):
+		Bib.linked_index('650')
+		
+	def test_hybrid_index(self):
+		Bib.hybrid_index('710')
+	
 class Get(TestCase):
 	def setUp(self):
 		DB.connect('mongodb://.../?authSource=dummy',mock=True)
