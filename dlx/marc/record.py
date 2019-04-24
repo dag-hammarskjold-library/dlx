@@ -3,6 +3,7 @@
 
 import string, json
 from jsonschema import validate, exceptions as X
+from pymongo import ASCENDING, DESCENDING
 from bson import SON
 from dlx.config import Configs
 from dlx.db import DB
@@ -171,7 +172,12 @@ class MARC(object):
 	@classmethod
 	@check_connection	
 	def match_fields_or(cls,*tuples):
-		return cls.match_fields(*tuples,OR=1)
+		return cls.match_fields(*tuples,OR=True)
+	
+	@classmethod
+	@check_connection	
+	def match_fields_one(cls,*tuples):
+		return next(cls.match_fields(*tuples),None)
 		
 	@classmethod
 	@check_connection	
@@ -202,28 +208,28 @@ class MARC(object):
 	@classmethod
 	@check_connection
 	def controlfield_index(cls,tag):
-		cls.handle().create_index({tag : 1})
+		cls.handle().create_index(tag)
 	
 	@classmethod
 	@check_connection
 	def literal_index(cls,tag):
 		field = tag + '.subfields'
-		cls.handle().create_index({field : 1})
-		cls.handle().create_index({field + '.code' : 1, field + '.value' : 1})
+		cls.handle().create_index(field)
+		cls.handle().create_index([(field + '.code', ASCENDING), (field + '.value', ASCENDING)])
 	
 	@classmethod
 	@check_connection
 	def linked_index(cls,tag):
 		field = tag + '.subfields'
-		cls.handle().create_index({field : 1})
-		cls.handle().create_index({field + '.code' : 1, field + '.xref' : 1})
+		cls.handle().create_index(field)
+		cls.handle().create_index([(field + '.code', ASCENDING), (field + '.xref', ASCENDING)])
 	
 	@classmethod
 	@check_connection
 	def hybrid_index(cls,tag):
 		field = tag + '.subfields'
-		cls.handle().create_index({field : 1})
-		cls.handle().create_index({field + '.code' : 1, field + '.value' : 1, field + '.xref' : 1})
+		cls.handle().create_index(field)
+		cls.handle().create_index([(field + '.code', ASCENDING), (field + '.value', ASCENDING), (field + '.xref', ASCENDING)])
 	
 	## instance 
 	
