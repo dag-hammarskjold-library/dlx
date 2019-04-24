@@ -333,8 +333,24 @@ class Query(TestCase):
 		self.assertEqual(bib.id,999)
 		
 	def test_match_fields(self):
-		#todo
-		pass
+		bibs = Bib.match_fields (
+			('245',('b','is the'),('c','title')),
+			('650',('a','header text'))
+		)
+		self.assertIsInstance(bibs,Generator)
+		bibs = list(bibs)
+		for bib in bibs: self.assertIsInstance(bib,Bib)
+		self.assertEqual(len(bibs),2)
+	
+	def test_match_fields_or(self):
+		bibs = Bib.match_fields_or (
+			('245',('b','is the'),('c','title')),
+			('245',('a','Another'))
+		)
+		self.assertIsInstance(bibs,Generator)
+		bibs = list(bibs)
+		for bib in bibs: self.assertIsInstance(bib,Bib)	
+		self.assertEqual(len(bibs),2)
 		
 	def test_match_xrefs(self):
 		bibs = Bib.match_xrefs('650','a',777)
