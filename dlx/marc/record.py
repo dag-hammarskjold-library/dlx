@@ -12,10 +12,10 @@ from .field import Controlfield, Datafield
 
 # decorator
 def check_connection(f):
-	def wrapper(*args):
+	def wrapper(*args,**kwargs):
 		DB.check_connection()
 		
-		return f(*args)
+		return f(*args,**kwargs)
 	
 	return wrapper
 		
@@ -152,15 +152,18 @@ class MARC(object):
 	
 	@classmethod
 	@check_connection	
-	def match_fields(cls,*tuples):
+	def match_fields(cls,*tuples,**kwargs):
 		field_matchers = []
 		
 		for t in tuples:
 			tag = t[0]
 			pairs = t[1:]
 			field_matchers.append(Q.match_field(tag,*pairs))
-				
-		cursor = cls.handle().find({'$and' : field_matchers})
+		
+		if 'OR' in kwargs.keys():
+			cursor = cls.handle().find({'$or' : field_matchers})
+		else:
+			cursor = cls.handle().find({'$and' : field_matchers})
 		
 		for doc in cursor:
 			yield cls(doc)
@@ -168,17 +171,7 @@ class MARC(object):
 	@classmethod
 	@check_connection	
 	def match_fields_or(cls,*tuples):
-		field_matchers = []
-		
-		for t in tuples:
-			tag = t[0]
-			pairs = t[1:]
-			field_matchers.append(Q.match_field(tag,*pairs))
-				
-		cursor = cls.handle().find({'$or' : field_matchers})
-		
-		for doc in cursor:
-			yield cls(doc)
+		return cls.match_fields(*tuples,OR=1)
 		
 	@classmethod
 	@check_connection	
