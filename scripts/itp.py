@@ -5,7 +5,6 @@ Parameters:
 [2] session
 
 Usage:
-> pip install git+https://github.com/dag-hammarskjold-library/dlx
 > python itp.py <connection string> S/ 70
 
 Output:
