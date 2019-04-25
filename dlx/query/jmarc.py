@@ -147,6 +147,34 @@ def match_field(tag,*tuples):
 			}
 		}
 	)
+
+def and_fields(*tuples):
+	field_matchers = _field_matchers(*tuples)
+		
+	return SON (
+		data = {
+			'$and' : field_matchers
+		}
+	)
+	
+def or_fields(*tuples):
+	field_matchers = _field_matchers(*tuples)
+			
+	return SON (
+		data = {
+			'$or' : field_matchers
+		}
+	)
+	
+def _field_matchers(*tuples):
+	field_matchers = []
+		
+	for t in tuples:
+		tag = t[0]
+		pairs = t[1:]
+		field_matchers.append(match_field(tag,*pairs))
+		
+	return field_matchers
 	
 # provisional
 def _match_tag(tag):
