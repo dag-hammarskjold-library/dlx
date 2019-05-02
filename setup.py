@@ -1,6 +1,7 @@
 
-version = '1.0'
+version = '1.1'
 
+import sys
 from setuptools import setup, find_packages
 
 classifiers = """
@@ -30,7 +31,7 @@ setup(
     license = 'http://www.opensource.org/licenses/bsd-license.php',
     packages = find_packages(exclude=['tests']),
     test_suite = 'tests',
-    data_files = [('schemas',['schemas/jmarc.schema.json'])],
+    data_files = [('schemas',['schemas/jmarc.schema.json'])], 
     install_requires = ['pymongo>=3','mongomock','jsonschema'],
     description = 'Read, write and modify DLX data.',
     long_description = long_description,
