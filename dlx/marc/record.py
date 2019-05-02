@@ -27,6 +27,8 @@ class MARC(object):
 	
 	@staticmethod
 	def lookup(xref,code):
+		DB.check_connection()
+		
 		try:
 			return MARC._cache[xref][code]
 		except:
@@ -83,8 +85,9 @@ class MARC(object):
 	#### database query handlers
 
 	@classmethod
-	@check_connection
 	def handle(cls):
+		DB.check_connection()
+		
 		if cls.__name__ in ('Bib', 'JBIB'):
 			col = 'bibs'
 		elif cls.__name__ in ('Auth', 'JAUTH'):
@@ -95,103 +98,268 @@ class MARC(object):
 		return getattr(DB,col)
 		
 	@classmethod
-	@check_connection
 	def match_id(cls,id):
+		"""Finds the record by ID.
+		
+		Parameters
+		----------
+		id : int
+		
+		Returns
+		-------
+		dlx.Bib / dlx.Auth
+			Depending on which subclass it was called on.
+			
+		Examples
+		--------
+		>>> bib = dlx.Bib.match_id(100000)
+		>>> print(bib.symbol())
+		"""
+		
 		return cls.find_one({'_id' : id})
 		
 	@classmethod
-	@check_connection
 	def match_ids(cls,*ids):
+		"""Finds records by a list of IDs.
+		
+		Parameters
+		----------
+		*ids : int
+		
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
+		
+		Examples
+		--------
+		>>> bibs = dlx.Bib.match_ids(99999, 100000)
+		>>> for bib in bibs:
+		>>> 	print(bib.symbol())
+		"""
+		
 		return cls.find({'_id' : {'$in' : [*ids]}})
 	
 	@classmethod
-	@check_connection
 	def match_value(cls,tag,code,val):
+		"""Performs a query for a single MARC value in the database and returns a generator object which yields the results.
+		
+		Parameters
+		----------
+		tag : str
+			The field tag to match.
+		code : str / None
+			The subfield code to match. Use `None` as the code if matching a controlfield value.
+		val : str / Pattern
+			Exact string value or compiled pattern to match. 
+	
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
+	
+		Examples
+		-------
+		>>> auths = dlx.Auth.match_value('100', 'a', re.compile('Hammarskjöld'))
+		>>>	auth = next(auths)
+		>>>	print(auth.get_value('100','a'))
+		"""
+		
 		cursor = cls.handle().find(Q.match_value(tag,code,val))
 		
 		for doc in cursor:
 			yield cls(doc)
-	
-	@classmethod
-	@check_connection
-	def match_value_one(cls,tag,code,val):
+		
 		return cls(cls.handle().find_one(Q.match_value(tag,code,val)))
 	
 	@classmethod	
-	@check_connection
 	def match_values(cls,*tuples):
+		"""Performs a query for a multiple MARC values in the database and returns a generator object which yields the results.
+		
+		The query will be a boolean `and` search.
+	
+		Parameters
+		----------
+		*tuples : tag [str], code [str], val [str / Pattern] 
+			Accepts arbitrary number of tuples composed of the code and value to 
+			match against. Value can be a str or Pattern.
+	
+			Use `None` as the subfield code if the field is a controlfield.
+	
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
+	
+		Examples
+		-------
+		>>> bibs = dlx.Bib.match_values(,
+		>>> 	('269', 'a', re.compile('^1999')),
+		>>> 	('650', 'a', 'HUMAN RIGHTS')
+		>>> ) 
+		>>> for bib in bib:
+		>>> 	print(bib.symbol())
+		"""
 		cursor = cls.handle().find(Q.and_values(*tuples))
 		
 		for doc in cursor:
 			yield cls(doc)
 			
 	@classmethod	
-	@check_connection
 	def match_values_or(cls,*tuples):
+		"""Performs a query for a multiple MARC values in the database and returns a generator object which yields the results.
+		
+		The same as `dlx.Marc.match_values()` except that the query will be a boolean `or` search.
+		"""		
+		
 		cursor = cls.handle().find(Q.or_values(*tuples))
 		
 		for doc in cursor:
 			yield cls(doc)
 	
-	@classmethod	
-	@check_connection
-	def match_values_one(cls,*tuples):
-		return cls(cls.handle().find_one(Q.and_values(*tuples)))
-	
 	@classmethod
-	@check_connection
 	def match_field(cls,tag,*tuples):
+		"""Performs a query for a multiple subfield values in the database within the same MARC field.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
+		Parameters
+		----------
+		tag : str
+			The field tag to match.
+		*tuples : (code [str], val [str / Pattern])
+			Accepts arbitrary number of tuples composed of the code and value to 
+			match against. Value can be a str or Pattern.
+		
+			Use `None` as the subfield code if the field is a controlfield.
+		
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.
+		
+		Examples
+		-------
+		>>> bibs = dlx.Bib.match_field(
+		>>> 	'191', 
+		>>> 	('b', 'A/'), 
+		>>> 	('c', '73')
+		>>> ) 
+		>>>	for bib in bibs: 
+		>>>		print(bib.symbol())
+		"""
+
 		cursor = cls.handle().find(Q.match_field(tag,*tuples))
 		
 		for doc in cursor:
 			yield cls(doc)
-			
-	@classmethod
-	@check_connection	
-	def match_field_one(cls,tag,*tuples):
-		return cls(cls.handle().find_one(Q.match_field(tag,*tuples)))
 	
 	@classmethod
-	@check_connection	
-	def match_fields(cls,*tuples):
-		cursor = cls.handle().find(Q.and_fields(*tuples))
-
-		for doc in cursor:
-			yield cls(doc)
-			
-	@classmethod
-	@check_connection	
-	def match_fields_or(cls,*tuples):
-		cursor = cls.handle().find(Q.or_fields(*tuples))
-
-		for doc in cursor:
-			yield cls(doc)
-	
-	@classmethod
-	@check_connection	
-	def match_fields_one(cls,*tuples):
-		return next(cls.match_fields(*tuples),None)
+	def match_fields(cls,*tuples_of_tuples):
+		"""Performs a query for a series of fields containing multiple subfield values within.
 		
-	@classmethod
-	@check_connection	
+		The query will be a boolean `and` search.
+		
+		Parameters
+		----------
+		*tuples_of_tuples : (tag [str], *more_tuples : (code [str], val [str / Pattern]))
+			Accepts an arbitrary number of "tuples of tuples" where the first element is the tag,
+			and the rest of the elements are tuples composed of a code and value to match against.
+			
+			`val` can be composed of a string value or compiled pattern to match against.
+		
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which `dlx.MARC` subclass it was called on.
+		
+		Examples
+		---------
+		>>> bibs = dlx.Bib.match_fields(
+		>>> 	(
+		>>> 		'191', 
+		>>>			('a', re.compile('^A/RES/'),
+		>>>			('c', '73')
+		>>>		),
+		>>> 	(
+		>>> 		'650', 
+		>>>			('a', 'HUMAN RIGHTS')
+		>>>		)
+		>>>	)
+		"""
+		
+		cursor = cls.handle().find(Q.and_fields(*tuples_of_tuples))
+
+		for doc in cursor:
+			yield cls(doc)
+			
+	@classmethod	
+	def match_fields_or(cls,*tuples_of_tuples):
+		"""Performs a query for a series of fields containing multiple subfield values within.
+		
+		The same as `dlx.Marc.match_fields() except that the query will be a boolean `or` search.
+		"""
+		
+		cursor = cls.handle().find(Q.or_fields(*tuples_of_tuples))
+
+		for doc in cursor:
+			yield cls(doc)
+			
+	@classmethod	
 	def match_xrefs(cls,tag,code,*xrefs):
+		"""Performs a query for all the records that contain an Xref in a list of Xrefs.
+		
+		Parameters
+		---------
+		tag : str
+		code : str
+		*xrefs : int
+			Variable-length list of Xrefs to mathc against
+		
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which `dlx.MARC` subclass it was called on.
+		"""
+		
 		cursor = cls.handle().find(Q.match_xrefs(tag,code,*xrefs))
 		
 		for doc in cursor:
 			yield cls(doc)
 	
 	@classmethod
-	@check_connection
-	def find(cls,doc):
-		cursor = cls.handle().find(doc)
+	def find(cls,filter,*pymongo_params):
+		"""Performs a `pymongo` query.
+.
+		This method calls `pymongo.collection.Collection.find()` directly on the 'bibs' or `auths` database 
+		collection.
+		
+		Parameters
+		----------
+		filter : bson.SON
+			A valid `pymongo` query filter against the raw JMARC data in the database.			
+		*pymongo_params	: ...
+			Passes all remaining arguments to `pymongo.collection.Collection.find())
+		
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which `dlx.MARC` subclass it was called on.
+		"""
+		
+		cursor = cls.handle().find(filter)
 		
 		for doc in cursor:
-			yield cls(doc)
+			yield cls(doc,*pymongo_params)
 	
 	@classmethod
-	@check_connection
-	def find_one(cls,doc):
-		found = cls.handle().find_one(doc)
+	def find_one(cls,filter):
+		"""Performs a `Pymongo` query.
+		
+		The same as `dlx.Marc.find()` except it returns only the first result as a `dlx.Bib` or `dlx.Auth`
+		instance depending on which `dlx.MARC` subclass it was called on.
+		"""
+		
+		found = cls.handle().find_one(filter)
 		
 		if found is not None:
 			return cls(found)
@@ -204,21 +372,18 @@ class MARC(object):
 		cls.handle().create_index(tag)
 	
 	@classmethod
-	@check_connection
 	def literal_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index(field)
 		cls.handle().create_index([(field + '.code', ASCENDING), (field + '.value', ASCENDING)])
 	
 	@classmethod
-	@check_connection
 	def linked_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index(field)
 		cls.handle().create_index([(field + '.code', ASCENDING), (field + '.xref', ASCENDING)])
 	
 	@classmethod
-	@check_connection
 	def hybrid_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index(field)

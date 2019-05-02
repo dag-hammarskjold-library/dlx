@@ -220,11 +220,6 @@ class Query(TestCase):
 		bibs = list(bibs)
 		self.assertEqual(len(bibs),2)
 		for bib in bibs: self.assertIsInstance(bib,Bib)
-	
-	def test_match_controlfield_value_one(self):		
-		bib = Bib.match_value_one('000',None,'leader')
-		self.assertIsInstance(bib,Bib)
-		self.assertEqual(bib.id,999)
 		
 	def test_match_datafield_value(self):
 		bibs = Bib.match_value('650','a','header text')
@@ -232,11 +227,6 @@ class Query(TestCase):
 		bibs = list(bibs)
 		for bib in bibs: self.assertIsInstance(bib,Bib)
 		self.assertEqual(len(bibs),2)
-	
-	def test_match_datafield_value_one(self):	
-		bib = Bib.match_value_one('245','c','title')
-		self.assertIsInstance(bib,Bib)
-		self.assertEqual(bib.id,999)
 		
 	def test_match_values(self):
 		bibs = Bib.match_values(('000',None,'leader'),('245','c','title'))
@@ -259,7 +249,6 @@ class Query(TestCase):
 		for bib in bibs: self.assertIsInstance(bib,Bib)
 		self.assertEqual(len(bibs),2)
 		
-		bib = Bib.match_field_one('245',('b','is the'),('c','title'))
 		self.assertIsInstance(bib,Bib)
 		self.assertEqual(bib.id,999)
 		
@@ -334,6 +323,7 @@ class Get(TestCase):
 		
 		auth = Auth.match_id(777)
 		self.assertEqual(auth.get_value('150','a'), 'header text')
+		self.assertEqual(auth.header_value('a'), 'header text')
 		
 	def test_lookup(self):
 		# test auth lookup
