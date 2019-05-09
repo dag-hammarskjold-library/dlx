@@ -27,6 +27,8 @@ class MARC(object):
 	
 	@staticmethod
 	def lookup(xref,code):
+		DB.check_connection()
+		
 		try:
 			return MARC._cache[xref][code]
 		except:
@@ -83,8 +85,9 @@ class MARC(object):
 	#### database query handlers
 
 	@classmethod
-	@check_connection
 	def handle(cls):
+		DB.check_connection()
+		
 		if cls.__name__ in ('Bib', 'JBIB'):
 			col = 'bibs'
 		elif cls.__name__ in ('Auth', 'JAUTH'):
@@ -95,85 +98,231 @@ class MARC(object):
 		return getattr(DB,col)
 		
 	@classmethod
-	@check_connection
 	def match_id(cls,id):
 		return cls.find_one({'_id' : id})
 		
 	@classmethod
-	@check_connection
 	def match_ids(cls,*ids):
 		return cls.find({'_id' : {'$in' : [*ids]}})
 	
 	@classmethod
-	@check_connection
 	def match_value(cls,tag,code,val):
+		"""Performs a query for a single MARC value in the database and returns a generator object which yields the results.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
+	
+		Parameters
+		----------
+		tag : str
+			The field tag to match.
+		code : str / None
+			The subfield code to match. Use `None` as the code if matching a controlfield value.
+		val : str / Pattern
+			Exact string value or compiled pattern to match. 
+	
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
+	
+		Examples
+		-------
+		>>> for bib in dlx.Bib.match_value('269', 'a', '1999'): print(bib.id)
+		>>> for auth in dlx.Auth.match_value('100','a',re.compile('Hammarskjöld')): print(auth.get_value('100','a'))
+		"""
+		
 		cursor = cls.handle().find(Q.match_value(tag,code,val))
 		
 		for doc in cursor:
 			yield cls(doc)
 	
 	@classmethod
-	@check_connection
 	def match_value_one(cls,tag,code,val):
+		"""Performs a query for a single MARC value in the database and returns the first result.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
+	
+		Parameters
+		----------
+		tag : str
+			The field tag to match.
+		code : str / None
+			The subfield code to match. Use `None` as the code if matching a controlfield value.
+		val : str / Pattern
+			Exact string value or compiled pattern to match. 
+	
+		Returns
+		-------
+		dlx.Bib / dlx.Auth
+			Depending on which subclass it was called on.   
+	
+		Examples
+		-------
+		>>> bib =  dlx.Bib.match_value_one('269', 'a', '1999')
+		>>> auth = dlx.Auth.match_value_one('100','a',re.compile('Hammarskjöld'))
+		"""
+		
 		return cls(cls.handle().find_one(Q.match_value(tag,code,val)))
 	
 	@classmethod	
-	@check_connection
 	def match_values(cls,*tuples):
+		"""Performs a query for a multiple MARC values in the database and returns a generator object which yields the results.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
+		The query will be a boolean `and` search.
+	
+		Parameters
+		----------
+		*tuples : tag [str], code [str], val [str / Pattern] 
+			Accepts arbitrary number of tuples composed of the code and value to 
+			match against. Value can be a str or Pattern.
+	
+			Use `None` as the subfield code if the field is a controlfield.
+	
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
+	
+		Examples
+		-------
+		>>> for bib in dlx.Bib.match_values(('269', 'a', '1999'), ('269','a','2000')): print(bib.get_value('269','a'))
+		>>> for auth in dlx.Auth.match_values(('100','a',re.compile('Hammarskjöld')), ('100','a',re.compile('Dag'))): print(auth.get_value('100','a'))
+		"""
 		cursor = cls.handle().find(Q.and_values(*tuples))
 		
 		for doc in cursor:
 			yield cls(doc)
 			
 	@classmethod	
-	@check_connection
 	def match_values_or(cls,*tuples):
+		"""Performs a query for a multiple MARC values in the database and returns a generator object which yields the results.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
+		The query will be a boolean `or` search.
+	
+		Parameters
+		----------
+		*tuples : tag [str], code [str], val [str / Pattern] 
+			Accepts arbitrary number of tuples composed of the code and value to 
+			match against. Value can be a str or Pattern.
+	
+			Use `None` as the subfield code if the field is a controlfield.
+	
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
+	
+		Examples
+		-------
+		>>> for bib in dlx.Bib.match_values(('269', 'a', '1999'), ('269','a','2000')): print(bib.get_value('269','a'))
+		>>> for auth in dlx.Auth.match_values(('100','a',re.compile('Hammarskjöld')), ('100','a',re.compile('Dag'))): print(auth.get_value('100','a'))
+		"""		
+		
 		cursor = cls.handle().find(Q.or_values(*tuples))
 		
 		for doc in cursor:
 			yield cls(doc)
 	
 	@classmethod	
-	@check_connection
 	def match_values_one(cls,*tuples):
+		"""
+		The query will be a boolean `and` search.
+	
+		Parameters
+		----------
+		*tuples : tag [str], code [str], val [str / Pattern] 
+			Accepts arbitrary number of tuples composed of the code and value to 
+			match against. Value can be a str or Pattern.
+	
+			Use `None` as the subfield code if the field is a controlfield.
+	
+		Returns
+		-------
+		dlx.Bib / dlx.Auth
+			Depending on which subclass it was called on.   
+	
+		Examples
+		-------
+		>>> bib = dlx.Bib.match_values_one(('269', 'a', '1999'), ('269','a','2000'))
+		>>> auth = dlx.Auth.match_values(('100','a',re.compile('Hammarskjöld')), ('100','a',re.compile('Dag')))
+		"""
+
 		return cls(cls.handle().find_one(Q.and_values(*tuples)))
 	
 	@classmethod
-	@check_connection
 	def match_field(cls,tag,*tuples):
+		"""
+		Parameters
+		----------
+		tag : str
+			The field tag to match.
+		*tuples : (code [str], val [str / Pattern])
+			Accepts arbitrary number of tuples composed of the code and value to 
+			match against. Value can be a str or Pattern.
+		
+			Use `None` as the subfield code if the field is a controlfield.
+		
+		Returns
+		-------
+		type.GeneratorType
+			Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.
+		
+		Examples
+		-------
+		>>> for bib in match_field('191', ('b','A/'), ('c','73')): print(bib.get_value('191','a'))
+		"""
+
 		cursor = cls.handle().find(Q.match_field(tag,*tuples))
 		
 		for doc in cursor:
 			yield cls(doc)
 			
 	@classmethod
-	@check_connection	
 	def match_field_one(cls,tag,*tuples):
+		"""
+		Parameters
+		----------
+		tag : str
+			The field tag to match.
+		*tuples : (code [str], val [str / Pattern])
+			Accepts arbitrary number of tuples composed of the code and value to 
+			match against. Value can be a str or Pattern.
+		
+			Use `None` as the subfield code if the field is a controlfield.
+		
+		Returns
+		-------
+		dlx.Bib / dlx.Auth
+			Depending on which subclass it was called on.
+		
+		Examples
+		-------
+		>>> bib = match_field('191', ('b','A/'), ('c','73'))
+		"""
+		
 		return cls(cls.handle().find_one(Q.match_field(tag,*tuples)))
 	
 	@classmethod
-	@check_connection	
 	def match_fields(cls,*tuples):
 		cursor = cls.handle().find(Q.and_fields(*tuples))
 
 		for doc in cursor:
 			yield cls(doc)
 			
-	@classmethod
-	@check_connection	
+	@classmethod	
 	def match_fields_or(cls,*tuples):
 		cursor = cls.handle().find(Q.or_fields(*tuples))
 
 		for doc in cursor:
 			yield cls(doc)
 	
-	@classmethod
-	@check_connection	
+	@classmethod	
 	def match_fields_one(cls,*tuples):
 		return next(cls.match_fields(*tuples),None)
 		
-	@classmethod
-	@check_connection	
+	@classmethod	
 	def match_xrefs(cls,tag,code,*xrefs):
 		cursor = cls.handle().find(Q.match_xrefs(tag,code,*xrefs))
 		
@@ -181,7 +330,6 @@ class MARC(object):
 			yield cls(doc)
 	
 	@classmethod
-	@check_connection
 	def find(cls,doc):
 		cursor = cls.handle().find(doc)
 		
@@ -189,7 +337,6 @@ class MARC(object):
 			yield cls(doc)
 	
 	@classmethod
-	@check_connection
 	def find_one(cls,doc):
 		found = cls.handle().find_one(doc)
 		
@@ -204,21 +351,18 @@ class MARC(object):
 		cls.handle().create_index(tag)
 	
 	@classmethod
-	@check_connection
 	def literal_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index(field)
 		cls.handle().create_index([(field + '.code', ASCENDING), (field + '.value', ASCENDING)])
 	
 	@classmethod
-	@check_connection
 	def linked_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index(field)
 		cls.handle().create_index([(field + '.code', ASCENDING), (field + '.xref', ASCENDING)])
 	
 	@classmethod
-	@check_connection
 	def hybrid_index(cls,tag):
 		field = tag + '.subfields'
 		cls.handle().create_index(field)
