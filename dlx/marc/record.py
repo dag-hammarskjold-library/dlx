@@ -227,7 +227,9 @@ class MARC(object):
 	
 	@classmethod	
 	def match_values_one(cls,*tuples):
-		"""
+		"""Performs a query for a multiple MARC values in the database and returns the first result.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
 		The query will be a boolean `and` search.
 	
 		Parameters
@@ -253,7 +255,9 @@ class MARC(object):
 	
 	@classmethod
 	def match_field(cls,tag,*tuples):
-		"""
+		"""Performs a query for a multiple subfield values in the database within the same MARC field.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
 		Parameters
 		----------
 		tag : str
@@ -281,7 +285,9 @@ class MARC(object):
 			
 	@classmethod
 	def match_field_one(cls,tag,*tuples):
-		"""
+		"""Performs a query for a multiple subfield values in the database within the same MARC field.
+		Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
+		
 		Parameters
 		----------
 		tag : str
