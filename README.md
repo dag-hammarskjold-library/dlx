@@ -55,9 +55,9 @@ bibs = Bib.match_field(
 # match multiple fields using subfield values within the same field 
 bibs = Bib.match_fields (
     (
-        '245', 
-	('a','Copyright law survey /'), 
-	('c','World Intellectual Property Organization.')
+        '191', 
+	('b','E/'), 
+	('c','73')
     ),
     (
         '260', 
