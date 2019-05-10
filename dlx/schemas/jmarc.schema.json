@@ -1,76 +1,76 @@
 {
-	"_notes:" : [
-		"This schema is an instance of JSON Schema (http://json-schema.org)",
-		"This schema is only meant to validate the data strucuture, not its values"
-	],
-	
-	"type" : "object",
-	"properties" : {
-		"_id" : {
-			"type" : "integer"
-		}
-	},
-	"patternProperties" : {
-		"^00" :  {
-			"$ref" : "#/subschemas/controlfield"
-		},
-		"^([1-9]..|0[1-9].)$" : {
-			"$ref" : "#/subschemas/datafield"
-		}
-	},
-	"additionalProperties": false,
-	"required" : ["_id"],
-	
-	"subschemas" : {
-		"controlfield" : {
-			"type" : "array",
-			"minItems" : 1,
-			"items" : {
-				"type" : "string"
-			}
-		},
-		"datafield" : {
-			"type" : "array",
-			"minItems" : 1,
-			"items" : {
-				"type" : "object",
-				"properties" : {
-					"indicators" : {
-						"type" : "array",
-						"minItems" : 2,
-						"maxItems" : 2,
-						"items" : {
-							"type" : "string",
-							"minLength" : 1,
-							"maxLength" : 1
-						}
-					},
-					"subfields" : {
-						"type" : "array",
-						"minItems" : 1,
-						"items" : {
-							"type" : "object",
-							"properties" : {
-								"code" : {
-									"type" : "string",
-									"minLength" : 1,
-									"maxLength" : 1
-								},
-								"value" : {
-									"type" : "string"
-								},
-								"xref" : {
-									"type" : "integer"
-								}
-							},
-							"additionalProperties" : false,
-							"required" : ["code"]
-						}
-					}
-				},
-				"additionalProperties" : false,
-				"required" : ["indicators", "subfields"]
-			}
-		}	
-	}
+    "_notes:" : [
+        "This schema is an instance of JSON Schema (http://json-schema.org)",
+        "This schema is only meant to validate the data strucuture, not its values"
+    ],
+    
+    "type" : "object",
+    "properties" : {
+        "_id" : {
+            "type" : "integer"
+        }
+    },
+    "patternProperties" : {
+        "^00" :  {
+            "$ref" : "#/subschemas/controlfield"
+        },
+        "^([1-9]..|0[1-9].)$" : {
+            "$ref" : "#/subschemas/datafield"
+        }
+    },
+    "additionalProperties": false,
+    "required" : ["_id"],
+    
+    "subschemas" : {
+        "controlfield" : {
+            "type" : "array",
+            "minItems" : 1,
+            "items" : {
+                "type" : "string"
+            }
+        },
+        "datafield" : {
+            "type" : "array",
+            "minItems" : 1,
+            "items" : {
+                "type" : "object",
+                "properties" : {
+                    "indicators" : {
+                        "type" : "array",
+                        "minItems" : 2,
+                        "maxItems" : 2,
+                        "items" : {
+                            "type" : "string",
+                            "minLength" : 1,
+                            "maxLength" : 1
+                        }
+                    },
+                    "subfields" : {
+                        "type" : "array",
+                        "minItems" : 1,
+                        "items" : {
+                            "type" : "object",
+                            "properties" : {
+                                "code" : {
+                                    "type" : "string",
+                                    "minLength" : 1,
+                                    "maxLength" : 1
+                                },
+                                "value" : {
+                                    "type" : "string"
+                                },
+                                "xref" : {
+                                    "type" : "integer"
+                                }
+                            },
+                            "additionalProperties" : false,
+                            "required" : ["code"]
+                        }
+                    }
+                },
+                "additionalProperties" : false,
+                "required" : ["indicators", "subfields"]
+            }
+        }    
+    }
 }

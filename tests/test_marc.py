@@ -9,192 +9,192 @@ from jsonschema import exceptions as X
 from dlx import DB, marc, MARC, Bib, Auth
 
 class Data(object):
-	jbib = {
-		'_id' : 999,
-		'000' : ['leader'],
-		'245' : [
-			{
-				'indicators' : [' ',' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'value' : 'This'
-					},
-					{
-						'code' : 'b',
-						'value' : 'is the'
-					},
-					{
-						'code' : 'c',
-						'value' : 'title'
-					}
-				]
-			}
-		],
-		'520' : [
-			{
-				'indicators' : [' ' ,' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'value' : 'description'
-					}
-				]
-			},
-			{
-				'indicators' : [' ' ,' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'value' : 'another description'
-					}
-				]
-			}
-		],
-		'650' : [
-			{
-				'indicators' : [' ', ' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'xref' : 777
-					}
-				],
-			}
-		],
-		'710' : [
-			{
-				'indicators' : [' ',' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'xref' : 333
-					}
-				]
-			}
-		]
-	}
-	
-	jbib2 = {
-		'_id' : 555,
-		'000' : ['leader'],
-		'245' : [
-			{
-				'indicators' : [' ',' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'value' : 'Another'
-					},
-					{
-						'code' : 'b',
-						'value' : 'is the'
-					},
-					{
-						'code' : 'c',
-						'value' : 'title'
-					}
-				]
-			}
-		],
-		'650' : [
-			{
-				'indicators' : [' ' ,' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'xref' : 777
-					}
-				]
-			}
-		]
-	}
-	
-	jauth = {
-		'_id' : 777,
-		'150' : [
-			{
-				'indicators' : [' ', ' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'value' : 'header text'
-					}
-				]
-			}
-		]
-	}
-	
-	invalid = {
-		'_id' : 'string invalid',
-		'150' : [
-			{
-				'indicators' : [' ', ' '],
-				'subfields' : [
-					{
-						'code' : 'a',
-						'value' : 'header text'
-					}
-				]
-			}
-		]
-	}	
+    jbib = {
+        '_id' : 999,
+        '000' : ['leader'],
+        '245' : [
+            {
+                'indicators' : [' ',' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'value' : 'This'
+                    },
+                    {
+                        'code' : 'b',
+                        'value' : 'is the'
+                    },
+                    {
+                        'code' : 'c',
+                        'value' : 'title'
+                    }
+                ]
+            }
+        ],
+        '520' : [
+            {
+                'indicators' : [' ' ,' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'value' : 'description'
+                    }
+                ]
+            },
+            {
+                'indicators' : [' ' ,' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'value' : 'another description'
+                    }
+                ]
+            }
+        ],
+        '650' : [
+            {
+                'indicators' : [' ', ' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'xref' : 777
+                    }
+                ],
+            }
+        ],
+        '710' : [
+            {
+                'indicators' : [' ',' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'xref' : 333
+                    }
+                ]
+            }
+        ]
+    }
+    
+    jbib2 = {
+        '_id' : 555,
+        '000' : ['leader'],
+        '245' : [
+            {
+                'indicators' : [' ',' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'value' : 'Another'
+                    },
+                    {
+                        'code' : 'b',
+                        'value' : 'is the'
+                    },
+                    {
+                        'code' : 'c',
+                        'value' : 'title'
+                    }
+                ]
+            }
+        ],
+        '650' : [
+            {
+                'indicators' : [' ' ,' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'xref' : 777
+                    }
+                ]
+            }
+        ]
+    }
+    
+    jauth = {
+        '_id' : 777,
+        '150' : [
+            {
+                'indicators' : [' ', ' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'value' : 'header text'
+                    }
+                ]
+            }
+        ]
+    }
+    
+    invalid = {
+        '_id' : 'string invalid',
+        '150' : [
+            {
+                'indicators' : [' ', ' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'value' : 'header text'
+                    }
+                ]
+            }
+        ]
+    }    
 
 class Instantiation(TestCase):
-	def setUp(self):
-		# note: this runs before every test method and clears the mock database
-		DB.connect('mongodb://.../?authSource=dummy',mock=True)
-				
-	def test_instantiation(self):
-		# test instantiation
-		
-		record = MARC(Data.jbib)
-		self.assertIsInstance(record,MARC)
+    def setUp(self):
+        # note: this runs before every test method and clears the mock database
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
+                
+    def test_instantiation(self):
+        # test instantiation
+        
+        record = MARC(Data.jbib)
+        self.assertIsInstance(record,MARC)
 
-		record = MARC(Data.jauth)
-		self.assertIsInstance(record,MARC)
-		
-		bib = Bib(Data.jauth)
-		self.assertIsInstance(bib,Bib)
-		
-		auth = Auth(Data.jauth)
-		self.assertIsInstance(auth,Auth)
-		
-		for f in bib.controlfields + auth.controlfields:
-			self.assertIsInstance(f,marc.field.Controlfield)
-			
-		for f in bib.datafields + auth.controlfields:
-			self.assertIsInstance(f,marc.field.Datafield)
-			
-			for s in f.subfields + auth.controlfields:
-				self.assertIsInstance(s,marc.subfield.Subfield)
-		
-	def test_validation(self):
-		# test validation
-		
-		self.assertRaises(X.ValidationError, MARC.validate, Data.invalid)
-		self.assertIsNone(MARC.validate(Data.jbib))
+        record = MARC(Data.jauth)
+        self.assertIsInstance(record,MARC)
+        
+        bib = Bib(Data.jauth)
+        self.assertIsInstance(bib,Bib)
+        
+        auth = Auth(Data.jauth)
+        self.assertIsInstance(auth,Auth)
+        
+        for f in bib.controlfields + auth.controlfields:
+            self.assertIsInstance(f,marc.field.Controlfield)
+            
+        for f in bib.datafields + auth.controlfields:
+            self.assertIsInstance(f,marc.field.Datafield)
+            
+            for s in f.subfields + auth.controlfields:
+                self.assertIsInstance(s,marc.subfield.Subfield)
+        
+    def test_validation(self):
+        # test validation
+        
+        self.assertRaises(X.ValidationError, MARC.validate, Data.invalid)
+        self.assertIsNone(MARC.validate(Data.jbib))
 
 class Commit(TestCase):
-	def test_commit(self):
-		# test commit
-		
-		bib = Bib(Data.jbib)
-		auth = Auth(Data.jauth)
-		
-		self.assertTrue(bib.commit().acknowledged)
-		self.assertTrue(auth.commit().acknowledged)
+    def test_commit(self):
+        # test commit
+        
+        bib = Bib(Data.jbib)
+        auth = Auth(Data.jauth)
+        
+        self.assertTrue(bib.commit().acknowledged)
+        self.assertTrue(auth.commit().acknowledged)
 
 class Query(TestCase):
-	def setUp(self):
-		DB.connect('mongodb://.../?authSource=dummy',mock=True)
-		
-		Bib(Data.jbib).commit()
-		Bib(Data.jbib2).commit()
-		Auth(Data.jauth).commit()
-	
-	def test_find(self):
-		# test queries
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
+        
+        Bib(Data.jbib).commit()
+        Bib(Data.jbib2).commit()
+        Auth(Data.jauth).commit()
+    
+    def test_find(self):
+        # test queries
 
 		bib = Bib.find_one({'_id' : 999})
 		self.assertIsInstance(bib,Bib)
@@ -280,24 +280,24 @@ class Query(TestCase):
 		self.assertEqual(len(bibs),2)
 
 class Index(TestCase):
-	def setUp(self):
-		DB.connect('mongodb://.../?authSource=dummy',mock=True)
-		
-		Bib(Data.jbib).commit()
-		Auth(Data.jauth).commit()
-	
-	def test_controlfield_index(self):
-		Bib.literal_index('000')
-	
-	def test_literal_index(self):
-		Bib.literal_index('245')
-		
-	def test_linked_index(self):
-		Bib.linked_index('650')
-		
-	def test_hybrid_index(self):
-		Bib.hybrid_index('710')
-	
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
+        
+        Bib(Data.jbib).commit()
+        Auth(Data.jauth).commit()
+    
+    def test_controlfield_index(self):
+        Bib.literal_index('000')
+    
+    def test_literal_index(self):
+        Bib.literal_index('245')
+        
+    def test_linked_index(self):
+        Bib.linked_index('650')
+        
+    def test_hybrid_index(self):
+        Bib.hybrid_index('710')
+    
 class Get(TestCase):
 	def setUp(self):
 		DB.connect('mongodb://.../?authSource=dummy',mock=True)
@@ -340,24 +340,24 @@ class Get(TestCase):
 		self.assertEqual(bib.get_xrefs(),[333,777])
 
 class Todo(TestCase):
-			
-	def test_d(self):
-		# test set methods
-		#todo
-		pass
-		
-	def test_e(self):
-		# test utility methods
-		#todo
-		pass
-		
-	def test_f(self):
-		# test serializations
-		#todo
-		pass
-		
-	def test_g(self):
-		# test de-serializations
-		#todo
-		pass
-		
+            
+    def test_d(self):
+        # test set methods
+        #todo
+        pass
+        
+    def test_e(self):
+        # test utility methods
+        #todo
+        pass
+        
+    def test_f(self):
+        # test serializations
+        #todo
+        pass
+        
+    def test_g(self):
+        # test de-serializations
+        #todo
+        pass
+        

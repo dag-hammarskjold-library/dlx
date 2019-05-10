@@ -29,25 +29,25 @@ authfile = codecs.open('auths.mrc','w','utf-8')
 auth_ids = {}
 
 cursor = Bib.match_fields_or (
-	('191', ('b', body), ('c', session)),
-	('791', ('b', body), ('c', session))
+    ('191', ('b', body), ('c', session)),
+    ('791', ('b', body), ('c', session))
 )
 
 print("processing bibs...")
 
 for bib in cursor:
-	for xref in bib.get_xrefs():
-		auth_ids[xref] = True
-		
-	bibfile.write(bib.to_mrc())
-	
+    for xref in bib.get_xrefs():
+        auth_ids[xref] = True
+        
+    bibfile.write(bib.to_mrc())
+    
 ### get the auths
 
 print("processing auths...")
-		
+        
 for auth_id in sorted(auth_ids.keys()):
-	auth = Auth.match_id(auth_id)
-	
-	authfile.write(auth.to_mrc())
-	
+    auth = Auth.match_id(auth_id)
+    
+    authfile.write(auth.to_mrc())
+    
 print("done.")
