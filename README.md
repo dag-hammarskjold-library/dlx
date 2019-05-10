@@ -66,7 +66,7 @@ bibs = Bib.match_fields (
 )
 
 # match multiple fields using subfield values within the same field using boolean `or`
-bis = Bib.match_fields_or (
+bibs = Bib.match_fields_or (
     (
         '191', 
 	 ('a', re.compile('^A/RES')), 
@@ -78,7 +78,7 @@ bis = Bib.match_fields_or (
     )
 )
 
-# iterate
+# iterate through the matching records
 for bib in bibs:
 
     # `bib` is a `Bib` object
