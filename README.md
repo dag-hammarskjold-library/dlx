@@ -22,41 +22,66 @@ from dlx import DB, Bib, Auth
 # connect to DB
 DB.connect('connection string')
 
-# get record by ID
-bib = Bib.match_id(6020)
+# get an instance of of a subclass of `dlx.MARC` from the database (`Bib` or `Auth`)
+bib = Bib.match_id(99999)
 auth = Auth.match_id(283289)
 
-# get cursor for iterating through matching records
+# get a generator for iterating through matching records.
+# the generator yeilds instances of `Bib` or `Auth`.
 
 # match one value
-cursor = Bib.match_value('269','a','2012-12-31')
-#or, `cursor = Auth.match_value('100','a',re.compile('Dag'))`
+bibs = Bib.match_value('269','a','2012-12-31')
+auths = Auth.match_value('100','a',re.compile('Dag'))
 
 # match multiple values from different fields
-cursor = Bib.match_values(('269','a','2012-12-31'), ('245','a',re.compile('report',re.IGNORECASE)))
+bibs = Bib.match_values(
+    ('269','a','2012-12-31'), 
+    ('245','a',re.compile('report',re.IGNORECASE))
+)
 
 # match multiple values using boolean `or`
-cursor = Bib.match_values_or(('269','a','2012-12-31'), ('269','a','2013-01-02'))
+bibs = Bib.match_values_or(
+    ('269','a','2012-12-31'),
+    ('269','a','2013-01-02')
+)
 
 # match multiple subfield values within the same field
-cursor = Bib.match_field('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.'))
+bibs = Bib.match_field(
+    '245', 
+    ('a','Copyright law survey /'), 
+    ('c','World Intellectual Property Organization.')
+)
 
 # match multiple fields using subfield values within the same field 
-cursor = Bib.match_fields (
-    ('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.')),
-    ('260',('a',re.compile('Geneva')))
+bibs = Bib.match_fields (
+    (
+        '191', 
+	('b','A/'), 
+	('c','73')
+    ),
+    (
+        '260', 
+	('a', re.compile('Geneva'))
+    )
 )
 
-# match multiple fields using subfield values withing the same field using boolean `or`
-cursor = Bib.match_fields_or (
-    ('245', ('a','Copyright law survey /'), ('c','World Intellectual Property Organization.')),
-    ('245',('a',re.compile('^Report of the Symposium on Stock Enhancement in the Management of Freshwater Fisheries')))
+# match multiple fields using subfield values within the same field using boolean `or`
+bibs = Bib.match_fields_or (
+    (
+        '191', 
+	 ('a', re.compile('^A/RES')), 
+	 ('c', '73')
+    ),
+    (
+        '650',
+	('a', 'HUMAN RIGHTS')
+    )
 )
 
-# iterate
-for bib in cursor:
+# iterate through the matching records
+for bib in bibs:
 
-    # `bib` is a `dlx.Bib` object
+    # `bib` is a `Bib` object
     print('title: ' + ' '.join(bib.get_values('245','a','b','c')))
     print('date: ' + bib.get_value('269','a'))
     print('authors: ' + '; '.join(bib.get_values('710','a')))
