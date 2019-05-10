@@ -56,12 +56,12 @@ bibs = Bib.match_field(
 bibs = Bib.match_fields (
     (
         '191', 
-	('b','A/'), 
-	('c','73')
+    ('b','A/'), 
+    ('c','73')
     ),
     (
         '260', 
-	('a', re.compile('Geneva'))
+    ('a', re.compile('Geneva'))
     )
 )
 
@@ -69,12 +69,12 @@ bibs = Bib.match_fields (
 bibs = Bib.match_fields_or (
     (
         '191', 
-	 ('a', re.compile('^A/RES')), 
-	 ('c', '73')
+     ('a', re.compile('^A/RES')), 
+     ('c', '73')
     ),
     (
         '650',
-	('a', 'HUMAN RIGHTS')
+    ('a', 'HUMAN RIGHTS')
     )
 )
 
@@ -86,7 +86,7 @@ for bib in bibs:
     print('date: ' + bib.get_value('269','a'))
     print('authors: ' + '; '.join(bib.get_values('710','a')))
     print('subjects: ' + '; '.join(bib.get_values('650','a')))
-		
+        
     print('-' * 100)
     
 ```

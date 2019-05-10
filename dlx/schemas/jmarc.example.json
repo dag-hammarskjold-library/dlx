@@ -1,38 +1,38 @@
 {
-	"_id" : 999,
-	"000" : ["leader"],
-	"007" : [
-		"another controlfield",
-		"which is repeatable"
-	],
-	"245" : [
-		{
-			"indicators" : [" "," "],
-			"subfields" : [
-				{
-					"code" : "a",
-					"value" : "This"
-				},
-				{
-					"code" : "b",
-					"value" : "is the"
-				},
-				{
-					"code" : "c",
-					"value" : "title"
-				}
-			]
-		}
-	],
-	"650" : [
-		{
-			"indicators" : [" ", " "],
-			"subfields" : [
-				{
-					"code" : "a", 
-					"xref" : 777
-				}
-			]
-		}
-	]
+    "_id" : 999,
+    "000" : ["leader"],
+    "007" : [
+        "another controlfield",
+        "which is repeatable"
+    ],
+    "245" : [
+        {
+            "indicators" : [" "," "],
+            "subfields" : [
+                {
+                    "code" : "a",
+                    "value" : "This"
+                },
+                {
+                    "code" : "b",
+                    "value" : "is the"
+                },
+                {
+                    "code" : "c",
+                    "value" : "title"
+                }
+            ]
+        }
+    ],
+    "650" : [
+        {
+            "indicators" : [" ", " "],
+            "subfields" : [
+                {
+                    "code" : "a", 
+                    "xref" : 777
+                }
+            ]
+        }
+    ]
 }
