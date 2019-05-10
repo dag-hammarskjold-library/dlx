@@ -56,7 +56,7 @@ bibs = Bib.match_field(
 bibs = Bib.match_fields (
     (
         '191', 
-	('b','E/'), 
+	('b','A/'), 
 	('c','73')
     ),
     (
