@@ -27,7 +27,7 @@ bib = Bib.match_id(99999)
 auth = Auth.match_id(283289)
 
 # get a generator for iterating through matching records.
-# the generator yeilds instnaces of `dlx.Bib` or `dlx.Auth`.
+# the generator yeilds instances of `Bib` or `Auth`.
 
 # match one value
 bibs = Bib.match_value('269','a','2012-12-31')
