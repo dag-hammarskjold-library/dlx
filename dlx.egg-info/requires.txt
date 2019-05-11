@@ -1,3 +1,0 @@
-pymongo>=3
-mongomock
-jsonschema
