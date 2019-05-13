@@ -1,7 +1,7 @@
 '''
 '''
 
-import string, json
+import re, string, json
 from jsonschema import validate, exceptions as X
 from pymongo import ASCENDING, DESCENDING
 from bson import SON
@@ -220,8 +220,7 @@ class MARC(object):
     @classmethod
     def match_field(cls,tag,*tuples):
         """Performs a query for a multiple subfield values in the database within the same MARC field.
-        Must be called from a subclass of `dlx.Marc` (`dlx.Bib` or `dlx.Auth`).
-        
+               
         Parameters
         ----------
         tag : str
@@ -403,6 +402,9 @@ class MARC(object):
         if '_id' in doc.keys():
             self.id = int(doc['_id'])
         
+        self.parse(doc)
+                    
+    def parse(self,doc):
         for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
             
             if tag == '000':
@@ -476,9 +478,40 @@ class MARC(object):
         
     #### "set"-type methods
     
-    def set_value(self,match_tag,match_code,match_val,new_val):
-        pass
-    
+    def set_value(self,tag,code,new_val,*args):
+        ### WIP
+        
+        if len(args) == 0:
+            self.parse(
+                {
+                    tag : [
+                        {
+                            'indicators' : [' ',' '], 
+                            'subfields' : [
+                                {
+                                    'code' : code, 
+                                    'value' : new_val
+                                }
+                            ]
+                        }
+                    ]
+                }
+            )
+            
+            return
+            
+        fields = list(self.get_fields(tag))
+      
+        for place in args:
+            field = fields[place]
+           
+            for sub in filter(lambda sub: sub.code == code, field.subfields):
+                
+                if isinstance(sub,Literal):
+                    sub.value = new_val
+                elif isinstance(sub,Linked):
+                    pass
+                    
     def change_tag(self,old_tag,new_tag):
         pass
         

@@ -399,13 +399,23 @@ class Get(TestCase):
         self.assertEqual(bib.get_tags(),['000','245','520','520','650','710'])
         self.assertEqual(bib.get_xrefs(),[333,777])
 
-class Todo(TestCase):
-            
-    def test_d(self):
-        # test set methods
-        #todo
-        pass
+class Set(TestCase):
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
         
+        Bib(Data.jbib).commit()
+               
+    def test_set(self):
+        bib = Bib.match_id(999)
+        
+        bib.set_value('245','a','changed',0)
+        self.assertEqual(bib.get_value('245','a'), 'changed')
+        
+        bib.set_value('520','a','changed',1)
+        self.assertEqual(bib.get_values('520','a')[1], 'changed')
+        
+class Todo(TestCase):
+   
     def test_e(self):
         # test utility methods
         #todo
