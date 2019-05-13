@@ -244,8 +244,8 @@ class MARC(object):
         >>>     ('b', 'A/'), 
         >>>     ('c', '73')
         >>> ) 
-        >>>    for bib in bibs: 
-        >>>        print(bib.symbol())
+        >>> for bib in bibs: 
+        >>>     print(bib.symbol())
         """
 
         cursor = cls.handle().find(Q.match_field(tag,*tuples))
@@ -270,21 +270,21 @@ class MARC(object):
         Returns
         -------
         type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth` depending on which `dlx.MARC` subclass it was called on.
+            Yields instances of `dlx.Bib` or `dlx.Auth`.
         
         Examples
         ---------
         >>> bibs = dlx.Bib.match_fields(
         >>>     (
         >>>         '191', 
-        >>>            ('a', re.compile('^A/RES/'),
-        >>>            ('c', '73')
-        >>>        ),
+        >>>         ('a', re.compile('^A/RES/'),
+        >>>         ('c', '73')
+        >>>     ),
         >>>     (
         >>>         '650', 
-        >>>            ('a', 'HUMAN RIGHTS')
-        >>>        )
-        >>>    )
+        >>>         ('a', 'HUMAN RIGHTS')
+        >>>     )
+        >>> )
         """
         
         cursor = cls.handle().find(Q.and_fields(*tuples_of_tuples))
@@ -318,7 +318,7 @@ class MARC(object):
         Returns
         -------
         type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth` depending on which `dlx.MARC` subclass it was called on.
+            Yields instances of `dlx.Bib` or `dlx.Auth`.
         """
         
         cursor = cls.handle().find(Q.match_xrefs(tag,code,*xrefs))
@@ -343,7 +343,7 @@ class MARC(object):
         Returns
         -------
         type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth` depending on which `dlx.MARC` subclass it was called on.
+            Yields instances of `dlx.Bib` or `dlx.Auth`.
         """
         
         cursor = cls.handle().find(filter)
@@ -356,7 +356,7 @@ class MARC(object):
         """Performs a `Pymongo` query.
         
         The same as `dlx.Marc.find()` except it returns only the first result as a `dlx.Bib` or `dlx.Auth`
-        instance depending on which `dlx.MARC` subclass it was called on.
+        instance.
         """
         
         found = cls.handle().find_one(filter)
