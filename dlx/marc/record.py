@@ -454,7 +454,8 @@ class MARC(object):
                 if isinstance(sub,Literal):
                     vals.append(sub.value)
                 elif isinstance(sub,Linked):
-                    vals.append(MARC.lookup(sub.xref,sub.code))
+                    val = MARC.lookup(sub.xref,sub.code)
+                    vals.append(val)
                     
         return vals
     
@@ -478,44 +479,35 @@ class MARC(object):
         
     #### "set"-type methods
     
-    def set_value(self,tag,code,new_val,*args):
+    def add_field(self,tag,indicators,subfields):
         ### WIP
         
-        if len(args) == 0:
-            self.parse(
+        self.parse(
                 {
                     tag : [
                         {
-                            'indicators' : [' ',' '], 
-                            'subfields' : [
-                                {
-                                    'code' : code, 
-                                    'value' : new_val
-                                }
-                            ]
+                            'indicators' : indicators, 
+                            'subfields' : subfields
                         }
                     ]
                 }
             )
-            
-            return
-            
-        fields = list(self.get_fields(tag))
-      
-        for place in args:
-            field = fields[place]
+    
+    def set_value(self,tag,place,code,new_val):
+        ### WIP
            
-            for sub in filter(lambda sub: sub.code == code, field.subfields):
+        field = list(self.get_fields(tag))[field_id]
+        
+        for sub in filter(lambda sub: sub.code == code, field.subfields):
+            if isinstance(sub,Literal):
+                sub.value = new_val
+            elif isinstance(sub,Linked):
+                raise Exception('Cannot set the value of an auth-controlled subfield (must set xref)')
                 
-                if isinstance(sub,Literal):
-                    sub.value = new_val
-                elif isinstance(sub,Linked):
-                    pass
-                    
     def change_tag(self,old_tag,new_tag):
         pass
         
-    def delete_tag(self,tag):
+    def delete_tag(self,tag,place=0):
         pass
         
     ### store
