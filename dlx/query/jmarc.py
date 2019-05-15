@@ -142,8 +142,12 @@ def match_field(tag,*tuples):
     
     return SON (
         data = {
-            tag + '.subfields' : {
-                '$all' : conditions
+            tag : {
+                '$elemMatch' : {
+                    'subfields' : {
+                        '$all' : conditions
+                    }
+                }
             }
         }
     )
