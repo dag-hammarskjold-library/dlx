@@ -408,18 +408,11 @@ class Set(TestCase):
     def test_set(self):
         bib = Bib.match_id(999)
         
-        bib.set_value('245',0,'a','changed')
+        bib.set_value('245','a','changed',place=0)
         self.assertEqual(bib.get_value('245','a'), 'changed')
         
-        bib.set_value('520',1,'a','changed')
+        bib.set_value('520','a','changed',place=1)
         self.assertEqual(bib.get_values('520','a')[1], 'changed')
-        
-    def test_add_field(self):
-        bib = Bib.match_id(999)
-        
-        bib.add_field('367',[' ',' '],[{'code' : '', 'value' : 'XXX'}])
-        print(bib.to_mrc())
-        MARC.validate(bib.to_dict())
         
 class Todo(TestCase):
    

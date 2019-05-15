@@ -439,6 +439,9 @@ class MARC(object):
             
     def get_field(self,tag):
         return next(self.get_fields(tag), None)
+        
+    def get_field_by_place(self,tag,place):
+        return list(self.get_fields(tag))[place]
             
     def get_values(self,tag,*codes):
         if len(codes) == 0:
@@ -464,7 +467,7 @@ class MARC(object):
         try: 
             return self.get_values(tag,code)[0]
         except:
-            return None
+            return ''
     
     def get_tags(self):
         return sorted([x.tag for x in self.get_fields()])
@@ -493,17 +496,66 @@ class MARC(object):
                 }
             )
     
-    def set_value(self,tag,place,code,new_val):
+    def set_xref(self,tag,code,new_xref,**kwargs):
         ### WIP
-           
-        field = list(self.get_fields(tag))[field_id]
+        
+        try:
+            place = kwargs['place']
+        except KeyError:
+            raise Exception('There is no "tag" field in place {}'.format(place))
+        
+        try:   
+            field = list(self.get_fields(tag))[place]
+        except IndexError:
+            self.add_field(tag,[' ',' '],[{'code' : xref, 'value' : new_xref}])
+            return
+            
+        for sub in filter(lambda sub: sub.code == code, field.subfields):
+            if isinstance(sub,Literal):
+                raise Exception('Cannot set the xref literal subfield (must set value)')
+            elif isinstance(sub,Linked):
+                sub.xref = new_xref
+                
+    def set_value(self,tag,code,new_val,**kwargs):
+        ### WIP
+        
+        try:
+            place = kwargs['place']
+        except KeyError:
+            self.add_field(tag,[' ',' '],[{'code' : code, 'value' : new_val}])
+            return
+        
+        try:   
+            field = list(self.get_fields(tag))[place]
+        except IndexError:
+            raise Exception('There is no "tag" field in place {}'.format(place))
+                  
+        found = False          
         
         for sub in filter(lambda sub: sub.code == code, field.subfields):
             if isinstance(sub,Literal):
                 sub.value = new_val
+                found = True
             elif isinstance(sub,Linked):
                 raise Exception('Cannot set the value of an auth-controlled subfield (must set xref)')
-                
+        
+        if found == False:
+            field.subfields.append(Literal(code,new_val))
+            
+    def replace_value(self,tag,code,matcher,new_val):
+        for field in (self.get_fields(tag)):
+            for sub in filter(lambda sub: sub.code == code, field.subfields):
+                pass
+        
+    def set_indicators(self,tag,place,ind1,ind2):
+        field = list(self.get_fields(tag))[place]
+        
+        if ind1 is not None:
+            field.indicators[0] = ind1
+        
+        if ind2 is not None:        
+            field.indicators[1] = ind2
+            
     def change_tag(self,old_tag,new_tag):
         pass
         
@@ -549,8 +601,8 @@ class MARC(object):
     def to_dict(self):
         return self.to_bson().to_dict()
         
-    def to_json(self):
-        return json.dumps(self.to_dict())
+    def to_json(self,to_indent=None):
+        return json.dumps(self.to_dict(),indent=to_indent)
     
     def to_mij(self):
         mij = {}
