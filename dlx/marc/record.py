@@ -439,6 +439,9 @@ class MARC(object):
             
     def get_field(self,tag):
         return next(self.get_fields(tag), None)
+        
+    def get_field_by_place(self,tag,place):
+        return list(self.get_fields(tag))[place]
             
     def get_values(self,tag,*codes):
         if len(codes) == 0:
@@ -464,7 +467,7 @@ class MARC(object):
         try: 
             return self.get_values(tag,code)[0]
         except:
-            return None
+            return ''
     
     def get_tags(self):
         return sorted([x.tag for x in self.get_fields()])
@@ -493,17 +496,110 @@ class MARC(object):
                 }
             )
     
-    def set_value(self,tag,place,code,new_val):
+    def set(self,tag,code,new_val,**kwargs):
         ### WIP
-           
-        field = list(self.get_fields(tag))[field_id]
+        # kwargs: address [pair], matcher [Pattern/list]
         
-        for sub in filter(lambda sub: sub.code == code, field.subfields):
-            if isinstance(sub,Literal):
-                sub.value = new_val
-            elif isinstance(sub,Linked):
-                raise Exception('Cannot set the value of an auth-controlled subfield (must set xref)')
+        if Configs.is_authority_controlled(tag,code):
+            try:
+                new_val + int(new_val) 
+            except ValueError:
+                raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(tag,code))
+               
+            auth_controlled = True
+        else:
+            new_val = str(new_val)
+            auth_controlled = False
+        
+        try:
+            fplace = kwargs['address'][0]
+        except KeyError:
+            fplace = 0
+            
+        try:
+            splace = kwargs['address'][1]
+        except:
+            splace = 0
+
+        fields = list(self.get_fields(tag))
+        
+        if fplace == '*':
+            for i in range(0,len(fields)):
+                kwargs['address'] = [i,splace]
+                self.set(tag,code,new_val,**kwargs)
+            
+            return self
+        elif isinstance(fplace,int):
+            pass
+        elif fplace == '+':
+            pass
+        else:
+            raise Exception('Invalid address')
+        
+        if len(fields) == 0 or fplace == '+':
+            valtype = 'value' if auth_controlled == False else 'xref'
+            self.add_field(tag,[' ',' '],[{'code' : code, valtype : new_val}])
+            
+            return self
+            
+        try:   
+            field = fields[fplace]
+        except IndexError:
+            raise Exception('There is no "tag" field in {}/{}'.format(tag,fplace))
+              
+        subs = list(filter(lambda sub: sub.code == code, field.subfields))
+        
+        if len(subs) == 0 or splace == '+':
+            if auth_controlled == True:
+                field.subfields.append(Linked(code,new_val))
+            else:
+                field.subfields.append(Literal(code,new_val))
                 
+            return self
+        elif isinstance(splace,int):
+            subs = [subs[splace]]
+        elif splace == '*':
+            pass
+        else:
+            raise Exception('Invalid address')
+                
+        try:
+            matcher = kwargs['matcher']
+        except KeyError:
+            matcher = None
+            
+        for sub in subs:
+            if isinstance(sub,Literal):
+                if isinstance(matcher,re.Pattern):
+                    if matcher.search(sub.value):
+                        sub.value = new_val
+                elif matcher == None:
+                    sub.value = new_val
+                else:
+                    raise Exception('"matcher" must be a `re.Pattern` for a literal value')
+                
+            elif isinstance(sub,Linked):
+                if isinstance(matcher,(tuple,list)):
+                    if sub.xref in matcher:
+                        sub.xref = new_val
+                elif matcher == None:
+                    sub.xref = new_val
+                else:
+                    raise Exception('"matcher" must be a list or tuple of xrefs for a linked value')
+            
+        return self
+            
+    def set_indicators(self,tag,place,ind1,ind2):
+        field = list(self.get_fields(tag))[place]
+        
+        if ind1 is not None:
+            field.indicators[0] = ind1
+        
+        if ind2 is not None:        
+            field.indicators[1] = ind2
+            
+        return self
+            
     def change_tag(self,old_tag,new_tag):
         pass
         
@@ -549,8 +645,8 @@ class MARC(object):
     def to_dict(self):
         return self.to_bson().to_dict()
         
-    def to_json(self):
-        return json.dumps(self.to_dict())
+    def to_json(self,to_indent=None):
+        return json.dumps(self.to_dict(),indent=to_indent)
     
     def to_mij(self):
         mij = {}
