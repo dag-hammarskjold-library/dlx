@@ -44,4 +44,10 @@ class Configs(object):
         }    
     }
     
+    @staticmethod
+    def is_authority_controlled(tag,code):
+        try:
+            return authority_controlled[tag][code]
+        except:
+            return None
     
