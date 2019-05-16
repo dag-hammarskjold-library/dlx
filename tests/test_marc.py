@@ -404,15 +404,18 @@ class Set(TestCase):
         DB.connect('mongodb://.../?authSource=dummy',mock=True)
         
         Bib(Data.jbib).commit()
-               
+                      
     def test_set(self):
         bib = Bib.match_id(999)
         
-        bib.set_value('245','a','changed',place=0)
+        bib.set('245','a','changed',place=0,matcher=re.compile('This'))
+      
         self.assertEqual(bib.get_value('245','a'), 'changed')
         
-        bib.set_value('520','a','changed',place=1)
+        bib.set('520','a','changed',place=1)
         self.assertEqual(bib.get_values('520','a')[1], 'changed')
+        
+        MARC.validate(bib.to_dict())
         
 class Todo(TestCase):
    

@@ -496,57 +496,84 @@ class MARC(object):
                 }
             )
     
-    def set_xref(self,tag,code,new_xref,**kwargs):
+    def set(self,tag,code,new_val,**kwargs):
         ### WIP
+        
+        if Configs.is_authority_controlled(tag,code):
+            try:
+                int(new_val)
+            except ValueError:
+                raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(tag,code))
+               
+            auth_controlled = True
+        else:
+            new_val = str(new_val)
+            auth_controlled = False
         
         try:
             place = kwargs['place']
         except KeyError:
-            raise Exception('There is no "tag" field in place {}'.format(place))
+            place = 0
         
-        try:   
-            field = list(self.get_fields(tag))[place]
-        except IndexError:
-            self.add_field(tag,[' ',' '],[{'code' : xref, 'value' : new_xref}])
-            return
+        fields = list(self.get_fields(tag))
+        
+        if len(fields) == 0:
+            valtype = 'value' if auth_controlled == False else 'xref'
             
-        for sub in filter(lambda sub: sub.code == code, field.subfields):
-            if isinstance(sub,Literal):
-                raise Exception('Cannot set the xref literal subfield (must set value)')
-            elif isinstance(sub,Linked):
-                sub.xref = new_xref
-                
-    def set_value(self,tag,code,new_val,**kwargs):
-        ### WIP
-        
-        try:
-            place = kwargs['place']
-        except KeyError:
-            self.add_field(tag,[' ',' '],[{'code' : code, 'value' : new_val}])
-            return
+            self.add_field(tag,[' ',' '],[{'code' : code, valtype : new_val}])
+            return self
         
         try:   
-            field = list(self.get_fields(tag))[place]
+            field = fields[place]
         except IndexError:
             raise Exception('There is no "tag" field in place {}'.format(place))
-                  
-        found = False          
+            
+        try:
+            replace = kwargs['replace']
+        except KeyError:
+            replace = True
+              
+        subs = filter(lambda sub: sub.code == code, field.subfields)
         
-        for sub in filter(lambda sub: sub.code == code, field.subfields):
-            if isinstance(sub,Literal):
+        if type(replace) == 'int':
+            sub = list(subs)[replace]
+            
+            if auth_controlled == True:
+                sub.xref = new_val
+            else:
                 sub.value = new_val
-                found = True
-            elif isinstance(sub,Linked):
-                raise Exception('Cannot set the value of an auth-controlled subfield (must set xref)')
-        
-        if found == False:
-            field.subfields.append(Literal(code,new_val))
             
-    def replace_value(self,tag,code,matcher,new_val):
-        for field in (self.get_fields(tag)):
-            for sub in filter(lambda sub: sub.code == code, field.subfields):
-                pass
+            return self
         
+        found = False 
+        
+        try:
+            matcher = kwargs['matcher']
+        except KeyError:
+            matcher = None
+            
+        for sub in subs:
+            if isinstance(sub,Literal):
+                if isinstance(matcher,re.Pattern):
+                    if matcher.match(sub.value):
+                        sub.value = new_val
+                else:
+                    sub.value = new_val
+                
+                found = True
+                
+            elif isinstance(sub,Linked):
+                sub.xref = new_val
+                found = True
+                               
+        if found == False and matcher == None:
+            if auth_controlled == True:
+                field.subfields.append(Linked(code,new_val))
+            else:
+                field.subfields.append(Literal(code,new_val))
+            
+        return self
+            
     def set_indicators(self,tag,place,ind1,ind2):
         field = list(self.get_fields(tag))[place]
         
