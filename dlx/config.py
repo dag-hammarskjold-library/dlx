@@ -46,8 +46,11 @@ class Configs(object):
     
     @staticmethod
     def is_authority_controlled(tag,code):
-        try:
-            return authority_controlled[tag][code]
-        except:
-            return None
+        if tag in Configs.authority_controlled.keys():
+            if code in Configs.authority_controlled[tag].keys():
+                return True
+            else:
+                return False
+        else:
+            return False
     
