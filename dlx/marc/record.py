@@ -498,10 +498,11 @@ class MARC(object):
     
     def set(self,tag,code,new_val,**kwargs):
         ### WIP
+        # kwargs: address [pair], matcher [Pattern/list]
         
         if Configs.is_authority_controlled(tag,code):
             try:
-                int(new_val)
+                new_val + int(new_val) 
             except ValueError:
                 raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(tag,code))
                
@@ -511,41 +512,44 @@ class MARC(object):
             auth_controlled = False
         
         try:
-            place = kwargs['place']
+            fplace = kwargs['address'][0]
         except KeyError:
-            place = 0
-        
-        fields = list(self.get_fields(tag))
-        
-        if len(fields) == 0:
-            valtype = 'value' if auth_controlled == False else 'xref'
-            
-            self.add_field(tag,[' ',' '],[{'code' : code, valtype : new_val}])
-            return self
-        
-        try:   
-            field = fields[place]
-        except IndexError:
-            raise Exception('There is no "tag" field in place {}'.format(place))
+            fplace = 0
             
         try:
-            replace = kwargs['replace']
-        except KeyError:
-            replace = True
-              
-        subs = filter(lambda sub: sub.code == code, field.subfields)
+            splace = kwargs['address'][0]
+        except:
+            splace = 0
+
+        fields = list(self.get_fields(tag))
         
-        if type(replace) == 'int':
-            sub = list(subs)[replace]
+        if fplace == '*':
+            for i in range(0,len(fields)):
+                kwargs['address'] = [i,splace]
+                self.set(tag,code,new_val,**kwargs)
             
-            if auth_controlled == True:
-                sub.xref = new_val
-            else:
-                sub.value = new_val
+            return self     
+        
+        if len(fields) == 0 or fplace == '+':
+            valtype = 'value' if auth_controlled == False else 'xref'
+            self.add_field(tag,[' ',' '],[{'code' : code, valtype : new_val}])
             
             return self
+            
+        try:   
+            field = fields[fplace]
+        except IndexError:
+            raise Exception('There is no "tag" field in {}/{}'.format(tag,fplace))
+              
+        subs = list(filter(lambda sub: sub.code == code, field.subfields))
         
-        found = False 
+        if len(subs) == 0 or splace == '+':
+            if auth_controlled == True:
+                field.subfields.append(Linked(code,new_val))
+            else:
+                field.subfields.append(Literal(code,new_val))
+                
+            return self
         
         try:
             matcher = kwargs['matcher']
@@ -557,20 +561,19 @@ class MARC(object):
                 if isinstance(matcher,re.Pattern):
                     if matcher.match(sub.value):
                         sub.value = new_val
-                else:
+                elif matcher == None:
                     sub.value = new_val
-                
-                found = True
+                else:
+                    raise Exception('"matcher" must be a `re.Pattern` for a literal value')
                 
             elif isinstance(sub,Linked):
-                sub.xref = new_val
-                found = True
-                               
-        if found == False and matcher == None:
-            if auth_controlled == True:
-                field.subfields.append(Linked(code,new_val))
-            else:
-                field.subfields.append(Literal(code,new_val))
+                if isinstance(matcher,(tuple,list)):
+                    if sub.xref in matcher:
+                        sub.xref = new_val
+                elif matcher == None:
+                    sub.xref = new_val
+                else:
+                    raise Exception('"matcher" must be a list or tuple of xrefs for a linked value')
             
         return self
             
@@ -582,6 +585,8 @@ class MARC(object):
         
         if ind2 is not None:        
             field.indicators[1] = ind2
+            
+        return self
             
     def change_tag(self,old_tag,new_tag):
         pass

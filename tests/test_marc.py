@@ -125,6 +125,21 @@ class Data(object):
         ]
     }
     
+    jauth2 = {
+        '_id' : 333,
+        '150' : [
+            {
+                'indicators' : [' ', ' '],
+                'subfields' : [
+                    {
+                        'code' : 'a',
+                        'value' : 'another header'
+                    }
+                ]
+            }
+        ]
+    }
+    
     invalid = {
         '_id' : 'string invalid',
         '150' : [
@@ -405,17 +420,70 @@ class Set(TestCase):
         
         Bib(Data.jbib).commit()
                       
-    def test_set(self):
+    def test_set_new(self):
         bib = Bib.match_id(999)
         
-        bib.set('245','a','changed',place=0,matcher=re.compile('This'))
-      
-        self.assertEqual(bib.get_value('245','a'), 'changed')
+        bib.set('520','b','added subfield').set('520','c','another new one')
+        self.assertEqual(bib.get_value('520','b'),'added subfield')
+        self.assertEqual(bib.get_value('520','c'),'another new one')
         
-        bib.set('520','a','changed',place=1)
-        self.assertEqual(bib.get_values('520','a')[1], 'changed')
+    def test_set_new_field(self):
+        bib = Bib.match_id(999)
         
-        MARC.validate(bib.to_dict())
+        bib.set('521','a','new field and value')
+        self.assertEqual(bib.get_value('521','a'),'new field and value')
+        
+    def test_set_existing(self):
+        bib = Bib.match_id(999)
+        
+        bib.set('520','a','changed subfield')
+        self.assertEqual(bib.get_value('520','a'),'changed subfield')
+        
+        bib.set('520','a','another changed one',address=[1,0])
+        self.assertEqual(bib.get_values('520','a')[1],'another changed one')
+        
+    def test_set_existing_linked(self):
+        Auth(Data.jauth).commit()
+        Auth(Data.jauth2).commit()
+        bib = Bib.match_id(999)
+        
+        bib.set('650','a',333)
+        self.assertEqual(bib.get_value('650','a'),'another header')
+        
+        bib.set('650','a',777)
+        self.assertEqual(bib.get_value('650','a'),'header text')
+        
+    def test_set_existing_all(self):
+        bib = Bib.match_id(999)
+        
+        bib.set('520','a','changed all',address=['*','*'])
+        for val in bib.get_values('520','a'):
+            self.assertEqual(val,'changed all')
+        
+    def test_set_match_literal(self):
+        bib = Bib.match_id(999)
+        
+        bib.set('520','a','changed',matcher=re.compile('desc'))
+        self.assertEqual(bib.get_value('520','a'),'changed')
+        self.assertEqual(bib.get_values('520','a')[1],'another description')
+        
+        bib.set('520','a','this shouldn\'t match',matcher=re.compile('x'))
+        self.assertEqual(bib.get_value('520','a'),'changed')
+        
+    def test_set_match_literal_all(self):
+        bib = Bib.match_id(999)
+        
+        bib.set('520','a','changed',matcher=re.compile('.*desc'),place='*')
+        for val in bib.get_values('520','a'):     
+            self.assertEqual(bib.get_value('520','a'),'changed')
+        
+    def test_set_match_linked(self):
+        Auth(Data.jauth).commit()
+        Auth(Data.jauth2).commit()
+        bib = Bib.match_id(999)
+        
+        bib.set('650','a',333,matcher=[777])
+        self.assertEqual(bib.get_value('650','a'),'another header')
         
 class Todo(TestCase):
    
