@@ -517,7 +517,7 @@ class MARC(object):
             fplace = 0
             
         try:
-            splace = kwargs['address'][0]
+            splace = kwargs['address'][1]
         except:
             splace = 0
 
@@ -528,7 +528,13 @@ class MARC(object):
                 kwargs['address'] = [i,splace]
                 self.set(tag,code,new_val,**kwargs)
             
-            return self     
+            return self
+        elif isinstance(fplace,int):
+            pass
+        elif fplace == '+':
+            pass
+        else:
+            raise Exception('Invalid address')
         
         if len(fields) == 0 or fplace == '+':
             valtype = 'value' if auth_controlled == False else 'xref'
@@ -550,7 +556,13 @@ class MARC(object):
                 field.subfields.append(Literal(code,new_val))
                 
             return self
-        
+        elif isinstance(splace,int):
+            subs = [subs[splace]]
+        elif splace == '*':
+            pass
+        else:
+            raise Exception('Invalid address')
+                
         try:
             matcher = kwargs['matcher']
         except KeyError:
@@ -559,7 +571,7 @@ class MARC(object):
         for sub in subs:
             if isinstance(sub,Literal):
                 if isinstance(matcher,re.Pattern):
-                    if matcher.match(sub.value):
+                    if matcher.search(sub.value):
                         sub.value = new_val
                 elif matcher == None:
                     sub.value = new_val

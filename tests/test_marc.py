@@ -442,6 +442,13 @@ class Set(TestCase):
         bib.set('520','a','another changed one',address=[1,0])
         self.assertEqual(bib.get_values('520','a')[1],'another changed one')
         
+    def test_set_existing_all(self):
+        bib = Bib.match_id(999)
+    
+        bib.set('520','a','changed all',address=['*','*'])
+        for val in bib.get_values('520','a'):
+            self.assertEqual(val,'changed all')
+        
     def test_set_existing_linked(self):
         Auth(Data.jauth).commit()
         Auth(Data.jauth2).commit()
@@ -452,13 +459,6 @@ class Set(TestCase):
         
         bib.set('650','a',777)
         self.assertEqual(bib.get_value('650','a'),'header text')
-        
-    def test_set_existing_all(self):
-        bib = Bib.match_id(999)
-        
-        bib.set('520','a','changed all',address=['*','*'])
-        for val in bib.get_values('520','a'):
-            self.assertEqual(val,'changed all')
         
     def test_set_match_literal(self):
         bib = Bib.match_id(999)
