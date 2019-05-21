@@ -47,6 +47,10 @@ class Data(object):
                     {
                         'code' : 'a',
                         'value' : 'another description'
+                    },
+                    {
+                        'code' : 'a',
+                        'value' : 'repeated subfield'
                     }
                 ]
             }
