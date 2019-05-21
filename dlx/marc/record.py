@@ -471,7 +471,8 @@ class MARC(object):
     def get_value(self,tag,code=None,**kwargs):
         if 'address' in kwargs.keys():
             address = kwargs['address']
-            return self.get_values(tag,code,place=address[0])[address[1]]
+            
+            return self.get_values(tag,code,place=address[0])[address[1] or 0]
             
         try: 
             return self.get_values(tag,code)[0]
@@ -529,7 +530,14 @@ class MARC(object):
             splace = kwargs['address'][1]
         except:
             splace = 0
-
+            
+        try:
+            matcher = kwargs['matcher']
+        except KeyError:
+            matcher = None
+        
+        ###
+        
         fields = list(self.get_fields(tag))
         
         if fplace == '*':
@@ -547,15 +555,27 @@ class MARC(object):
         
         if len(fields) == 0 or fplace == '+':
             valtype = 'value' if auth_controlled == False else 'xref'
-            self.add_field(tag,[' ',' '],[{'code' : code, valtype : new_val}])
             
+            if tag[:2] == '00':
+               self.parse({tag : [new_val]})
+            else:
+                self.add_field(tag,[' ',' '],[{'code' : code, valtype : new_val}])
+                
             return self
             
         try:   
             field = fields[fplace]
         except IndexError:
-            raise Exception('There is no "tag" field in {}/{}'.format(tag,fplace))
-              
+            raise Exception('There is no field at {}/{}'.format(tag,fplace))
+            
+        if tag[:2] == '00':
+            if isinstance(matcher,re.Pattern):
+                if matcher.search(field.value): field.value = new_val
+            else:
+                field.value = new_val
+            
+            return self
+            
         subs = list(filter(lambda sub: sub.code == code, field.subfields))
         
         if len(subs) == 0 or splace == '+':
@@ -565,23 +585,18 @@ class MARC(object):
                 field.subfields.append(Literal(code,new_val))
                 
             return self
+            
         elif isinstance(splace,int):
             subs = [subs[splace]]
         elif splace == '*':
             pass
         else:
             raise Exception('Invalid address')
-                
-        try:
-            matcher = kwargs['matcher']
-        except KeyError:
-            matcher = None
             
         for sub in subs:
             if isinstance(sub,Literal):
                 if isinstance(matcher,re.Pattern):
-                    if matcher.search(sub.value):
-                        sub.value = new_val
+                    if matcher.search(sub.value): sub.value = new_val
                 elif matcher == None:
                     sub.value = new_val
                 else:
@@ -589,8 +604,7 @@ class MARC(object):
                 
             elif isinstance(sub,Linked):
                 if isinstance(matcher,(tuple,list)):
-                    if sub.xref in matcher:
-                        sub.xref = new_val
+                    if sub.xref in matcher: sub.xref = new_val
                 elif matcher == None:
                     sub.xref = new_val
                 else:
