@@ -47,6 +47,10 @@ class Data(object):
                     {
                         'code' : 'a',
                         'value' : 'another description'
+                    },
+                    {
+                        'code' : 'a',
+                        'value' : 'repeated subfield'
                     }
                 ]
             }
@@ -390,7 +394,13 @@ class Get(TestCase):
         self.assertEqual(bib.get_value('000'),'leader')
         self.assertEqual(bib.get_value('245','a'), 'This')
         self.assertEqual(' '.join(bib.get_values('245','a','b','c')), 'This is the title')
-        self.assertEqual(['description','another description'],list(bib.get_values('520','a')))
+        self.assertEqual(
+            ['description','another description','repeated subfield'],
+            list(bib.get_values('520','a'))
+           )
+        
+        self.assertEqual(bib.get_value('520','a',address=[1,0]),'another description')
+        self.assertEqual(bib.get_value('520','a',address=[1,1]),'repeated subfield')
     
     def test_get_auth(self):
         Auth(Data.jauth).commit()

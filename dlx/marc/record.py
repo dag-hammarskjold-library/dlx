@@ -437,19 +437,25 @@ class MARC(object):
         
         #todo: return sorted by tag
             
-    def get_field(self,tag):
-        return next(self.get_fields(tag), None)
+    def get_field(self,tag,**kwargs):
+        if 'place' in kwargs.keys():
+            place = kwargs['place']
+            return list(self.get_fields(tag))[place]
+        else:
+            return next(self.get_fields(tag), None)
         
-    def get_field_by_place(self,tag,place):
-        return list(self.get_fields(tag))[place]
-            
-    def get_values(self,tag,*codes):
+    def get_values(self,tag,*codes,**kwargs):
+        if 'place' in kwargs.keys():
+            fields = [self.get_field(tag,**kwargs)]
+        else:
+            fields = self.get_fields(tag)
+        
         if len(codes) == 0:
             codes = list(string.ascii_lowercase + string.digits)
             
         vals = []
                     
-        for field in self.get_fields(tag):
+        for field in fields:
             if isinstance(field,Controlfield):
                 return [field.value]
                 
@@ -462,8 +468,11 @@ class MARC(object):
                     
         return vals
     
-    def get_value(self,tag,code=None):
-        #return next(self.get_values(tag,code), None)
+    def get_value(self,tag,code=None,**kwargs):
+        if 'address' in kwargs.keys():
+            address = kwargs['address']
+            return self.get_values(tag,code,place=address[0])[address[1]]
+            
         try: 
             return self.get_values(tag,code)[0]
         except:
