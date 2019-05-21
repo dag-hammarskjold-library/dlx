@@ -12,6 +12,7 @@ class Data(object):
     jbib = {
         '_id' : 999,
         '000' : ['leader'],
+        '008' : ['controlfield'],
         '245' : [
             {
                 'indicators' : [' ',' '],
@@ -393,22 +394,30 @@ class Get(TestCase):
             
         self.assertEqual(bib.get_value('000'),'leader')
         self.assertEqual(bib.get_value('245','a'), 'This')
-        self.assertEqual(' '.join(bib.get_values('245','a','b','c')), 'This is the title')
+        self.assertEqual(
+            ' '.join(bib.get_values('245','a','b','c')),
+            'This is the title'
+        )
         self.assertEqual(
             ['description','another description','repeated subfield'],
             list(bib.get_values('520','a'))
-           )
+        )
         
         self.assertEqual(bib.get_value('520','a',address=[1,0]),'another description')
         self.assertEqual(bib.get_value('520','a',address=[1,1]),'repeated subfield')
     
     def test_get_auth(self):
         Auth(Data.jauth).commit()
-        
         auth = Auth.match_id(777)
 
         self.assertEqual(auth.get_value('150','a'), 'header text')
         self.assertEqual(auth.header_value('a'), 'header text')
+        
+    def test_get_util(self):
+        bib = Bib.match_id(999)
+    
+        self.assertEqual(bib.get_tags(),['000','008','245','520','520','650','710'])
+        self.assertEqual(bib.get_xrefs(),[333,777])
         
     def test_lookup(self):
         # test auth lookup
@@ -420,9 +429,6 @@ class Get(TestCase):
         Auth(Data.jauth).commit()
         
         self.assertEqual(bib.get_value('650','a'),'header text')
-        
-        self.assertEqual(bib.get_tags(),['000','245','520','520','650','710'])
-        self.assertEqual(bib.get_xrefs(),[333,777])
 
 class Set(TestCase):
     def setUp(self):
@@ -443,6 +449,12 @@ class Set(TestCase):
         bib.set('521','a','new field and value')
         self.assertEqual(bib.get_value('521','a'),'new field and value')
         
+        bib.set('007',None,'new value')
+        self.assertEqual(bib.get_value('007',None),'new value')
+        
+        bib.set('008',None,'new controlfield',address=['+',None])
+        self.assertEqual(bib.get_value('008',None,address=[1,None]),'new controlfield')
+        
     def test_set_existing(self):
         bib = Bib.match_id(999)
         
@@ -450,7 +462,10 @@ class Set(TestCase):
         self.assertEqual(bib.get_value('520','a'),'changed subfield')
         
         bib.set('520','a','another changed one',address=[1,0])
-        self.assertEqual(bib.get_values('520','a')[1],'another changed one')
+        self.assertEqual(bib.get_value('520','a',address=[1,0]),'another changed one')
+        
+        bib.set('008',None,'changed controlfield')
+        self.assertEqual(bib.get_value('008',None),'changed controlfield')
         
     def test_set_existing_all(self):
         bib = Bib.match_id(999)
@@ -458,7 +473,14 @@ class Set(TestCase):
         bib.set('520','a','changed all',address=['*','*'])
         for val in bib.get_values('520','a'):
             self.assertEqual(val,'changed all')
-        
+            
+        for i in range(0,3):
+            bib.set('005',None,'set all',address=['+',None])
+             
+        bib.set('005',None,'changed all',address=['*',None])
+        for val in bib.get_values('005',None):
+            self.assertEqual(val,'changed all')
+                
     def test_set_existing_linked(self):
         Auth(Data.jauth).commit()
         Auth(Data.jauth2).commit()
@@ -480,13 +502,16 @@ class Set(TestCase):
         bib.set('520','a','this shouldn\'t match',matcher=re.compile('x'))
         self.assertEqual(bib.get_value('520','a'),'changed')
         
+        bib.set('008',None,'changed',matcher=re.compile('trolfiel'))
+        self.assertEqual(bib.get_value('008',None),'changed')
+         
     def test_set_match_literal_all(self):
         bib = Bib.match_id(999)
         
         bib.set('520','a','changed',matcher=re.compile('.*desc'),place='*')
         for val in bib.get_values('520','a'):     
             self.assertEqual(bib.get_value('520','a'),'changed')
-        
+    
     def test_set_match_linked(self):
         Auth(Data.jauth).commit()
         Auth(Data.jauth2).commit()
