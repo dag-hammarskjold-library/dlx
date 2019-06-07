@@ -345,10 +345,10 @@ class MARC(object):
             Yields instances of `dlx.Bib` or `dlx.Auth`.
         """
         
-        cursor = cls.handle().find(filter)
+        cursor = cls.handle().find(filter,*pymongo_params)
         
         for doc in cursor:
-            yield cls(doc,*pymongo_params)
+            yield cls(doc)
     
     @classmethod
     def find_one(cls,filter):
@@ -492,20 +492,6 @@ class MARC(object):
         
     #### "set"-type methods
     
-    def add_field(self,tag,indicators,subfields):
-        ### WIP
-        
-        self.parse(
-                {
-                    tag : [
-                        {
-                            'indicators' : indicators, 
-                            'subfields' : subfields
-                        }
-                    ]
-                }
-            )
-    
     def set(self,tag,code,new_val,**kwargs):
         ### WIP
         # kwargs: address [pair], matcher [Pattern/list]
@@ -557,9 +543,9 @@ class MARC(object):
             valtype = 'value' if auth_controlled == False else 'xref'
             
             if tag[:2] == '00':
-               self.parse({tag : [new_val]})
+                self.parse({tag : [new_val]})
             else:
-                self.add_field(tag,[' ',' '],[{'code' : code, valtype : new_val}])
+                self.parse({tag : [{'indicators' : [' ',' '], 'subfields' : [{'code' : code, valtype : new_val}]}]})
                 
             return self
             
