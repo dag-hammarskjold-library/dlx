@@ -11,8 +11,6 @@ Provides a Python API to the DLX database
 
 Connect to the database using a [MongoDB connection string](https://docs.mongodb.com/manual/reference/connection-string/).
 
-Note: The class names `dlx.JMARC`, `dlx.JBIB`, and `dlx.JAUTH` have been deprecated. They still work , but have been replaced by `dlx.MARC`, `dlx.Bib`, and `dlx.Auth`. This is to avoid confusion with JMARC, the JSON specification. The old classes are now subclasses of their new counterparts and will be eliminated eventually.
-
 ```python
 #/usr/bin/env python
 
