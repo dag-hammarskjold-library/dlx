@@ -738,12 +738,6 @@ class MARC(object):
     def from_xml(self,string):
         pass
 
-### deprecated class name (now a subclass of dlx.MARC)
-class JMARC(MARC):
-    def __init__(self,doc={}):
-        super().__init__(doc)
-
-
 class Bib(MARC):
     def __init__(self,doc={}):
         super().__init__(doc)
@@ -784,13 +778,7 @@ class Bib(MARC):
             return DB.files.find_one(file_by_symbol_lang(symbol,lang))['uri']
         except:
             return ''
-    
-### deprecated class name (now a subclass of dlx.Bib)
-class JBIB(Bib):
-    def __init__(self,doc={}):
-        super().__init__(doc)
-        
-                    
+                   
 class Auth(MARC):
     def __init__(self,doc={}):
         super().__init__(doc)
@@ -803,9 +791,5 @@ class Auth(MARC):
             
         for sub in filter(lambda sub: sub.code == code, self.header.subfields):
             return sub.value
-            
-### deprecated class name (now a subclass of dlx.Bib)
-class JAUTH(Auth):
-    def __init__(self,doc={}):
-        super().__init__(doc)
+
 
