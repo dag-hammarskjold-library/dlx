@@ -54,9 +54,7 @@ class MARC(object):
             return {sub.code : sub.value}
             
     @staticmethod
-    def field_text(f):
-        delim = u'\u001f'
-        field_terminator = u'\u001e'
+    def field_text(f,delim=u'\u001f',term=u'\u001e'):
         text = ''
 
         if isinstance(f,Controlfield):
@@ -70,7 +68,7 @@ class MARC(object):
                 else:
                     text += delim + sub.code + MARC.lookup(sub.xref,sub.code)
         
-        text += field_terminator
+        text += term
         
         return text
     
@@ -246,7 +244,7 @@ class MARC(object):
         >>> for bib in bibs: 
         >>>     print(bib.symbol())
         """
-
+    
         cursor = cls.handle().find(Q.match_field(tag,*tuples))
         
         for doc in cursor:
@@ -710,9 +708,33 @@ class MARC(object):
 
         return new_leader + directory + data
     
-    def to_mrk(self):
-        pass    
+    def to_mrk(self,*tags):
+        string = ''
         
+        for f in self.get_fields():    
+            string += f.tag + '  '     
+            string += MARC.field_text(f,'$','') + '\n'
+        
+        return string
+    
+    def to_str(self,*tags):
+        string = ''
+        
+        for f in self.get_fields(*tags): 
+            string += f.tag + '\n'     
+            
+            if isinstance(f,Controlfield):
+                string += '   ' + f.value + '\n'
+            else:
+                #string += '\t' + '[' + f.ind1 + f.ind2 + ']\n'
+                for s in f.subfields:
+                    val = s.value if isinstance(s,Literal) else MARC.lookup(s.xref,s.code)
+                    string += '   ' + s.code + ': ' + val + '\n'
+                
+            string += '-' * 25 + '\n';
+        
+        return string
+            
     def to_xml(self):
         pass
         
