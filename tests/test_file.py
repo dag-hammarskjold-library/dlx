@@ -15,8 +15,11 @@ class Import(TestCase):
         
     def test_instantiation(self):
         #for kv in os.environ: print(kv)
-        tempdir = (os.environ['HOMEPATH']) + '/temp'
-        
+        try:
+            tempdir = (os.environ['HOMEPATH']) + '/temp'
+        except:
+            tempdir = (os.environ['HOME']) + '/temp'
+            
         if not os.path.exists(tempdir):
             os.mkdir(tempdir)
         

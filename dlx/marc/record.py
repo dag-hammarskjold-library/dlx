@@ -323,6 +323,15 @@ class MARC(object):
         
         for doc in cursor:
             yield cls(doc)
+            
+    @classmethod
+    def match_multi(cls,takes,exludes):
+        seen = {}
+        
+        for take in takes:
+            for bib in list(take):
+                seen[bib.id] = True
+                    
     
     @classmethod
     def find(cls,filter,*pymongo_params):

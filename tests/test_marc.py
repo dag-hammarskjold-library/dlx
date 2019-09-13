@@ -357,6 +357,22 @@ class Query(TestCase):
         bibs = list(bibs)
         for bib in bibs: self.assertIsInstance(bib,Bib)
         self.assertEqual(len(bibs),2)
+        
+    def test_match_multi(self):
+        take = [
+            Bib.match_value('245','c','title'),
+        ]
+        exclude = [
+            Bib.match_value('245','a','Another')
+        ]
+        
+        bibs = list(list(Bib.match_multi(take,exclude)))
+        
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        
+        self.assertEqual(len(bibs),1)
+       
+            
 
 class Index(TestCase):
     def setUp(self):
