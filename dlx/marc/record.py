@@ -325,12 +325,22 @@ class MARC(object):
             yield cls(doc)
             
     @classmethod
-    def match_multi(cls,takes,exludes):
-        seen = {}
+    def match_multi(cls,takes,excludes):
+        sets = []
+        
+        for ex in excludes:
+            sets.append(set([bib.id for bib in list(ex)]))
+        
+        exclude_ids = list(sets[0].union(*sets))
+        
+        sets = []
         
         for take in takes:
-            for bib in list(take):
-                seen[bib.id] = True
+            sets.append(set([bib.id for bib in list(take)]))
+            
+        take_ids = filter(lambda x: x not in exclude_ids,list(sets[0].intersection(*sets)))
+        
+        return Bib.match_ids(*take_ids)
                     
     
     @classmethod

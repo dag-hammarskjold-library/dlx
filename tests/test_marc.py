@@ -361,14 +361,16 @@ class Query(TestCase):
     def test_match_multi(self):
         take = [
             Bib.match_value('245','c','title'),
+            Bib.match_value('650','a','header text'),
         ]
         exclude = [
-            Bib.match_value('245','a','Another')
+            Bib.match_value('245','a','This')
         ]
         
-        bibs = list(list(Bib.match_multi(take,exclude)))
+        bibs = list(Bib.match_multi(take,exclude))
         
         for bib in bibs: self.assertIsInstance(bib,Bib)
+        for bib in bibs: self.assertEqual(bib.id,555)
         
         self.assertEqual(len(bibs),1)
        
