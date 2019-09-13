@@ -21,6 +21,9 @@ Topic :: Text Processing :: General
 
 with open("README.md") as f:
     long_description = f.read()
+    
+with open("requirements.txt") as f:
+    requirements = list(filter(None,f.read().split('\n')))
 
 setup(
     name = 'dlx',
@@ -32,7 +35,7 @@ setup(
     packages = find_packages(exclude=['tests']),
     package_data = {'dlx': ['schemas/jmarc.schema.json']},
     test_suite = 'tests',
-    install_requires = ['pymongo>=3','mongomock','jsonschema'],
+    install_requires = requirements,
     description = 'Read, write and modify DLX data.',
     long_description = long_description,
     long_description_content_type = "text/markdown",
