@@ -8,6 +8,7 @@ from bson import SON
 from dlx.config import Configs
 from dlx.db import DB
 from dlx.query import jmarc as Q
+from dlx.query import jfile as FQ
 from .subfield import Literal, Linked
 from .field import Controlfield, Datafield
 
@@ -782,7 +783,7 @@ class Bib(MARC):
         
     def files(self,*langs):
         symbol = self.symbol()
-        cursor = DB.files.find(files_by_symbol(symbol))
+        cursor = DB.files.find(FQ.latest_by_id('symbol',symbol))
         
         ret_vals = []
         
@@ -796,10 +797,7 @@ class Bib(MARC):
     def file(self,lang):
         symbol = self.symbol()
         
-        try:
-            return DB.files.find_one(file_by_symbol_lang(symbol,lang))['uri']
-        except:
-            return ''
+        return DB.files.find_one(FQ.latest_by_id_lang('symbol',symbol,lang))['uri']
           
 class Auth(MARC):
     def __init__(self,doc={}):
