@@ -7,6 +7,9 @@ from unittest import TestCase
 from collections import Generator
 from jsonschema import exceptions as X
 from dlx import DB, marc, MARC, Bib, Auth
+from dlx.query import jmarc as Q
+
+from bson import SON
 
 class Data(object):
     jbib = {
