@@ -326,6 +326,8 @@ class MARC(object):
             
     @classmethod
     def match_multi(cls,takes,excludes):
+        """This is provisional and very slow because it runs all the conditions as separate searches"""
+        
         sets = []
         
         for ex in excludes:
@@ -341,12 +343,35 @@ class MARC(object):
         take_ids = filter(lambda x: x not in exclude_ids,list(sets[0].intersection(*sets)))
         
         return Bib.match_ids(*take_ids)
-                    
+    
+    @classmethod    
+    def match(cls,*matchers):
+        """
+        Only supports `not` keyword so far. WIP
+        """
+        
+        match_docs = []
+        
+        for matcher in matchers:
+            subs = matcher.subfields
+            mod = matcher.modifier.lower()
+            
+            match_doc = Q.match_field(matcher.tag,*subs,modifier=mod)
+            match_docs.append(match_doc)
+                
+        query = SON(data={'$and': match_docs})
+        
+        print(json.dumps(query.to_dict(),indent=4))
+                
+        cursor = cls.handle().find(query)
+                
+        for doc in cursor:
+            yield cls(doc)
     
     @classmethod
     def find(cls,filter,*pymongo_params):
         """Performs a `pymongo` query.
-.
+
         This method calls `pymongo.collection.Collection.find()` directly on the 'bibs' or `auths` database 
         collection.
         
@@ -830,3 +855,33 @@ class Auth(MARC):
             
         for sub in filter(lambda sub: sub.code == code, self.header.subfields):
             return sub.value
+
+###     
+            
+class Matcher(object):
+    valid_modifiers = ['or','not','exists','not_exists']
+    
+    def __init__(self,tag,*subfields,**kwargs):    
+        self.tag = tag
+        self.subfields = [*subfields]
+        self.modifier = ''
+        
+        if 'modifier' in kwargs.keys():
+            mod = kwargs['modifier']
+            
+            if mod.lower() in Matcher.valid_modifiers:
+                self.modifier = mod
+            else:
+                raise Exception
+        
+        #for s in subfields: print(s)
+        
+        
+        
+        
+        
+        
+
+
+
+

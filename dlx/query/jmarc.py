@@ -105,7 +105,7 @@ def or_values(*tuples):
         }
     )
     
-def match_field(tag,*tuples):
+def match_field(tag,*tuples,**kwargs):
     """Builds a query document for matching multiple subfield values within a single field in a record. 
     
     Parameters
@@ -140,7 +140,35 @@ def match_field(tag,*tuples):
             xrefs = _get_xrefs(auth_tag,code,val)
             conditions.append(_match_subfield_xrefs(code,*xrefs))
     
-    return SON (
+    if 'modifier' in kwargs.keys():
+        if kwargs['modifier'].lower() == 'not':
+            return SON(
+                data = {
+                    '$or': [ 
+                        {
+                            tag: {
+                                '$not': {
+                                    '$elemMatch' : {
+                                        'subfields' : {
+                                            '$all' : conditions
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            tag: {'$exists': False}
+                        }
+                    ]
+                }
+            )
+        #elif kwargs['modifier'].lower() == 'some other keyword': 
+        #    pass
+    
+    
+    ### fail kinda safe
+            
+    return SON(
         data = {
             tag : {
                 '$elemMatch' : {
