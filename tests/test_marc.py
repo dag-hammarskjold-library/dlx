@@ -382,7 +382,6 @@ class Query(TestCase):
         bibs = list(Bib.match(m))
         self.assertEqual(len(bibs),1)
         self.assertEqual(bibs[0].id,999)
-        
     
     def test_match_not(self):
         m = marc.record.Matcher('245',('a','This'),('b','is the'),modifier='not')
@@ -393,7 +392,14 @@ class Query(TestCase):
         m = marc.record.Matcher('245',('c',re.compile('title')),modifier='not')
         bibs = list(Bib.match(m))
         self.assertEqual(len(bibs),0)
-         
+        
+    def test_match_multiple_matchers(self):
+        match1 = marc.record.Matcher('245',('b','is the'))
+        match2 = marc.record.Matcher('650',('a','a fake subject'),modifier='not')
+        
+        bibs = list(Bib.match(match1,match2))
+        self.assertEqual(len(bibs),2)
+              
 class Index(TestCase):
     def setUp(self):
         DB.connect('mongodb://.../?authSource=dummy',mock=True)

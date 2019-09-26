@@ -346,6 +346,10 @@ class MARC(object):
     
     @classmethod    
     def match(cls,*matchers):
+        """
+        Only supports `not` keyword so far. WIP
+        """
+        
         match_docs = []
         
         for matcher in matchers:
@@ -353,23 +357,17 @@ class MARC(object):
             mod = matcher.modifier.lower()
             
             match_doc = Q.match_field(matcher.tag,*subs,modifier=mod)
-           
             match_docs.append(match_doc)
-        
-        print(match_docs)
                 
         query = SON(data={'$and': match_docs})
         
-        print(query)
+        print(json.dumps(query.to_dict(),indent=4))
                 
-        curs = cls.handle().find(query)
+        cursor = cls.handle().find(query)
                 
-        for doc in curs:
+        for doc in cursor:
             yield cls(doc)
-                
-        
-            
-                
+    
     @classmethod
     def find(cls,filter,*pymongo_params):
         """Performs a `pymongo` query.
