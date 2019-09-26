@@ -360,8 +360,6 @@ class MARC(object):
             match_docs.append(match_doc)
                 
         query = SON(data={'$and': match_docs})
-        
-        print(json.dumps(query.to_dict(),indent=4))
                 
         cursor = cls.handle().find(query)
                 

@@ -284,20 +284,6 @@ class Query(TestCase):
         bibs = list(bibs)
         for bib in bibs: self.assertIsInstance(bib,Bib)
         self.assertEqual(len(bibs),2)
-        
-    def test_match_fields(self):
-        bibs = Bib.match_fields_or (
-            ('245',('a','This'),('c','title')),
-            ('245',('a','Another'))
-        )
-        self.assertIsInstance(bibs,Generator)
-        bibs = list(bibs)
-        for bib in bibs: self.assertIsInstance(bib,Bib)
-        self.assertEqual(len(bibs),2)
-        
-        auth = Auth.match_id(777)        
-        self.assertIsInstance(auth,Auth)
-        self.assertEqual(auth.id,777)
     
     def test_match_controlfield_value(self):
         bibs = Bib.match_value('000',None,'leader')

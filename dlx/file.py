@@ -58,5 +58,5 @@ class Import(object):
                         # supercede, return
                 
             # copy to s3, insert jfile record to db, return
-            print('importing')
+            # print('importing')
     
