@@ -162,20 +162,23 @@ def match_field(tag,*tuples,**kwargs):
                     ]
                 }
             )
-        else:
-            pass
-    else:
-        return SON(
-            data = {
-                tag : {
-                    '$elemMatch' : {
-                        'subfields' : {
-                            '$all' : conditions
-                        }
+        #elif kwargs['modifier'].lower() == 'some other keyword': 
+        #    pass
+    
+    
+    ### fail kinda safe
+            
+    return SON(
+        data = {
+            tag : {
+                '$elemMatch' : {
+                    'subfields' : {
+                        '$all' : conditions
                     }
                 }
             }
-        )
+        }
+    )
 
 def and_fields(*tuples):
     field_matchers = _field_matchers(*tuples)
