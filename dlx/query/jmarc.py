@@ -162,10 +162,9 @@ def match_field(tag,*tuples,**kwargs):
                     ]
                 }
             )
-        #elif kwargs['modifier'].lower() == 'some other keyword': 
-        #    pass
-    
-    
+        elif kwargs['modifier'].lower() == 'not_exists': 
+            return {tag: {'$exists': False}}
+            
     ### fail kinda safe
             
     return SON(

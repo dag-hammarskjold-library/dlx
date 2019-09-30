@@ -362,13 +362,28 @@ class Query(TestCase):
         for bib in bibs: self.assertEqual(bib.id,555)
         
         self.assertEqual(len(bibs),1)
+        
+    def test_matcher_object(self):
+        matcher = marc.record.Matcher('245',('a','This'),('b','is the'),modifier='not')
+        self.assertEqual(matcher.tag,'245')
+        self.assertEqual(matcher.subfields,[('a','This'),('b','is the')])
+        self.assertEqual(matcher.modifier,'not')
+        
+        matcher = marc.record.Matcher()
+        matcher.tag = '245'
+        matcher.subfields = (('a','This'),('b','is the'))
+        matcher.modifier = 'not'
+        self.assertEqual(matcher.tag,'245')
+        self.assertEqual(matcher.subfields,[('a','This'),('b','is the')])
+        self.assertEqual(matcher.modifier,'not')
+        
        
     def test_match(self):
         m = marc.record.Matcher('245',('a','This'),('b','is the'))
         bibs = list(Bib.match(m))
         self.assertEqual(len(bibs),1)
         self.assertEqual(bibs[0].id,999)
-    
+        
     def test_match_not(self):
         m = marc.record.Matcher('245',('a','This'),('b','is the'),modifier='not')
         bibs = list(Bib.match(m))
@@ -385,6 +400,13 @@ class Query(TestCase):
         
         bibs = list(Bib.match(match1,match2))
         self.assertEqual(len(bibs),2)
+        
+    def test_match_not_exists(self):
+        bibs = list(Bib.match(marc.record.Matcher('999',modifier='not_exists')))
+        self.assertEqual(len(bibs),2)
+        
+        bibs = list(Bib.match(marc.record.Matcher('245',modifier='not_exists')))
+        self.assertEqual(len(bibs),0)
               
 class Index(TestCase):
     def setUp(self):
@@ -421,7 +443,9 @@ class Get(TestCase):
         for f in bib.get_fields(): self.assertIsInstance(f,marc.field.Field)
             
         self.assertEqual(bib.get_value('000'),'leader')
+        self.assertEqual(bib.get('000'),'leader')
         self.assertEqual(bib.get_value('245','a'), 'This')
+        self.assertEqual(bib.get('245','a'), 'This')
         self.assertEqual(
             ' '.join(bib.get_values('245','a','b','c')),
             'This is the title'
@@ -433,6 +457,7 @@ class Get(TestCase):
         
         self.assertEqual(bib.get_value('520','a',address=[1,0]),'another description')
         self.assertEqual(bib.get_value('520','a',address=[1,1]),'repeated subfield')
+        
     
     def test_get_auth(self):
         Auth(Data.jauth).commit()
