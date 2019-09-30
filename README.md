@@ -24,57 +24,20 @@ DB.connect('connection string')
 bib = Bib.match_id(99999)
 auth = Auth.match_id(283289)
 
-# get a generator for iterating through matching records.
+# use `dlx.marc.record.Bib.match()` and `dlx.marc.record.Auth.match()` with a series of `dlx.marc.record.Matcher` obejcts to write queries.
+from dlx.marc.record import Matcher
+bibs = Bib.match(
+    Matcher('269',('a','2012-12-31')),
+    Matcher('245',('a',re.compile('^Report')))
+)
+
+auths = Auth.match(
+    Matcher('100',('a',re.compile('Dag'))),
+    Matcher('400',('a',re.compile('Carl')))
+)
+
+# `match()` returns a generator for iterating through matching records.
 # the generator yeilds instances of `Bib` or `Auth`.
-
-# match one value
-bibs = Bib.match_value('269','a','2012-12-31')
-auths = Auth.match_value('100','a',re.compile('Dag'))
-
-# match multiple values from different fields
-bibs = Bib.match_values(
-    ('269','a','2012-12-31'), 
-    ('245','a',re.compile('report',re.IGNORECASE))
-)
-
-# match multiple values using boolean `or`
-bibs = Bib.match_values_or(
-    ('269','a','2012-12-31'),
-    ('269','a','2013-01-02')
-)
-
-# match multiple subfield values within the same field
-bibs = Bib.match_field(
-    '245', 
-    ('a','Copyright law survey /'), 
-    ('c','World Intellectual Property Organization.')
-)
-
-# match multiple fields using subfield values within the same field 
-bibs = Bib.match_fields (
-    (
-        '191', 
-        ('b','A/'), 
-        ('c','73')
-    ),
-    (
-        '260', 
-        ('a', re.compile('Geneva'))
-    )
-)
-
-# match multiple fields using subfield values within the same field using boolean `or`
-bibs = Bib.match_fields_or (
-    (
-        '191', 
-        ('a', re.compile('^A/RES')), 
-        ('c', '73')
-    ),
-    (
-        '650',
-        ('a', 'HUMAN RIGHTS')
-    )
-)
 
 # iterate through the matching records
 for bib in bibs:
