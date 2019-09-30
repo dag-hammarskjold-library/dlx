@@ -509,6 +509,9 @@ class MARC(object):
                     
         return vals
     
+    def gets(self,tag,*codes,**kwargs):
+        return self.get_values(tag,*codes,**kwargs)
+    
     def get_value(self,tag,code=None,**kwargs):
         if 'address' in kwargs.keys():
             address = kwargs['address']
@@ -520,6 +523,9 @@ class MARC(object):
         except:
             return ''
     
+    def get(self,tag,code=None,**kwargs):
+         return self.get_value(tag,code,**kwargs)
+         
     def get_tags(self):
         return sorted([x.tag for x in self.get_fields()])
         
@@ -862,27 +868,28 @@ class Auth(MARC):
 class Matcher(object):
     valid_modifiers = ['or','not','exists','not_exists']
     
-    def __init__(self,tag,*subfields,**kwargs):    
-        self.tag = tag
-        self.subfields = [*subfields]
+    @property
+    def subfields(self):
+        return self._subfields
+    
+    @subfields.setter
+    def subfields(self,subs):
+        self._subfields = [*subs]
+    
+    def __init__(self,tag=None,*subs,**kwargs):    
+        if tag:
+            self.tag = tag
+        if subs is not None:
+            self._subfields = [*subs]
+            
         self.modifier = ''
         
         if 'modifier' in kwargs.keys():
-            mod = kwargs['modifier']
+            mod = kwargs['modifier'].lower()
             
-            if mod.lower() in Matcher.valid_modifiers:
+            if mod in Matcher.valid_modifiers:
                 self.modifier = mod
             else:
                 raise Exception
         
-        #for s in subfields: print(s)
-        
-        
-        
-        
-        
-        
-
-
-
-
+# end
