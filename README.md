@@ -14,8 +14,8 @@ Connect to the database using a [MongoDB connection string](https://docs.mongodb
 ```python
 #/usr/bin/env python
 
-import re
 from dlx import DB, Bib, Auth
+from bson.regex import Regex
 
 # connect to DB
 DB.connect('connection string')
@@ -28,12 +28,12 @@ auth = Auth.match_id(283289)
 from dlx.marc.record import Matcher
 bibs = Bib.match(
     Matcher('269',('a','2012-12-31')),
-    Matcher('245',('a',re.compile('^Report')))
+    Matcher('245',('a',Regex('^Report')))
 )
 
 auths = Auth.match(
-    Matcher('100',('a',re.compile('Dag'))),
-    Matcher('400',('a',re.compile('Carl')))
+    Matcher('100',('a',Regex('Dag'))),
+    Matcher('400',('a',Regex('Carl')))
 )
 
 # `match()` returns a generator for iterating through matching records.
