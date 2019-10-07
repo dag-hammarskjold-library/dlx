@@ -347,7 +347,7 @@ class MARC(object):
     @classmethod    
     def match(cls,*matchers):
         """
-        Only supports `not` and `not_exists` keywords so far. WIP
+        Only supports `not` keyword so far. WIP
         """
         
         match_docs = []
