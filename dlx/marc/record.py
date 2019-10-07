@@ -347,7 +347,7 @@ class MARC(object):
     @classmethod    
     def match(cls,*matchers):
         """
-        Only supports `not` keyword so far. WIP
+        Only supports `not` and `not_exists` keywords so far. WIP
         """
         
         match_docs = []
@@ -360,6 +360,8 @@ class MARC(object):
             match_docs.append(match_doc)
                 
         query = SON(data={'$and': match_docs})
+        
+        print(query.to_dict())
                 
         cursor = cls.handle().find(query)
                 
@@ -413,21 +415,19 @@ class MARC(object):
     
     @classmethod
     def literal_index(cls,tag):
-        field = tag + '.subfields'
-        cls.handle().create_index(field)
-        cls.handle().create_index([(field + '.code', ASCENDING), (field + '.value', ASCENDING)])
+        cls.handle().create_index(tag + '.subfields.code', ASCENDING)
+        cls.handle().create_index(tag + '.subfields.value', ASCENDING)
     
     @classmethod
     def linked_index(cls,tag):
-        field = tag + '.subfields'
-        cls.handle().create_index(field)
-        cls.handle().create_index([(field + '.code', ASCENDING), (field + '.xref', ASCENDING)])
+        cls.handle().create_index(tag + '.subfields.code', ASCENDING)
+        cls.handle().create_index(tag + '.subfields.xref', ASCENDING)
     
     @classmethod
     def hybrid_index(cls,tag):
-        field = tag + '.subfields'
-        cls.handle().create_index(field)
-        cls.handle().create_index([(field + '.code', ASCENDING), (field + '.value', ASCENDING), (field + '.xref', ASCENDING)])
+        cls.handle().create_index(tag + '.subfields.code', ASCENDING)
+        cls.handle().create_index(tag + '.subfields.value', ASCENDING)
+        cls.handle().create_index(tag + '.subfields.xref', ASCENDING)
     
     ## instance 
     
