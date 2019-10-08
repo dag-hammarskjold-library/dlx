@@ -4,7 +4,7 @@ Provides a Python API to the DLX database
 
 ### Installation:
 ```bash
-> pip install git+https://github.com/dag-hammarskjold-library/dlx
+> pip install git+git://github.com/dag-hammarskjold-library/dlx
 ```
 
 ### Usage:
