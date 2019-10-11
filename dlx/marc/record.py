@@ -353,11 +353,17 @@ class MARC(object):
         match_docs = []
         
         for matcher in matchers:
-            subs = matcher.subfields
-            mod = matcher.modifier.lower()
-            
-            match_doc = Q.match_field(matcher.tag,*subs,modifier=mod)
-            match_docs.append(match_doc)
+            if isinstance(matcher,OrMatch):
+                or_match_docs = []
+           
+                for m in matcher.matchers:
+                    or_match_docs.append(m.compile())
+                    
+                match_doc = SON(data={'$or': or_match_docs})              
+                match_docs.append(match_doc)
+            else:               
+                match_doc = matcher.compile()
+                match_docs.append(match_doc)
                 
         query = SON(data={'$and': match_docs})
                 
@@ -886,5 +892,19 @@ class Matcher(object):
                 self.modifier = mod
             else:
                 raise Exception
+                
+    def compile(self):
+        subs = self.subfields
+        mod = self.modifier.lower()
+        
+        return Q.match_field(self.tag,*subs,modifier=mod)
+                
+class OrMatch(object):
+    def __init__(self,*matchers):
+        self.matchers = matchers
+        
+
+        
+    
         
 # end
