@@ -345,11 +345,28 @@ class MARC(object):
         return Bib.match_ids(*take_ids)
     
     @classmethod    
-    def match(cls,*matchers):
+    def match(cls,*matchers,**kwargs):
         """
         Only supports `not` and `not_exists` keywords so far. WIP
         """
         
+        query = cls.compile_matchers(*matchers)
+        
+        if 'project' in kwargs.keys():
+            projection = {}
+            
+            for tag in kwargs['project']:
+                projection[tag] = 1
+                
+            cursor = cls.handle().find(query,projection)
+        else:        
+            cursor = cls.handle().find(query)
+                
+        for doc in cursor:
+            yield cls(doc)
+    
+    @classmethod
+    def compile_matchers(cls,*matchers):
         match_docs = []
         
         for matcher in matchers:
@@ -358,20 +375,22 @@ class MARC(object):
            
                 for m in matcher.matchers:
                     or_match_docs.append(m.compile())
-                    
-                match_doc = SON(data={'$or': or_match_docs})              
-                match_docs.append(match_doc)
+                             
+                match_docs.append(
+                    SON(
+                        data = 
+                            {'$or': or_match_docs}
+                        )
+                    )
             else:               
-                match_doc = matcher.compile()
-                match_docs.append(match_doc)
+                match_docs.append(matcher.compile())
                 
-        query = SON(data={'$and': match_docs})
-                
-        cursor = cls.handle().find(query)
-                
-        for doc in cursor:
-            yield cls(doc)
-    
+        query = SON(
+            data = {'$and': match_docs}
+        )
+        
+        return query
+        
     @classmethod
     def find(cls,filter,*pymongo_params):
         """Performs a `pymongo` query.
