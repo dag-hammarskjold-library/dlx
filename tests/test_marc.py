@@ -6,10 +6,13 @@ import re
 from unittest import TestCase
 from collections import Generator
 from jsonschema import exceptions as X
-from dlx import DB, marc, MARC, Bib, Auth
-from dlx.query import jmarc as Q
-
 from bson import SON
+from bson.regex import Regex
+
+from dlx import DB, marc
+from dlx.marc import MARC, Bib, Auth, Matcher, OrMatch
+
+### test data
 
 class Data(object):
     jbib = {
@@ -162,6 +165,8 @@ class Data(object):
             }
         ]
     }    
+
+### tests
 
 class Instantiation(TestCase):
     def setUp(self):
