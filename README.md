@@ -1,31 +1,38 @@
 
-# dlx
-Provides a Python API to the DLX database
+
+# DLX
+DLX is a serialization, storage, and query toolkit for MARC data and associated content files. DLX provies APIs for manipulating, storing, and retrieving MARC data ~~as well as content file submission and retrieval (not yet implemented)~~.
 
 ### Installation:
 ```bash
 > pip install git+git://github.com/dag-hammarskjold-library/dlx
 ```
-
 ### Usage:
-
-Connect to the database using a [MongoDB connection string](https://docs.mongodb.com/manual/reference/connection-string/).
+DLX provides various classes for working with the DLX data.
 
 ```python
 #/usr/bin/env python
 
-from dlx import DB, Bib, Auth
+from dlx import DB
+from dlx.marc import Bib, Auth, Matcher, OrMatch
 from bson.regex import Regex
+```
+Connect to the database using a [MongoDB connection string](https://docs.mongodb.com/manual/reference/connection-string/).
 
-# connect to DB
+```python
+# Connect to the DB.
 DB.connect('connection string')
-
-# get an instance of of a subclass of `dlx.MARC` from the database (`Bib` or `Auth`)
-bib = Bib.match_id(99999)
-auth = Auth.match_id(283289)
-
-# use `dlx.marc.record.Bib.match()` and `dlx.marc.record.Auth.match()` with a series of `dlx.marc.record.Matcher` obejcts to write queries.
-from dlx.marc.record import Matcher
+```
+ `Bib` and `Auth` have class methods for accessing the
+ `db.bibs` and `db.auths` database collections.
+```python
+# Get an instance of `Bib` or `Auth` from the database.
+bib = Bib.match_id(99999) # returns a Bib() object
+auth = Auth.match_id(283289) # returns a Auth() object
+```
+Use the class method `.match()` with a series of `Matcher`
+objects to write queries.
+```python
 bibs = Bib.match(
     Matcher('269',('a','2012-12-31')),
     Matcher('245',('a',Regex('^Report')))
@@ -35,19 +42,25 @@ auths = Auth.match(
     Matcher('100',('a',Regex('Dag'))),
     Matcher('400',('a',Regex('Carl')))
 )
+```
+Use `OrMatch` to group matcher objects into OR queries. 
+```python
+bibs = Bib.match(
+    OrMatch(
+        Matcher('191',('b','A/'),('c','72')),
+        Matcher('791',('b','A/'),('c','72'))
+    )
+)
+```
 
-# `match()` returns a generator for iterating through matching records.
-# the generator yeilds instances of `Bib` or `Auth`.
-
-# iterate through the matching records
+`.match()` returns a generator for iterating through
+matching records. The generator yeilds instances of `Bib`
+or `Auth`.
+```python
 for bib in bibs:
-
-    # `bib` is a `Bib` object
+    # The `Bib` and `Auth` objects have instance methods for
+    # getting values from the instance.
     print('title: ' + ' '.join(bib.get_values('245','a','b','c')))
     print('date: ' + bib.get_value('269','a'))
-    print('authors: ' + '; '.join(bib.get_values('710','a')))
-    print('subjects: ' + '; '.join(bib.get_values('650','a')))
-        
-    print('-' * 100)
-    
+    print('-' * 100) 
 ```
