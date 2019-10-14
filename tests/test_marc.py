@@ -6,10 +6,13 @@ import re
 from unittest import TestCase
 from collections import Generator
 from jsonschema import exceptions as X
-from dlx import DB, marc, MARC, Bib, Auth
-from dlx.query import jmarc as Q
-
 from bson import SON
+from bson.regex import Regex
+
+from dlx import DB, marc
+from dlx.marc import MARC, Bib, Auth, Matcher, OrMatch
+
+### test data
 
 class Data(object):
     jbib = {
@@ -162,6 +165,8 @@ class Data(object):
             }
         ]
     }    
+
+### tests
 
 class Instantiation(TestCase):
     def setUp(self):
@@ -376,7 +381,14 @@ class Query(TestCase):
         self.assertEqual(matcher.tag,'245')
         self.assertEqual(matcher.subfields,[('a','This'),('b','is the')])
         self.assertEqual(matcher.modifier,'not')
+    
+    def test_ormatch_object(self):
+        om = marc.record.OrMatch(
+            marc.record.Matcher(),
+            marc.record.Matcher()
+        )
         
+        for m in om.matchers: self.assertIsInstance(m,marc.record.Matcher)
        
     def test_match(self):
         m = marc.record.Matcher('245',('a','This'),('b','is the'))
@@ -407,6 +419,21 @@ class Query(TestCase):
         
         bibs = list(Bib.match(marc.record.Matcher('245',modifier='not_exists')))
         self.assertEqual(len(bibs),0)
+        
+    def test_match_or(self):
+        match1 = marc.record.Matcher('245',('a','This'))
+        match2 = marc.record.Matcher('245',('a','Another'))
+        
+        cursor = Bib.match(marc.record.OrMatch(match1,match2))
+        bibs = list(cursor)
+        self.assertEqual(len(bibs),2)
+       
+        match2 = marc.record.Matcher('245',('a','Fake'))
+        
+        cursor = Bib.match(marc.record.OrMatch(match1,match2))
+        bibs = list(cursor)
+        self.assertEqual(len(bibs),1)
+        
               
 class Index(TestCase):
     def setUp(self):
