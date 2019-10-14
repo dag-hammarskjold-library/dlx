@@ -224,89 +224,227 @@ class Query(TestCase):
     def test_find(self):
         # test queries
 
-		bib = Bib.find_one({'_id' : 999})
-		self.assertIsInstance(bib,Bib)
-		
-		bibs = Bib.find({})
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-	
-	def test_match_id(self):
-		bib = Bib.match_id(999)	
-		self.assertIsInstance(bib,Bib)
-		self.assertEqual(bib.id,999)
-		
-		auth = Auth.match_id(777)		
-		self.assertIsInstance(auth,Auth)
-		self.assertEqual(auth.id,777)
-	
-	def test_match_controlfield_value(self):
-		bibs = Bib.match_value('000',None,'leader')
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		self.assertEqual(len(bibs),2)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		
-	def test_match_datafield_value(self):
-		bibs = Bib.match_value('650','a','header text')
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-		
-	def test_match_values(self):
-		bibs = Bib.match_values(('000',None,'leader'),('245','c','title'))
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-		
-	def test_match_values_or(self):
-		bibs = Bib.match_values_or(('245','a','This'),('245','a','Another'))
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-		
-	def test_match_field(self):
-		bibs = Bib.match_field('245',('b','is the'),('c','title'))
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-		
-		self.assertIsInstance(bib,Bib)
-		self.assertEqual(bib.id,999)
-		
-	def test_match_fields(self):
-		bibs = Bib.match_fields (
-			('245',('b','is the'),('c','title')),
-			('650',('a','header text'))
-		)
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-		
-	def test_match_fields(self):
-		bibs = Bib.match_fields_or (
-			('245',('a','This'),('c','title')),
-			('245',('a','Another'))
-		)
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-
-	def test_match_xrefs(self):
-		bibs = Bib.match_xrefs('650','a',777)
-		self.assertIsInstance(bibs,Generator)
-		bibs = list(bibs)
-		for bib in bibs: self.assertIsInstance(bib,Bib)
-		self.assertEqual(len(bibs),2)
-
+        bib = Bib.find_one({'_id' : 999})
+        self.assertIsInstance(bib,Bib)
+        
+        bibs = Bib.find({})
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+    
+    def test_match_id(self):
+        bib = Bib.match_id(999)    
+        self.assertIsInstance(bib,Bib)
+        self.assertEqual(bib.id,999)
+        
+        auth = Auth.match_id(777)        
+        self.assertIsInstance(auth,Auth)
+        self.assertEqual(auth.id,777)
+    
+    def test_match_controlfield_value(self):
+        bibs = Bib.match_value('000',None,'leader')
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        self.assertEqual(len(bibs),2)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        
+    def test_match_datafield_value(self):
+        bibs = Bib.match_value('650','a','header text')
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_values(self):
+        bibs = Bib.match_values(('000',None,'leader'),('245','c','title'))
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_values_or(self):
+        bibs = Bib.match_values_or(('245','a','This'),('245','a','Another'))
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_field(self):
+        bibs = Bib.match_field('245',('b','is the'),('c','title'))
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+        self.assertIsInstance(bib,Bib)
+        self.assertEqual(bib.id,999)
+        
+    def test_match_fields(self):
+        bibs = Bib.match_fields (
+            ('245',('b','is the'),('c','title')),
+            ('650',('a','header text'))
+        )
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+    
+    def test_match_controlfield_value(self):
+        bibs = Bib.match_value('000',None,'leader')
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        self.assertEqual(len(bibs),2)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        
+    def test_match_datafield_value(self):
+        bibs = Bib.match_value('245','c','title')
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_values(self):
+        bibs = Bib.match_values(('000',None,'leader'),('245','c','title'))
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_values_or(self):
+        bibs = Bib.match_values_or(('245','a','This'),('245','a','Another'))
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_field(self):
+        bibs = Bib.match_field('245',('b','is the'),('c','title'))
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_fields(self):
+        bibs = Bib.match_fields (
+            ('245',('b','is the'),('c','title')),
+            ('650',('a','header text'))
+        )
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_fields_or(self):
+        bibs = Bib.match_fields_or (
+            ('245',('b','is the'),('c','title')),
+            ('245',('a','Another'))
+        )
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)    
+        self.assertEqual(len(bibs),2)
+            
+    def test_match_xrefs(self):
+        bibs = Bib.match_xrefs('650','a',777)
+        self.assertIsInstance(bibs,Generator)
+        bibs = list(bibs)
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_multi(self):
+        take = [
+            Bib.match_value('245','c','title'),
+            Bib.match_value('650','a','header text'),
+        ]
+        exclude = [
+            Bib.match_value('245','a','This')
+        ]
+        
+        bibs = list(Bib.match_multi(take,exclude))
+        
+        for bib in bibs: self.assertIsInstance(bib,Bib)
+        for bib in bibs: self.assertEqual(bib.id,555)
+        
+        self.assertEqual(len(bibs),1)
+        
+    def test_matcher_object(self):
+        matcher = marc.record.Matcher('245',('a','This'),('b','is the'),modifier='not')
+        self.assertEqual(matcher.tag,'245')
+        self.assertEqual(matcher.subfields,[('a','This'),('b','is the')])
+        self.assertEqual(matcher.modifier,'not')
+        
+        matcher = marc.record.Matcher()
+        matcher.tag = '245'
+        matcher.subfields = (('a','This'),('b','is the'))
+        matcher.modifier = 'not'
+        self.assertEqual(matcher.tag,'245')
+        self.assertEqual(matcher.subfields,[('a','This'),('b','is the')])
+        self.assertEqual(matcher.modifier,'not')
+    
+    def test_ormatch_object(self):
+        om = marc.record.OrMatch(
+            marc.record.Matcher(),
+            marc.record.Matcher()
+        )
+        
+        for m in om.matchers: self.assertIsInstance(m,marc.record.Matcher)
+       
+    def test_match(self):
+        m = marc.record.Matcher('245',('a','This'),('b','is the'))
+        bibs = list(Bib.match(m))
+        self.assertEqual(len(bibs),1)
+        self.assertEqual(bibs[0].id,999)
+        
+    def test_match_not(self):
+        m = marc.record.Matcher('245',('a','This'),('b','is the'),modifier='not')
+        bibs = list(Bib.match(m))
+        self.assertEqual(len(bibs),1)
+        self.assertEqual(bibs[0].id,555)
+        
+        m = marc.record.Matcher('245',('c',re.compile('title')),modifier='not')
+        bibs = list(Bib.match(m))
+        self.assertEqual(len(bibs),0)
+        
+    def test_match_multiple_matchers(self):
+        match1 = marc.record.Matcher('245',('b','is the'))
+        match2 = marc.record.Matcher('650',('a','a fake subject'),modifier='not')
+        
+        bibs = list(Bib.match(match1,match2))
+        self.assertEqual(len(bibs),2)
+        
+    def test_match_not_exists(self):
+        bibs = list(Bib.match(marc.record.Matcher('999',modifier='not_exists')))
+        self.assertEqual(len(bibs),2)
+        
+        bibs = list(Bib.match(marc.record.Matcher('245',modifier='not_exists')))
+        self.assertEqual(len(bibs),0)
+        
+    def test_match_or(self):
+        match1 = marc.record.Matcher('245',('a','This'))
+        match2 = marc.record.Matcher('245',('a','Another'))
+        
+        cursor = Bib.match(marc.record.OrMatch(match1,match2))
+        bibs = list(cursor)
+        self.assertEqual(len(bibs),2)
+       
+        match2 = marc.record.Matcher('245',('a','Fake'))
+        
+        cursor = Bib.match(marc.record.OrMatch(match1,match2))
+        bibs = list(cursor)
+        self.assertEqual(len(bibs),1)
+        
+    def test_match_projection(self):
+        cursor = Bib.match(
+            Matcher('245',('c','title')),
+            project=['245','650']
+        )
+        
+        for bib in cursor:
+            self.assertEqual(bib.get_value('245','c'),'title')
+            self.assertEqual(bib.get_value('000'),'')
+        
+              
 class Index(TestCase):
     def setUp(self):
         DB.connect('mongodb://.../?authSource=dummy',mock=True)
