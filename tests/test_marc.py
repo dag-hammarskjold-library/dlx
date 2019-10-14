@@ -434,6 +434,16 @@ class Query(TestCase):
         bibs = list(cursor)
         self.assertEqual(len(bibs),1)
         
+    def test_match_projection(self):
+        cursor = Bib.match(
+            Matcher('245',('c','title')),
+            project=['245','650']
+        )
+        
+        for bib in cursor:
+            self.assertEqual(bib.get_value('245','c'),'title')
+            self.assertEqual(bib.get_value('000'),'')
+        
               
 class Index(TestCase):
     def setUp(self):
