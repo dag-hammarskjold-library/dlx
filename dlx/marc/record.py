@@ -419,16 +419,19 @@ class MARC(object):
     
     @classmethod
     def literal_index(cls,tag):
+        cls.handle().create_index(tag)
         cls.handle().create_index(tag + '.subfields.code', ASCENDING)
         cls.handle().create_index(tag + '.subfields.value', ASCENDING)
     
     @classmethod
     def linked_index(cls,tag):
+        cls.handle().create_index(tag)
         cls.handle().create_index(tag + '.subfields.code', ASCENDING)
         cls.handle().create_index(tag + '.subfields.xref', ASCENDING)
     
     @classmethod
     def hybrid_index(cls,tag):
+        cls.handle().create_index(tag)
         cls.handle().create_index(tag + '.subfields.code', ASCENDING)
         cls.handle().create_index(tag + '.subfields.value', ASCENDING)
         cls.handle().create_index(tag + '.subfields.xref', ASCENDING)
