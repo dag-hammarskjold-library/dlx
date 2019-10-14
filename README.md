@@ -28,7 +28,7 @@ DB.connect('connection string')
  
 ```python
 bib = Bib.match_id(99999) # returns a Bib() object
-auth = Auth.match_id(283289) # returns a Auth() object
+auth = Auth.match_id(283289) # returns an Auth() object
 ```
 
 Use the class method `.match()` with a series of `Matcher`
@@ -58,8 +58,8 @@ bibs = Bib.match(
 ```
 
 `.match()` returns a generator for iterating through
-matching records. The generator yeilds instances of `Bib`
-or `Auth`, which have instance methods for getting values 
+matching records. The generator yeilds instances of `Bib()`
+or `Auth()`, which have instance methods for getting values 
 from the instance such as `.get_value()`.
 
 ```python
