@@ -1,2 +1,2 @@
 
-from .record import MARC, Bib, Auth
+from .record import MARC, Bib, Auth, Matcher, OrMatch
