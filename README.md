@@ -20,18 +20,20 @@ from bson.regex import Regex
 Connect to the database using a [MongoDB connection string](https://docs.mongodb.com/manual/reference/connection-string/).
 
 ```python
-# Connect to the DB.
 DB.connect('connection string')
 ```
+
  `Bib` and `Auth` have class methods for accessing the
  `db.bibs` and `db.auths` database collections.
+ 
 ```python
-# Get an instance of `Bib` or `Auth` from the database.
 bib = Bib.match_id(99999) # returns a Bib() object
 auth = Auth.match_id(283289) # returns a Auth() object
 ```
+
 Use the class method `.match()` with a series of `Matcher`
 objects to write queries.
+
 ```python
 bibs = Bib.match(
     Matcher('269',('a','2012-12-31')),
@@ -43,7 +45,9 @@ auths = Auth.match(
     Matcher('400',('a',Regex('Carl')))
 )
 ```
-Use `OrMatch` to group matcher objects into OR queries. 
+
+Use `OrMatch` to group matcher objects into OR queries.
+
 ```python
 bibs = Bib.match(
     OrMatch(
@@ -55,12 +59,13 @@ bibs = Bib.match(
 
 `.match()` returns a generator for iterating through
 matching records. The generator yeilds instances of `Bib`
-or `Auth`.
+or `Auth`, which have instance methods for getting values 
+from the instance such as `.get_value()`.
+
 ```python
 for bib in bibs:
-    # The `Bib` and `Auth` objects have instance methods for
-    # getting values from the instance.
-    print('title: ' + ' '.join(bib.get_values('245','a','b','c')))
+    # The `Bib` and `Auth` objects
     print('date: ' + bib.get_value('269','a'))
+    print('title: ' + ' '.join(bib.get_values('245','a','b','c')))
     print('-' * 100) 
 ```
