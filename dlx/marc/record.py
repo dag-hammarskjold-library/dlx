@@ -351,6 +351,7 @@ class MARC(object):
         """
         
         query = cls.compile_matchers(*matchers)
+        args = [query]
         
         if 'project' in kwargs.keys():
             projection = {}
@@ -358,9 +359,19 @@ class MARC(object):
             for tag in kwargs['project']:
                 projection[tag] = 1
                 
-            cursor = cls.handle().find(query,projection)
-        else:        
-            cursor = cls.handle().find(query)
+            args.append(projection)
+        
+        pymongo_kwargs = {}
+        
+        # sort only works on _id field
+        for arg in ('limit', 'skip','sort'):
+            if arg in kwargs.keys():
+                pymongo_kwargs[arg] = kwargs[arg]
+            
+        if pymongo_kwargs.keys():
+            cursor = cls.handle().find(*args,**pymongo_kwargs)    
+        else:
+            cursor = cls.handle().find(*args)
                 
         for doc in cursor:
             yield cls(doc)
