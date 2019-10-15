@@ -8,6 +8,7 @@ from collections import Generator
 from jsonschema import exceptions as X
 from bson import SON
 from bson.regex import Regex
+import pymongo
 
 from dlx import DB, marc
 from dlx.marc import MARC, Bib, Auth, Matcher, OrMatch
@@ -443,8 +444,23 @@ class Query(TestCase):
         for bib in cursor:
             self.assertEqual(bib.get_value('245','c'),'title')
             self.assertEqual(bib.get_value('000'),'')
+            
+    def test_match_kwargs(self):
+        bibs = list(Bib.match(Matcher('999',modifier='not_exists'),skip=1))
+        self.assertEqual(len(bibs),1)
         
-              
+        bibs = list(Bib.match(Matcher('999',modifier='not_exists'),skip=0,limit=1))
+        self.assertEqual(len(bibs),1)
+        
+        # sort works but only on '_id', which isn't very useful
+        bibs = Bib.match(
+            Matcher('999',modifier='not_exists'),
+            sort=[('_id', pymongo.ASCENDING)]
+        )
+        
+        first_result = next(bibs)
+        self.assertEqual(first_result.id,555)
+
 class Index(TestCase):
     def setUp(self):
         DB.connect('mongodb://.../?authSource=dummy',mock=True)
