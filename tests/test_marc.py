@@ -370,12 +370,12 @@ class Query(TestCase):
         self.assertEqual(len(bibs),1)
         
     def test_matcher_object(self):
-        matcher = marc.record.Matcher('245',('a','This'),('b','is the'),modifier='not')
+        matcher = marc.Matcher('245',('a','This'),('b','is the'),modifier='not')
         self.assertEqual(matcher.tag,'245')
         self.assertEqual(matcher.subfields,[('a','This'),('b','is the')])
         self.assertEqual(matcher.modifier,'not')
         
-        matcher = marc.record.Matcher()
+        matcher = marc.Matcher()
         matcher.tag = '245'
         matcher.subfields = (('a','This'),('b','is the'))
         matcher.modifier = 'not'
@@ -384,54 +384,54 @@ class Query(TestCase):
         self.assertEqual(matcher.modifier,'not')
     
     def test_ormatch_object(self):
-        om = marc.record.OrMatch(
-            marc.record.Matcher(),
-            marc.record.Matcher()
+        om = marc.OrMatch(
+            marc.Matcher(),
+            marc.Matcher()
         )
         
-        for m in om.matchers: self.assertIsInstance(m,marc.record.Matcher)
+        for m in om.matchers: self.assertIsInstance(m,marc.Matcher)
        
     def test_match(self):
-        m = marc.record.Matcher('245',('a','This'),('b','is the'))
+        m = marc.Matcher('245',('a','This'),('b','is the'))
         bibs = list(Bib.match(m))
         self.assertEqual(len(bibs),1)
         self.assertEqual(bibs[0].id,999)
         
     def test_match_not(self):
-        m = marc.record.Matcher('245',('a','This'),('b','is the'),modifier='not')
+        m = marc.Matcher('245',('a','This'),('b','is the'),modifier='not')
         bibs = list(Bib.match(m))
         self.assertEqual(len(bibs),1)
         self.assertEqual(bibs[0].id,555)
         
-        m = marc.record.Matcher('245',('c',re.compile('title')),modifier='not')
+        m = marc.Matcher('245',('c',re.compile('title')),modifier='not')
         bibs = list(Bib.match(m))
         self.assertEqual(len(bibs),0)
         
     def test_match_multiple_matchers(self):
-        match1 = marc.record.Matcher('245',('b','is the'))
-        match2 = marc.record.Matcher('650',('a','a fake subject'),modifier='not')
+        match1 = marc.Matcher('245',('b','is the'))
+        match2 = marc.Matcher('650',('a','a fake subject'),modifier='not')
         
         bibs = list(Bib.match(match1,match2))
         self.assertEqual(len(bibs),2)
         
     def test_match_not_exists(self):
-        bibs = list(Bib.match(marc.record.Matcher('999',modifier='not_exists')))
+        bibs = list(Bib.match(marc.Matcher('999',modifier='not_exists')))
         self.assertEqual(len(bibs),2)
         
-        bibs = list(Bib.match(marc.record.Matcher('245',modifier='not_exists')))
+        bibs = list(Bib.match(marc.Matcher('245',modifier='not_exists')))
         self.assertEqual(len(bibs),0)
         
     def test_match_or(self):
-        match1 = marc.record.Matcher('245',('a','This'))
-        match2 = marc.record.Matcher('245',('a','Another'))
+        match1 = marc.Matcher('245',('a','This'))
+        match2 = marc.Matcher('245',('a','Another'))
         
-        cursor = Bib.match(marc.record.OrMatch(match1,match2))
+        cursor = Bib.match(marc.OrMatch(match1,match2))
         bibs = list(cursor)
         self.assertEqual(len(bibs),2)
        
-        match2 = marc.record.Matcher('245',('a','Fake'))
+        match2 = marc.Matcher('245',('a','Fake'))
         
-        cursor = Bib.match(marc.record.OrMatch(match1,match2))
+        cursor = Bib.match(marc.OrMatch(match1,match2))
         bibs = list(cursor)
         self.assertEqual(len(bibs),1)
         
