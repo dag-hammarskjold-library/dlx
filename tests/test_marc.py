@@ -190,13 +190,13 @@ class Instantiation(TestCase):
         self.assertIsInstance(auth,Auth)
         
         for f in bib.controlfields + auth.controlfields:
-            self.assertIsInstance(f,marc.field.Controlfield)
+            self.assertIsInstance(f,marc.Controlfield)
             
         for f in bib.datafields + auth.controlfields:
-            self.assertIsInstance(f,marc.field.Datafield)
+            self.assertIsInstance(f,marc.Datafield)
             
             for s in f.subfields + auth.controlfields:
-                self.assertIsInstance(s,marc.subfield.Subfield)
+                self.assertIsInstance(s,marc.Subfield)
         
     def test_validation(self):
         # test validation
@@ -491,9 +491,9 @@ class Get(TestCase):
         
         bib = Bib.match_id(999)
         
-        self.assertIsInstance(bib.get_field('245'),marc.field.Field)
+        self.assertIsInstance(bib.get_field('245'),marc.Field)
         
-        for f in bib.get_fields(): self.assertIsInstance(f,marc.field.Field)
+        for f in bib.get_fields(): self.assertIsInstance(f,marc.Field)
             
         self.assertEqual(bib.get_value('000'),'leader')
         self.assertEqual(bib.get('000'),'leader')
@@ -626,20 +626,14 @@ class Set(TestCase):
         bib.set('650','a',333,matcher=[777])
         self.assertEqual(bib.get_value('650','a'),'another header')
         
-class Todo(TestCase):
-   
-    def test_e(self):
-        # test utility methods
-        #todo
-        pass
+class Serialization(TestCase):
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
         
-    def test_f(self):
-        # test serializations
-        #todo
-        pass
+        Bib(Data.jbib).commit()
         
-    def test_g(self):
-        # test de-serializations
-        #todo
-        pass
+    def test_to_mij(self):
+        mij = Bib.match_id(999).to_mij()
+        
+        
         
