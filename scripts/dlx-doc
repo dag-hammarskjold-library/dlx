@@ -1,0 +1,10 @@
+#!python 
+
+import sys
+import dlx
+
+print('version: ' + dlx.__version__)
+
+print(help(sys.argv[1]))
+
+exit()
