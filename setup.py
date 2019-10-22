@@ -1,5 +1,4 @@
-
-version = '1.1.2'
+version = '1.1.3'
 
 import sys
 from setuptools import setup, find_packages
@@ -40,5 +39,6 @@ setup(
     long_description = long_description,
     long_description_content_type = "text/markdown",
     classifiers = list(filter(None, classifiers.split('\n'))),
-    python_requires='>=3.3',
+    python_requires = '>=3.3',
+    scripts = ['scripts/dlx-doc']
 )
