@@ -199,10 +199,8 @@ class Instantiation(TestCase):
                 self.assertIsInstance(s,marc.Subfield)
         
     def test_validation(self):
-        # test validation
-        
-        self.assertRaises(X.ValidationError, MARC.validate, Data.invalid)
-        self.assertIsNone(MARC.validate(Data.jbib))
+        bib = Bib(Data.jbib)
+        bib.validate()
 
 class Commit(TestCase):
     def test_commit(self):
@@ -634,6 +632,9 @@ class Serialization(TestCase):
         
     def test_to_mij(self):
         mij = Bib.match_id(999).to_mij()
+        
+    def test_to_mrc(self):
+        mrc = Bib.match_id(999).to_mrc()
         
         
         

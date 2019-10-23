@@ -9,8 +9,6 @@ from dlx.config import Configs
 from dlx.db import DB
 from dlx.query import jmarc as Q
 from dlx.query import jfile as FQ
-from .subfield import Literal, Linked
-#from .field import Controlfield, Datafield
 
 # decorator
 def check_connection(f):
@@ -25,14 +23,16 @@ class MARC(object):
     _cache = {}
     
     ## static 
-            
+    
+    #deprecated
     @staticmethod
     def serialize_subfield(sub):
         if isinstance(sub,Linked):
             return {sub.code : Auth.lookup(sub.xref,sub.code)}
         else:
             return {sub.code : sub.value}
-            
+    
+    #deprecated      
     @staticmethod
     def field_text(f,delim=u'\u001f',term=u'\u001e'):
         text = ''
@@ -453,8 +453,6 @@ class MARC(object):
         
         if doc is None: 
             doc = {}
-        else:
-            MARC.validate(doc)
         
         if '_id' in doc.keys():
             self.id = int(doc['_id'])
@@ -462,6 +460,8 @@ class MARC(object):
         self.parse(doc)
                     
     def parse(self,doc):
+        #jsonschema.validate(instance=doc,schema=Configs.jmarc_schema)
+        
         for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
             
             if tag == '000':
@@ -507,7 +507,6 @@ class MARC(object):
             return list(self.get_fields(tag))[place]
         else:
             return next(self.get_fields(tag), None)
-            
         
     def get_values(self,tag,*codes,**kwargs):
         if 'place' in kwargs.keys():
@@ -693,11 +692,18 @@ class MARC(object):
         
     ### store
     
+    def validate(self):
+        try:
+            jsonschema.validate(instance=self.to_dict(),schema=Configs.jmarc_schema)
+        except jsonschema.exceptions.ValidationError as e:
+            msg = '{} in {} : {}'.format(e.message, str(list(e.path)), json.dumps(doc,indent=4))
+            raise jsonschema.exceptions.ValidationError(msg)
+    
     def commit(self):
         # clear the cache so the new value is available
         if isinstance(self,Auth): MARC._cache = {}
         
-        MARC.validate(self.to_dict())
+        self.validate()
         
         # upsert (replace if exists, else new)
         return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), True)
@@ -748,7 +754,7 @@ class MARC(object):
         record_terminator = u'\u001d'
         
         for f in filter(lambda x: x.tag != '000', self.get_fields()):
-            text = MARC.field_text(f)
+            text = f.to_mrc()
             data += text
             field_length = len(text.encode('utf-8'))
             directory += f.tag + str(field_length).zfill(4) + str(next_start).zfill(5)
@@ -955,6 +961,9 @@ class Controlfield(Field):
         
     def to_mij(self):
         return {self.tag: self.value}
+        
+    def to_mrc(self):
+        return self.value
     
 class Datafield(Field):
     def __init__(self,tag,ind1,ind2,subfields):
@@ -992,6 +1001,19 @@ class Datafield(Field):
                 
         return serialized
         
+    def to_mrc(self,delim=u'\u001f',term=u'\u001e'):
+        text = self.ind1 + self.ind2
+            
+        for sub in (self.subfields):
+            if hasattr(sub,'value'):
+                text += delim + sub.code + sub.value
+            else:
+                text += delim + sub.code + Auth.lookup(sub.xref,sub.code)
+        
+        text += term
+        
+        return text
+        
 ### subfield
         
 class Subfield(object):
@@ -1026,3 +1048,4 @@ class Linked(Subfield):
 
         
 # end
+
