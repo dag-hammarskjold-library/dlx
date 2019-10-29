@@ -9,81 +9,27 @@ from dlx.config import Configs
 from dlx.db import DB
 from dlx.query import jmarc as Q
 from dlx.query import jfile as FQ
-from .subfield import Literal, Linked
-from .field import Controlfield, Datafield
 
-# decorator
-def check_connection(f):
-    def wrapper(*args,**kwargs):
-        DB.check_connection()
-        
-        return f(*args,**kwargs)
-    
-    return wrapper
-        
+### Record classes
+     
 class MARC(object):
-    _cache = {}
-    
-    ## static 
-    
-    @staticmethod
-    def lookup(xref,code):
-        DB.check_connection()
-        
-        try:
-            return MARC._cache[xref][code]
-        except:
-            auth = Auth.match_id(xref)
-            
-            if auth is None:
-                value = 'N/A'
-            else:    
-                value = auth.header_value(code)
-                
-            if xref not in MARC._cache.keys():
-                MARC._cache[xref] = {}
-                
-            MARC._cache[xref][code] = value
-                
-            return value
-            
-    @staticmethod
-    def serialize_subfield(sub):
-        if isinstance(sub,Linked):
-            return {sub.code : MARC.lookup(sub.xref,sub.code)}
-        else:
-            return {sub.code : sub.value}
-            
-    @staticmethod
-    def field_text(f,delim=u'\u001f',term=u'\u001e'):
-        text = ''
+    '''
+    '''
 
-        if isinstance(f,Controlfield):
-            text = f.value
-        else:
-            text += f.ind1 + f.ind2
-            
-            for sub in (f.subfields):
-                if hasattr(sub,'value'):
-                    text += delim + sub.code + sub.value
-                else:
-                    text += delim + sub.code + MARC.lookup(sub.xref,sub.code)
-        
-        text += term
-        
-        return text
+    class _Decorators(object):
+        def check_connection(method):
+            def wrapper(*args,**kwargs):
+                DB.check_connection()
+                return method(*args,**kwargs)
     
-    @staticmethod
-    def validate(doc):
-        try:
-            jsonschema.validate(instance=doc,schema=Configs.jmarc_schema)
-        except jsonschema.exceptions.ValidationError as e:
-            msg = '{} in {} : {}'.format(e.message, str(list(e.path)), json.dumps(doc,indent=4))
-            raise jsonschema.exceptions.ValidationError(msg) 
-        
+            return wrapper
+    
+    # Class methods
+   
     #### database query handlers
 
     @classmethod
+    @_Decorators.check_connection
     def handle(cls):
         DB.check_connection()
         
@@ -443,7 +389,6 @@ class MARC(object):
     #### database index creation
     
     @classmethod
-    @check_connection
     def controlfield_index(cls,tag):
         cls.handle().create_index(tag)
     
@@ -466,7 +411,7 @@ class MARC(object):
         cls.handle().create_index(tag + '.subfields.value')
         cls.handle().create_index(tag + '.subfields.xref')
     
-    ## instance 
+    # Instance methods 
     
     def __init__(self,doc={}):
         self.controlfields = []
@@ -474,8 +419,6 @@ class MARC(object):
         
         if doc is None: 
             doc = {}
-        else:
-            MARC.validate(doc)
         
         if '_id' in doc.keys():
             self.id = int(doc['_id'])
@@ -484,7 +427,6 @@ class MARC(object):
                     
     def parse(self,doc):
         for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
-            
             if tag == '000':
                 self.leader = doc['000'][0]
                 
@@ -521,6 +463,13 @@ class MARC(object):
             return list(self.get_fields(tag))[place]
         else:
             return next(self.get_fields(tag), None)
+            
+    def get_dict(self,tag,*kwargs):
+        if 'place' in kwargs.keys():
+            place = kwargs['place']
+            return list(self.get_fields(tag))[place]
+        else:
+            return next(self.get_fields(tag), None)
         
     def get_values(self,tag,*codes,**kwargs):
         if 'place' in kwargs.keys():
@@ -541,7 +490,7 @@ class MARC(object):
                 if isinstance(sub,Literal):
                     vals.append(sub.value)
                 elif isinstance(sub,Linked):
-                    val = MARC.lookup(sub.xref,sub.code)
+                    val = Auth.lookup(sub.xref,sub.code)
                     vals.append(val)
                     
         return vals
@@ -574,6 +523,11 @@ class MARC(object):
         
         return sorted(xrefs)
         
+            
+        
+    def get_text(self,tag):
+        pass
+    
     #### "set"-type methods
     
     def set(self,tag,code,new_val,**kwargs):
@@ -701,11 +655,18 @@ class MARC(object):
         
     ### store
     
+    def validate(self):
+        try:
+            jsonschema.validate(instance=self.to_dict(),schema=Configs.jmarc_schema)
+        except jsonschema.exceptions.ValidationError as e:
+            msg = '{} in {} : {}'.format(e.message, str(list(e.path)), json.dumps(doc,indent=4))
+            raise jsonschema.exceptions.ValidationError(msg)
+    
     def commit(self):
         # clear the cache so the new value is available
         if isinstance(self,Auth): MARC._cache = {}
         
-        MARC.validate(self.to_dict())
+        self.validate()
         
         # upsert (replace if exists, else new)
         return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), True)
@@ -744,23 +705,7 @@ class MARC(object):
     def to_mij(self):
         mij = {}
         mij['leader'] = self.leader    
-        fields = []
-        
-        for f in self.controlfields:
-            fields.append({f.tag : f.value})
-        
-        for f in self.datafields:
-            fields.append(
-                {
-                    f.tag : {
-                        'subfields' : [MARC.serialize_subfield(sub) for sub in f.subfields],
-                        'ind1' : f.ind1,
-                        'ind2' : f.ind2,
-                    }
-                }
-            )
-        
-        mij['fields'] = fields
+        mij['fields'] = [field.to_mij() for field in self.get_fields()]
         
         return json.dumps(mij)
         
@@ -772,7 +717,7 @@ class MARC(object):
         record_terminator = u'\u001d'
         
         for f in filter(lambda x: x.tag != '000', self.get_fields()):
-            text = MARC.field_text(f)
+            text = f.to_mrc()
             data += text
             field_length = len(text.encode('utf-8'))
             directory += f.tag + str(field_length).zfill(4) + str(next_start).zfill(5)
@@ -814,7 +759,7 @@ class MARC(object):
             else:
                 #string += '\t' + '[' + f.ind1 + f.ind2 + ']\n'
                 for s in f.subfields:
-                    val = s.value if isinstance(s,Literal) else MARC.lookup(s.xref,s.code)
+                    val = s.value if isinstance(s,Literal) else Auth.lookup(s.xref,s.code)
                     string += '   ' + s.code + ': ' + val + '\n'
                 
             string += '-' * 25 + '\n';
@@ -889,15 +834,141 @@ class Auth(MARC):
         super().__init__(doc)
         
         self.header = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
+    
+    @classmethod
+    def lookup(cls,xref,code):
+        DB.check_connection()
         
+        try:
+            return MARC._cache[xref][code]
+        except:
+            auth = Auth.match_id(xref)
+            
+            if auth is None:
+                value = 'N/A'
+            else:    
+                value = auth.header_value(code)
+                
+            if xref not in MARC._cache.keys():
+                MARC._cache[xref] = {}
+                
+            MARC._cache[xref][code] = value
+                
+            return value
+                
     def header_value(self,code):
         if self.header is None:
             return
             
         for sub in filter(lambda sub: sub.code == code, self.header.subfields):
             return sub.value
+    
+### Field classes
+        
+class Field(object):
+    def __init__(self):
+        raise Exception('Cannot instantiate fom base class')
+        
+    def to_bson(self):
+        raise Exception('This is a stub')
 
-###     
+class Controlfield(Field):
+    def __init__(self,tag,value):
+        self.tag = tag
+        self.value = value
+    
+    def to_bson(self):
+        return self.value
+        
+    def to_mij(self):
+        return {self.tag: self.value}
+        
+    def to_mrc(self):
+        return self.value
+    
+class Datafield(Field):
+    def __init__(self,tag,ind1,ind2,subfields):
+        self.tag = tag
+        self.ind1 = ind1
+        self.ind2 = ind2
+        self.subfields = subfields
+        
+    def xrefs(self):
+        return [sub.xref for sub in filter(lambda x: hasattr(x,'xref'), self.subfields)]
+            
+    def to_bson(self):
+        return SON (
+            data = {
+                'indicators' : [self.ind1, self.ind2],
+                'subfields' : [sub.to_bson() for sub in self.subfields]
+            }
+        )
+        
+    def to_mij(self):
+        serialized = {self.tag: {}}
+        
+        serialized[self.tag]['ind1'] = self.ind1
+        serialized[self.tag]['ind2'] = self.ind2
+        
+        subs = []
+        
+        for sub in self.subfields:
+            if isinstance(sub,Linked):
+                subs.append({sub.code : Auth.lookup(sub.xref,sub.code)})
+            else:
+                subs.append({sub.code : sub.value}) 
+                
+        serialized[self.tag]['subfields'] = subs
+                
+        return serialized
+        
+    def to_mrc(self,delim=u'\u001f',term=u'\u001e'):
+        text = self.ind1 + self.ind2
+            
+        for sub in (self.subfields):
+            if hasattr(sub,'value'):
+                text += delim + sub.code + sub.value
+            else:
+                text += delim + sub.code + Auth.lookup(sub.xref,sub.code)
+        
+        text += term
+        
+        return text
+        
+### Subfield classes
+        
+class Subfield(object):
+    def __init__(self):
+        raise Exception('Cannot instantiate fom base class')
+        
+    def to_bson(self):
+        raise Exception('This is a stub')
+        
+    @classmethod
+    def is_linked(cls):
+        if cls.__name__ == 'Linked':
+            return True
+        else:
+            return False
+    
+class Literal(Subfield):
+    def __init__(self,code,value):
+        self.code = code
+        self.value = value
+        
+    def to_bson(self):
+        return SON(data = {'code' : self.code, 'value' : self.value})
+    
+class Linked(Subfield):    
+    def __init__(self,code,xref):
+        self.code = code
+        self.xref = int(xref)
+        
+    def to_bson(self):
+        return SON(data = {'code' : self.code, 'xref' : self.xref})
+
+
+### Matcher classes  
             
 class Matcher(object):
     valid_modifiers = ['or','not','exists','not_exists']
@@ -935,9 +1006,6 @@ class Matcher(object):
 class OrMatch(object):
     def __init__(self,*matchers):
         self.matchers = matchers
-        
 
-        
-    
         
 # end
