@@ -10,59 +10,26 @@ from dlx.db import DB
 from dlx.query import jmarc as Q
 from dlx.query import jfile as FQ
 
-# decorator
-def check_connection(f):
-    def wrapper(*args,**kwargs):
-        DB.check_connection()
-        
-        return f(*args,**kwargs)
-    
-    return wrapper
-        
+### Record classes
+     
 class MARC(object):
-    _cache = {}
-    
-    ## static 
-    
-    #deprecated
-    @staticmethod
-    def serialize_subfield(sub):
-        if isinstance(sub,Linked):
-            return {sub.code : Auth.lookup(sub.xref,sub.code)}
-        else:
-            return {sub.code : sub.value}
-    
-    #deprecated      
-    @staticmethod
-    def field_text(f,delim=u'\u001f',term=u'\u001e'):
-        text = ''
+    '''
+    '''
 
-        if isinstance(f,Controlfield):
-            text = f.value
-        else:
-            text += f.ind1 + f.ind2
-            
-            for sub in (f.subfields):
-                if hasattr(sub,'value'):
-                    text += delim + sub.code + sub.value
-                else:
-                    text += delim + sub.code + Auth.lookup(sub.xref,sub.code)
-        
-        text += term
-        
-        return text
+    class _Decorators(object):
+        def check_connection(method):
+            def wrapper(*args,**kwargs):
+                DB.check_connection()
+                return method(*args,**kwargs)
     
-    @staticmethod
-    def validate(doc):
-        try:
-            jsonschema.validate(instance=doc,schema=Configs.jmarc_schema)
-        except jsonschema.exceptions.ValidationError as e:
-            msg = '{} in {} : {}'.format(e.message, str(list(e.path)), json.dumps(doc,indent=4))
-            raise jsonschema.exceptions.ValidationError(msg) 
-        
+            return wrapper
+    
+    # Class methods
+   
     #### database query handlers
 
     @classmethod
+    @_Decorators.check_connection
     def handle(cls):
         DB.check_connection()
         
@@ -422,7 +389,6 @@ class MARC(object):
     #### database index creation
     
     @classmethod
-    @check_connection
     def controlfield_index(cls,tag):
         cls.handle().create_index(tag)
     
@@ -445,7 +411,7 @@ class MARC(object):
         cls.handle().create_index(tag + '.subfields.value')
         cls.handle().create_index(tag + '.subfields.xref')
     
-    ## instance 
+    # Instance methods 
     
     def __init__(self,doc={}):
         self.controlfields = []
@@ -460,10 +426,7 @@ class MARC(object):
         self.parse(doc)
                     
     def parse(self,doc):
-        #jsonschema.validate(instance=doc,schema=Configs.jmarc_schema)
-        
         for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
-            
             if tag == '000':
                 self.leader = doc['000'][0]
                 
@@ -900,47 +863,7 @@ class Auth(MARC):
         for sub in filter(lambda sub: sub.code == code, self.header.subfields):
             return sub.value
     
-    
-###    
-            
-class Matcher(object):
-    valid_modifiers = ['or','not','exists','not_exists']
-    
-    @property
-    def subfields(self):
-        return self._subfields
-    
-    @subfields.setter
-    def subfields(self,subs):
-        self._subfields = [*subs]
-    
-    def __init__(self,tag=None,*subs,**kwargs):    
-        if tag:
-            self.tag = tag
-        if subs is not None:
-            self._subfields = [*subs]
-            
-        self.modifier = ''
-        
-        if 'modifier' in kwargs.keys():
-            mod = kwargs['modifier'].lower()
-            
-            if mod in Matcher.valid_modifiers:
-                self.modifier = mod
-            else:
-                raise Exception
-                
-    def compile(self):
-        subs = self.subfields
-        mod = self.modifier.lower()
-        
-        return Q.match_field(self.tag,*subs,modifier=mod)
-                
-class OrMatch(object):
-    def __init__(self,*matchers):
-        self.matchers = matchers
-        
-###
+### Field classes
         
 class Field(object):
     def __init__(self):
@@ -949,8 +872,6 @@ class Field(object):
     def to_bson(self):
         raise Exception('This is a stub')
 
-### field
-       
 class Controlfield(Field):
     def __init__(self,tag,value):
         self.tag = tag
@@ -1014,7 +935,7 @@ class Datafield(Field):
         
         return text
         
-### subfield
+### Subfield classes
         
 class Subfield(object):
     def __init__(self):
@@ -1046,6 +967,45 @@ class Linked(Subfield):
     def to_bson(self):
         return SON(data = {'code' : self.code, 'xref' : self.xref})
 
+
+### Matcher classes  
+            
+class Matcher(object):
+    valid_modifiers = ['or','not','exists','not_exists']
+    
+    @property
+    def subfields(self):
+        return self._subfields
+    
+    @subfields.setter
+    def subfields(self,subs):
+        self._subfields = [*subs]
+    
+    def __init__(self,tag=None,*subs,**kwargs):    
+        if tag:
+            self.tag = tag
+        if subs is not None:
+            self._subfields = [*subs]
+            
+        self.modifier = ''
+        
+        if 'modifier' in kwargs.keys():
+            mod = kwargs['modifier'].lower()
+            
+            if mod in Matcher.valid_modifiers:
+                self.modifier = mod
+            else:
+                raise Exception
+                
+    def compile(self):
+        subs = self.subfields
+        mod = self.modifier.lower()
+        
+        return Q.match_field(self.tag,*subs,modifier=mod)
+                
+class OrMatch(object):
+    def __init__(self,*matchers):
+        self.matchers = matchers
+
         
 # end
-
