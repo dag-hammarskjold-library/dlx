@@ -12,6 +12,10 @@ class Test(TestCase):
         self.assertIsInstance(db,mongomock.Database)
         self.assertTrue(DB.check_connection())
         
+        db = DB.connect('mongomock://localhost')
+        self.assertIsInstance(db,mongomock.Database)
+        self.assertTrue(DB.check_connection())
+        
     def test_db(self):
         self.assertIsInstance(DB.handle,mongomock.Database)
         self.assertIsInstance(DB.bibs,mongomock.Collection)

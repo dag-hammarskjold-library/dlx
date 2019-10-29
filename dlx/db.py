@@ -56,6 +56,10 @@ class DB(object):
         
         if 'mock' in kwargs.keys():
             client = MockClient(connection_string,serverSelectionTimeoutMS=10)
+        elif connection_string == 'mongomock://localhost':
+            # allows MongoEngine mock client connection string
+            connection_string = 'mongodb://.../?authSource=dummy'
+            client = MockClient(connection_string,serverSelectionTimeoutMS=10)
         else:    
             client = MongoClient(connection_string,serverSelectionTimeoutMS=10)
         
