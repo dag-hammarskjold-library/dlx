@@ -190,19 +190,17 @@ class Instantiation(TestCase):
         self.assertIsInstance(auth,Auth)
         
         for f in bib.controlfields + auth.controlfields:
-            self.assertIsInstance(f,marc.field.Controlfield)
+            self.assertIsInstance(f,marc.Controlfield)
             
         for f in bib.datafields + auth.controlfields:
-            self.assertIsInstance(f,marc.field.Datafield)
+            self.assertIsInstance(f,marc.Datafield)
             
             for s in f.subfields + auth.controlfields:
-                self.assertIsInstance(s,marc.subfield.Subfield)
+                self.assertIsInstance(s,marc.Subfield)
         
     def test_validation(self):
-        # test validation
-        
-        self.assertRaises(X.ValidationError, MARC.validate, Data.invalid)
-        self.assertIsNone(MARC.validate(Data.jbib))
+        bib = Bib(Data.jbib)
+        bib.validate()
 
 class Commit(TestCase):
     def test_commit(self):
@@ -481,45 +479,60 @@ class Index(TestCase):
         Bib.hybrid_index('710')
     
 class Get(TestCase):
-	def setUp(self):
-		DB.connect('mongodb://.../?authSource=dummy',mock=True)
-		
-		Bib(Data.jbib).commit()
-	
-	def test_get_bib(self):
-		# test get methods and lookup
-		
-		bib = Bib.match_id(999)
-		
-		self.assertIsInstance(bib.get_field('245'),marc.field.Field)
-		
-		for f in bib.get_fields(): self.assertIsInstance(f,marc.field.Field)
-			
-		self.assertEqual(bib.get_value('000'),'leader')
-		self.assertEqual(bib.get_value('245','a'), 'This')
-		self.assertEqual(' '.join(bib.get_values('245','a','b','c')), 'This is the title')
-		self.assertEqual(['description','another description'],list(bib.get_values('520','a')))
-	
-	def test_get_auth(self):
-		Auth(Data.jauth).commit()
-		
-		auth = Auth.match_id(777)
-		self.assertEqual(auth.get_value('150','a'), 'header text')
-		self.assertEqual(auth.header_value('a'), 'header text')
-		
-	def test_lookup(self):
-		# test auth lookup
-		
-		bib = Bib.match_id(999)
-		
-		self.assertEqual(bib.get_value('650','a'),'N/A')
-		
-		Auth(Data.jauth).commit()
-		
-		self.assertEqual(bib.get_value('650','a'),'header text')
-		
-		self.assertEqual(bib.get_tags(),['000','245','520','520','650','710'])
-		self.assertEqual(bib.get_xrefs(),[333,777])
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
+        
+        Bib(Data.jbib).commit()
+    
+    def test_get_bib(self):
+        # test get methods and lookup
+        
+        bib = Bib.match_id(999)
+        
+        self.assertIsInstance(bib.get_field('245'),marc.Field)
+        
+        for f in bib.get_fields(): self.assertIsInstance(f,marc.Field)
+            
+        self.assertEqual(bib.get_value('000'),'leader')
+        self.assertEqual(bib.get('000'),'leader')
+        self.assertEqual(bib.get_value('245','a'), 'This')
+        self.assertEqual(bib.get('245','a'), 'This')
+        self.assertEqual(
+            ' '.join(bib.get_values('245','a','b','c')),
+            'This is the title'
+        )
+        self.assertEqual(
+            ['description','another description','repeated subfield'],
+            list(bib.get_values('520','a'))
+        )
+        
+        self.assertEqual(bib.get_value('520','a',address=[1,0]),'another description')
+        self.assertEqual(bib.get_value('520','a',address=[1,1]),'repeated subfield')
+        
+    
+    def test_get_auth(self):
+        Auth(Data.jauth).commit()
+        auth = Auth.match_id(777)
+
+        self.assertEqual(auth.get_value('150','a'), 'header text')
+        self.assertEqual(auth.header_value('a'), 'header text')
+        
+    def test_get_util(self):
+        bib = Bib.match_id(999)
+    
+        self.assertEqual(bib.get_tags(),['000','008','245','520','520','650','710'])
+        self.assertEqual(bib.get_xrefs(),[333,777])
+        
+    def test_lookup(self):
+        # test auth lookup
+        
+        bib = Bib.match_id(999)
+        
+        self.assertEqual(bib.get_value('650','a'),'N/A')
+        
+        Auth(Data.jauth).commit()
+        
+        self.assertEqual(bib.get_value('650','a'),'header text')
 
 class Set(TestCase):
     def setUp(self):
@@ -611,20 +624,17 @@ class Set(TestCase):
         bib.set('650','a',333,matcher=[777])
         self.assertEqual(bib.get_value('650','a'),'another header')
         
-class Todo(TestCase):
-   
-    def test_e(self):
-        # test utility methods
-        #todo
-        pass
+class Serialization(TestCase):
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
         
-    def test_f(self):
-        # test serializations
-        #todo
-        pass
+        Bib(Data.jbib).commit()
         
-    def test_g(self):
-        # test de-serializations
-        #todo
-        pass
+    def test_to_mij(self):
+        mij = Bib.match_id(999).to_mij()
+        
+    def test_to_mrc(self):
+        mrc = Bib.match_id(999).to_mrc()
+        
+        
         
