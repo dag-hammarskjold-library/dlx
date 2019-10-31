@@ -28,6 +28,8 @@ class Import(TestCase):
             print('testing @ ' + str(time.time()), file=fh)
         
         result = file.Import(path,[file.Identifier('symbol','A/TEST')],['EN'])
+     
+        # assert some stuff 
         
         os.remove(path)
         
