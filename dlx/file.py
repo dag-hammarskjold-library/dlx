@@ -35,30 +35,30 @@ class File(object):
         )
         
         # check if incoming exists
-        
         if incoming.exists():
             raise FileExists('File already exists.')
-
-        # mark old version superceded if identifier and lang exists
-        for id in ids:
-            if not isinstance(id,Identifier): 
-                raise Exception
             
-            for lang in langs:
-                for match in File.match_id_lang(id.type,id.value,lang):
-                    if match.superceded_by:
-                        continue
-                        
-                    print('superceding ' + match.uri)
-                    match.superceded_by = incoming.id                         
-                    
         # upload to s3 
         # commit to db insert jfile record to db, return
-        # print('importing')
+
+        # mark old version superceded if identifier and lang exists
+        for id in ids:    
+            for lang in langs:
+                for match in File.match_id_lang(id.type,id.value,lang):
+                    if not match.superceded_by:
+                        print('superceded ' + match.uri)
+                        match.superceded_by = incoming.id
+                     
+        return 
     
     def __init__(self,doc={}):
-        pass
-    
+        self.id = doc['id']
+        for idx in doc['identifiers']:
+            if not isinstance(idx,Identifier):
+                raise Exception
+        self.identifiers = doc['identifiers']
+        self.languages = doc['languages']
+
     def exists(self):
         pass
     
@@ -68,7 +68,7 @@ class File(object):
 class S3(object):
     pass
     
-### excetpions
+### exceptions
 
 class FileExists(Exception):
     pass
