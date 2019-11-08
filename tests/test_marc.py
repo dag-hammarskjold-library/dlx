@@ -509,19 +509,18 @@ class Get(TestCase):
         self.assertEqual(bib.get_value('520','a',address=[1,0]),'another description')
         self.assertEqual(bib.get_value('520','a',address=[1,1]),'repeated subfield')
         
-    
+        self.assertEqual(bib.get_tags(),['000','008','245','520','520','650','710'])
+        
+        self.assertEqual(bib.get_xrefs(),[777,333])
+        self.assertEqual(bib.get_xrefs('650'),[777])
+        self.assertEqual(bib.get_xrefs('650','710'),[777,333])
+        
     def test_get_auth(self):
         Auth(Data.jauth).commit()
         auth = Auth.match_id(777)
 
         self.assertEqual(auth.get_value('150','a'), 'header text')
         self.assertEqual(auth.header_value('a'), 'header text')
-        
-    def test_get_util(self):
-        bib = Bib.match_id(999)
-    
-        self.assertEqual(bib.get_tags(),['000','008','245','520','520','650','710'])
-        self.assertEqual(bib.get_xrefs(),[333,777])
         
     def test_lookup(self):
         # test auth lookup

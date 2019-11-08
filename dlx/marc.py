@@ -518,13 +518,11 @@ class MARC(object):
     def get_xrefs(self,*tags):
         xrefs = []
         
-        for f in self.datafields:
-            xrefs = xrefs + f.xrefs()
+        for field in filter(lambda f: isinstance(f, Datafield), self.get_fields(*tags)):
+            xrefs = xrefs + field.get_xrefs()
         
-        return sorted(xrefs)
-        
-            
-        
+        return xrefs
+   
     def get_text(self,tag):
         pass
     
@@ -893,7 +891,7 @@ class Datafield(Field):
         self.ind2 = ind2
         self.subfields = subfields
         
-    def xrefs(self):
+    def get_xrefs(self):
         return [sub.xref for sub in filter(lambda x: hasattr(x,'xref'), self.subfields)]
             
     def to_bson(self):
