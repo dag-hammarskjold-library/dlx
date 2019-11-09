@@ -486,12 +486,12 @@ class Get(TestCase):
     
     def test_get_bib(self):
         # test get methods and lookup
+        
         bib = Bib.match_id(999)
         
         self.assertIsInstance(bib.get_field('245'),marc.Field)
         
         for f in bib.get_fields(): self.assertIsInstance(f,marc.Field)
-        self.assertEqual(len(bib.get_fields()), 7)
             
         self.assertEqual(bib.get_value('000'),'leader')
         self.assertEqual(bib.get('000'),'leader')
@@ -624,16 +624,16 @@ class Set(TestCase):
         self.assertEqual(bib.get_value('650','a'),'another header')
         
 class Serialization(TestCase):
-    pass
-    #def setUp(self):
-        #DB.connect('mongodb://.../?authSource=dummy',mock=True)
-        #Bib(Data.jbib).commit()
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
         
-    #def test_to_mij(self):
-    #    pass
+        Bib(Data.jbib).commit()
         
-    #def test_to_mrc(self):
-    #    pass
+    def test_to_mij(self):
+        mij = Bib.match_id(999).to_mij()
+        
+    def test_to_mrc(self):
+        mrc = Bib.match_id(999).to_mrc()
         
         
         
