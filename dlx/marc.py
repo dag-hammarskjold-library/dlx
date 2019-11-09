@@ -504,18 +504,10 @@ class MARC(object):
             
             return self.get_values(tag,code,place=address[0])[address[1] or 0]
             
-        field = self.get_field(tag)
-        
-        if field is None:
+        try: 
+            return self.get_values(tag,code)[0]
+        except:
             return ''
-           
-        if isinstance(field,Controlfield):
-            return field.value
-              
-        for sub in filter(lambda sub: sub.code == code, field.subfields):
-            return sub.value
-        
-        return ''
     
     def get(self,tag,code=None,**kwargs):
          return self.get_value(tag,code,**kwargs)
@@ -969,14 +961,10 @@ class Linked(Subfield):
     def __init__(self,code,xref):
         self.code = code
         self.xref = int(xref)
-        self._value = None
         
-    @property
-    def value(self):
-        return Auth.lookup(self.xref,self.code)
-
     def to_bson(self):
         return SON(data = {'code' : self.code, 'xref' : self.xref})
+
 
 ### Matcher classes  
             
