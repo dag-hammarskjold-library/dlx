@@ -487,7 +487,11 @@ class MARC(object):
                 return [field.value]
                 
             for sub in filter(lambda sub: sub.code in codes, field.subfields):
-                vals.append(sub.value)
+                if isinstance(sub,Literal):
+                    vals.append(sub.value)
+                elif isinstance(sub,Linked):
+                    val = Auth.lookup(sub.xref,sub.code)
+                    vals.append(val)
                     
         return vals
     
@@ -666,7 +670,7 @@ class MARC(object):
     
     def commit(self):
         # clear the cache so the new value is available
-        if isinstance(self,Auth): Auth._cache = {}
+        if isinstance(self,Auth): MARC._cache = {}
         
         self.validate()
         
@@ -832,14 +836,17 @@ class Bib(MARC):
         return DB.files.find_one(FQ.latest_by_id_lang('symbol',symbol,lang))['uri']
           
 class Auth(MARC):
-    _cache = {}
-     
+    def __init__(self,doc={}):
+        super().__init__(doc)
+        
+        self.header = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
+    
     @classmethod
     def lookup(cls,xref,code):
         DB.check_connection()
         
         try:
-            return cls._cache[xref][code]
+            return MARC._cache[xref][code]
         except:
             auth = Auth.match_id(xref)
             
@@ -848,17 +855,12 @@ class Auth(MARC):
             else:    
                 value = auth.header_value(code)
                 
-            if xref not in cls._cache.keys():
-                cls._cache[xref] = {}
+            if xref not in MARC._cache.keys():
+                MARC._cache[xref] = {}
                 
-            cls._cache[xref][code] = value
+            MARC._cache[xref][code] = value
                 
             return value
-            
-    def __init__(self,doc={}):
-        super().__init__(doc)
-        
-        self.header = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
                 
     def header_value(self,code):
         if self.header is None:
