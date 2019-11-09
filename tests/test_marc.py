@@ -486,10 +486,7 @@ class Get(TestCase):
     
     def test_get_bib(self):
         # test get methods and lookup
-        
         bib = Bib.match_id(999)
-        
-        print(bib.to_mrc())
         
         self.assertIsInstance(bib.get_field('245'),marc.Field)
         
