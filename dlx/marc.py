@@ -458,11 +458,13 @@ class MARC(object):
         #todo: return sorted by tag
             
     def get_field(self,tag,**kwargs):
+        fields = self.get_fields(tag)
+        
         if 'place' in kwargs.keys():
-            place = kwargs['place']
-            return list(self.get_fields(tag))[place]
-        else:
-            return next(self.get_fields(tag), None)
+            for skip in range(0,kwargs['place']):
+                next(fields, None)
+            
+        return next(fields, None)
             
     def get_dict(self,tag,*kwargs):
         if 'place' in kwargs.keys():
@@ -476,18 +478,20 @@ class MARC(object):
             fields = [self.get_field(tag,**kwargs)]
         else:
             fields = self.get_fields(tag)
-        
-        if len(codes) == 0:
-            codes = list(string.ascii_lowercase + string.digits)
-            
+
         vals = []
                     
         for field in fields:
             if isinstance(field,Controlfield):
                 return [field.value]
+            else:
+                if len(codes) == 0:
+                    subs = field.subfields
+                else:
+                    subs = filter(lambda sub: sub.code in codes, field.subfields)
                 
-            for sub in filter(lambda sub: sub.code in codes, field.subfields):
-                vals.append(sub.value)
+                for sub in subs:
+                    vals.append(sub.value)
                     
         return vals
     
@@ -508,10 +512,9 @@ class MARC(object):
         if isinstance(field,Controlfield):
             return field.value
               
-        for sub in filter(lambda sub: sub.code == code, field.subfields):
-            return sub.value
+        sub = next(filter(lambda sub: sub.code == code, field.subfields),None)
         
-        return ''
+        return sub.value if sub else ''
     
     def get(self,tag,code=None,**kwargs):
          return self.get_value(tag,code,**kwargs)
