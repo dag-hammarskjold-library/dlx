@@ -487,11 +487,7 @@ class MARC(object):
                 return [field.value]
                 
             for sub in filter(lambda sub: sub.code in codes, field.subfields):
-                if isinstance(sub,Literal):
-                    vals.append(sub.value)
-                elif isinstance(sub,Linked):
-                    val = Auth.lookup(sub.xref,sub.code)
-                    vals.append(val)
+                vals.append(sub.value)
                     
         return vals
     
@@ -504,10 +500,18 @@ class MARC(object):
             
             return self.get_values(tag,code,place=address[0])[address[1] or 0]
             
-        try: 
-            return self.get_values(tag,code)[0]
-        except:
+        field = self.get_field(tag)
+        
+        if field is None:
             return ''
+           
+        if isinstance(field,Controlfield):
+            return field.value
+              
+        for sub in filter(lambda sub: sub.code == code, field.subfields):
+            return sub.value
+        
+        return ''
     
     def get(self,tag,code=None,**kwargs):
          return self.get_value(tag,code,**kwargs)
@@ -662,7 +666,7 @@ class MARC(object):
     
     def commit(self):
         # clear the cache so the new value is available
-        if isinstance(self,Auth): MARC._cache = {}
+        if isinstance(self,Auth): Auth._cache = {}
         
         self.validate()
         
@@ -828,17 +832,14 @@ class Bib(MARC):
         return DB.files.find_one(FQ.latest_by_id_lang('symbol',symbol,lang))['uri']
           
 class Auth(MARC):
-    def __init__(self,doc={}):
-        super().__init__(doc)
-        
-        self.header = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
-    
+    _cache = {}
+     
     @classmethod
     def lookup(cls,xref,code):
         DB.check_connection()
         
         try:
-            return MARC._cache[xref][code]
+            return cls._cache[xref][code]
         except:
             auth = Auth.match_id(xref)
             
@@ -847,12 +848,17 @@ class Auth(MARC):
             else:    
                 value = auth.header_value(code)
                 
-            if xref not in MARC._cache.keys():
-                MARC._cache[xref] = {}
+            if xref not in cls._cache.keys():
+                cls._cache[xref] = {}
                 
-            MARC._cache[xref][code] = value
+            cls._cache[xref][code] = value
                 
             return value
+            
+    def __init__(self,doc={}):
+        super().__init__(doc)
+        
+        self.header = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
                 
     def header_value(self,code):
         if self.header is None:
@@ -961,10 +967,14 @@ class Linked(Subfield):
     def __init__(self,code,xref):
         self.code = code
         self.xref = int(xref)
+        self._value = None
         
+    @property
+    def value(self):
+        return Auth.lookup(self.xref,self.code)
+
     def to_bson(self):
         return SON(data = {'code' : self.code, 'xref' : self.xref})
-
 
 ### Matcher classes  
             
