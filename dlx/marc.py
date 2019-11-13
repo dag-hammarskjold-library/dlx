@@ -511,7 +511,7 @@ class MARC(object):
            
         if isinstance(field,Controlfield):
             return field.value
-              
+        
         sub = next(filter(lambda sub: sub.code == code, field.subfields),None)
         
         return sub.value if sub else ''
