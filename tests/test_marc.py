@@ -506,6 +506,8 @@ class Get(TestCase):
             list(bib.get_values('520','a'))
         )
         
+        self.assertEqual(bib.get_value('520','z'),'')
+        
         self.assertEqual(bib.get_value('520','a',address=[1,0]),'another description')
         self.assertEqual(bib.get_value('520','a',address=[1,1]),'repeated subfield')
         
