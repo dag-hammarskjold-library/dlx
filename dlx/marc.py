@@ -847,7 +847,7 @@ class Auth(MARC):
         else:
             cls._cache[xref] = {}
         
-        auth = Auth.find_one({'_id': xref},{'100': 1, '110': 1, '111': 1, '150': 1, '151': 1})
+        auth = Auth.find_one({'_id': xref},{'100': 1, '110': 1, '111': 1, '130': 1, '150': 1, '151': 1})
            
         if auth is None:
             value = 'N/A'
