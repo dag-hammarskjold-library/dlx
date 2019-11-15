@@ -43,7 +43,7 @@ class MARC(object):
         return getattr(DB,col)
         
     @classmethod
-    def match_id(cls,id):
+    def match_id(cls,id,*pymongo_params):
         """Finds the record by ID.
         
         Parameters
@@ -299,7 +299,7 @@ class MARC(object):
         query = cls.compile_matchers(*matchers)
         args = [query]
         
-        if 'project' in kwargs.keys():
+        if 'project' in kwargs:
             projection = {}
             
             for tag in kwargs['project']:
@@ -311,10 +311,10 @@ class MARC(object):
         
         # sort only works on _id field
         for arg in ('limit', 'skip','sort'):
-            if arg in kwargs.keys():
+            if arg in kwargs:
                 pymongo_kwargs[arg] = kwargs[arg]
             
-        if pymongo_kwargs.keys():
+        if pymongo_kwargs:
             cursor = cls.handle().find(*args,**pymongo_kwargs)    
         else:
             cursor = cls.handle().find(*args)
@@ -374,14 +374,14 @@ class MARC(object):
             yield cls(doc)
     
     @classmethod
-    def find_one(cls,filter):
+    def find_one(cls,filter,*pymongo_params):
         """Performs a `Pymongo` query.
         
         The same as `dlx.Marc.find()` except it returns only the first result as a `dlx.Bib` or `dlx.Auth`
         instance.
         """
         
-        found = cls.handle().find_one(filter)
+        found = cls.handle().find_one(filter,*pymongo_params)
         
         if found is not None:
             return cls(found)
@@ -420,7 +420,7 @@ class MARC(object):
         if doc is None: 
             doc = {}
         
-        if '_id' in doc.keys():
+        if '_id' in doc:
             self.id = int(doc['_id'])
         
         self.parse(doc)
@@ -440,9 +440,9 @@ class MARC(object):
                     subfields = []
                     
                     for sub in field['subfields']:
-                        if 'value' in sub.keys():
+                        if 'value' in sub:
                             subfields.append(Literal(sub['code'], sub['value']))    
-                        elif 'xref' in sub.keys():
+                        elif 'xref' in sub:
                             subfields.append(Linked(sub['code'], sub['xref']))
                         
                     self.datafields.append(Datafield(tag,ind1,ind2,subfields))
@@ -460,21 +460,21 @@ class MARC(object):
     def get_field(self,tag,**kwargs):
         fields = self.get_fields(tag)
         
-        if 'place' in kwargs.keys():
+        if 'place' in kwargs:
             for skip in range(0,kwargs['place']):
                 next(fields, None)
             
         return next(fields, None)
             
     def get_dict(self,tag,*kwargs):
-        if 'place' in kwargs.keys():
+        if 'place' in kwargs:
             place = kwargs['place']
             return list(self.get_fields(tag))[place]
         else:
             return next(self.get_fields(tag), None)
         
     def get_values(self,tag,*codes,**kwargs):
-        if 'place' in kwargs.keys():
+        if 'place' in kwargs:
             fields = [self.get_field(tag,**kwargs)]
         else:
             fields = self.get_fields(tag)
@@ -499,7 +499,7 @@ class MARC(object):
         return self.get_values(tag,*codes,**kwargs)
     
     def get_value(self,tag,code=None,**kwargs):
-        if 'address' in kwargs.keys():
+        if 'address' in kwargs:
             address = kwargs['address']
             
             return self.get_values(tag,code,place=address[0])[address[1] or 0]
@@ -841,22 +841,22 @@ class Auth(MARC):
     def lookup(cls,xref,code):
         DB.check_connection()
         
-        try:
-            return cls._cache[xref][code]
-        except:
-            auth = Auth.match_id(xref)
+        if xref in cls._cache:
+            if code in cls._cache[xref]:
+                return cls._cache[xref][code]
+        else:
+            cls._cache[xref] = {}
+        
+        auth = Auth.find_one({'_id': xref},{'100': 1, '110': 1, '111': 1, '130': 1, '150': 1, '151': 1})
+           
+        if auth is None:
+            value = 'N/A'
+        else:    
+            value = auth.header_value(code)
             
-            if auth is None:
-                value = 'N/A'
-            else:    
-                value = auth.header_value(code)
-                
-            if xref not in cls._cache.keys():
-                cls._cache[xref] = {}
-                
-            cls._cache[xref][code] = value
-                
-            return value
+        cls._cache[xref][code] = value
+            
+        return value
             
     def __init__(self,doc={}):
         super().__init__(doc)
@@ -1000,7 +1000,7 @@ class Matcher(object):
             
         self.modifier = ''
         
-        if 'modifier' in kwargs.keys():
+        if 'modifier' in kwargs:
             mod = kwargs['modifier'].lower()
             
             if mod in Matcher.valid_modifiers:
