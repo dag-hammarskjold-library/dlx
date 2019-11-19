@@ -625,6 +625,17 @@ class Set(TestCase):
         bib.set('650','a',333,matcher=[777])
         self.assertEqual(bib.get_value('650','a'),'another header')
         
+    def test_set_values(self):
+        bib = Bib({'_id': 9}).set_values(
+            ('245','a','yet another'),
+            ('245','b','title'),
+            ('500','a','desc'),
+            ('500','a','desc',{'address': ['+']}),
+        )
+        
+        self.assertEqual(bib.get_values('245','a','b'), ['yet another', 'title'])
+        self.assertEqual(bib.get_values('500','a'), ['desc', 'desc'])
+        
 class Serialization(TestCase):
     pass
     #def setUp(self):
