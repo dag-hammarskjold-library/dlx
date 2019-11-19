@@ -640,7 +640,15 @@ class MARC(object):
                     raise Exception('"matcher" must be a list or tuple of xrefs for a linked value')
             
         return self
-            
+    
+    def set_values(self,*tuples):
+        for t in tuples:
+            tag,sub,val = t[0],t[1],t[2]
+            kwargs = t[3] if len(t) > 3 else {}
+            self.set(tag,sub,val,**kwargs)
+         
+        return self
+    
     def set_indicators(self,tag,place,ind1,ind2):
         field = list(self.get_fields(tag))[place]
         
