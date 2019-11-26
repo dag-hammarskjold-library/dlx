@@ -1,6 +1,5 @@
 """
 Functions for building PyMongo queries for the `bibs` and `auths` collections. 
-
 All functions return BSON objects suitable for use in PyMongo queries. 
 The returned objects can be embedded in dicts in order to compose more 
 complex queries.
@@ -162,11 +161,11 @@ def match_field(tag,*tuples,**kwargs):
                     ]
                 }
             )
+        elif kwargs['modifier'].lower() == 'exists': 
+            return {tag: {'$exists': True}}
         elif kwargs['modifier'].lower() == 'not_exists': 
             return {tag: {'$exists': False}}
-            
-    ### fail kinda safe
-            
+    
     return SON(
         data = {
             tag : {
@@ -257,4 +256,3 @@ def _auth_controlled(tag,code):
         return Configs.authority_controlled[tag][code]
     except:
         return None
-
