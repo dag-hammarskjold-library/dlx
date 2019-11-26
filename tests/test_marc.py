@@ -458,6 +458,15 @@ class Query(TestCase):
         
         first_result = next(bibs)
         self.assertEqual(first_result.id,555)
+        
+        bibs = Bib.match(
+            Matcher('710',modifier='exists')
+        )
+        self.assertEqual(len(list(bibs)),1)
+        
+        
+        #print(MARC.compile_matchers(Matcher('710',modifier='exists')))
+    
 
 class Index(TestCase):
     def setUp(self):
@@ -647,6 +656,3 @@ class Serialization(TestCase):
         
     #def test_to_mrc(self):
     #    pass
-        
-        
-        
