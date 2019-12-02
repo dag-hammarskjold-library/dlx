@@ -10,6 +10,9 @@ from dlx.db import DB
 from dlx.query import jmarc as Q
 from dlx.query import jfile as FQ
 
+from xml.etree import ElementTree as XML
+#from lxml.etree import tostring as write_xml
+
 ### Record classes
      
 class MARC(object):
@@ -762,6 +765,7 @@ class MARC(object):
         return string
     
     def to_str(self,*tags):
+        # non-standard format intended to be human readable 
         string = ''
         
         for f in self.get_fields(*tags): 
@@ -779,8 +783,28 @@ class MARC(object):
         
         return string
             
-    def to_xml(self):
-        pass
+    def to_xml(self,*tags):
+        # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
+        
+        root = XML.Element('record')
+        
+        for field in self.get_fields(*tags):
+            if isinstance(field,Controlfield):
+                node = XML.SubElement(root,'controlfield')
+                node.set('tag',field.tag)
+                node.text = field.value
+            else:
+                node = XML.SubElement(root,'datafield')
+                node.set('tag',field.tag)
+                node.set('ind1',field.ind1)
+                node.set('ind2',field.ind2)
+                
+                for sub in field.subfields:
+                    subnode = XML.SubElement(node,'subfield')
+                    subnode.set('code',sub.code)
+                    subnode.text = sub.value
+                
+        return XML.tostring(root,'utf-8')
         
     #### de-serializations
     # these formats don't fully support linked values.
