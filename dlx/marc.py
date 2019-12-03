@@ -1,6 +1,7 @@
 '''
 '''
 
+from warnings import warn
 import re, string, json
 import jsonschema
 from bson import SON
@@ -43,7 +44,7 @@ class MARC(object):
         return getattr(DB,col)
         
     @classmethod
-    def match_id(cls,id,*pymongo_params):
+    def match_id(cls,id):
         """Finds the record by ID.
         
         Parameters
@@ -61,10 +62,10 @@ class MARC(object):
         >>> print(bib.symbol())
         """
         
-        return cls.find_one({'_id' : id})
+        return cls.find_one(filter={'_id' : id})
         
     @classmethod
-    def match_ids(cls,*ids):
+    def match_ids(cls,*ids,**kwargs):
         """Finds records by a list of IDs.
         
         Parameters
@@ -83,173 +84,10 @@ class MARC(object):
         >>>     print(bib.symbol())
         """
         
-        return cls.find({'_id' : {'$in' : [*ids]}})
-    
-    @classmethod
-    def match_value(cls,tag,code,val):
-        """Performs a query for a single MARC value in the database and returns a generator object which yields the results.
-        
-        Parameters
-        ----------
-        tag : str
-            The field tag to match.
-        code : str / None
-            The subfield code to match. Use `None` as the code if matching a controlfield value.
-        val : str / Pattern
-            Exact string value or compiled pattern to match. 
-    
-        Returns
-        -------
-        type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
-    
-        Examples
-        -------
-        >>> auths = dlx.Auth.match_value('100', 'a', re.compile('Hammarskjöld'))
-        >>>    auth = next(auths)
-        >>>    print(auth.get_value('100','a'))
-        """
-        
-        cursor = cls.handle().find(Q.match_value(tag,code,val))
-        
-        for doc in cursor:
-            yield cls(doc)
-        
-        return cls(cls.handle().find_one(Q.match_value(tag,code,val)))
+        return cls.find(filter={'_id' : {'$in' : [*ids]}})
     
     @classmethod    
-    def match_values(cls,*tuples):
-        """Performs a query for a multiple MARC values in the database and returns a generator object which yields the results.
-        
-        The query will be a boolean `and` search.
-    
-        Parameters
-        ----------
-        *tuples : tag [str], code [str], val [str / Pattern] 
-            Accepts arbitrary number of tuples composed of the code and value to 
-            match against. Value can be a str or Pattern.
-    
-            Use `None` as the subfield code if the field is a controlfield.
-    
-        Returns
-        -------
-        type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.   
-    
-        Examples
-        -------
-        >>> bibs = dlx.Bib.match_values(,
-        >>>     ('269', 'a', re.compile('^1999')),
-        >>>     ('650', 'a', 'HUMAN RIGHTS')
-        >>> ) 
-        >>> for bib in bib:
-        >>>     print(bib.symbol())
-        """
-        cursor = cls.handle().find(Q.and_values(*tuples))
-        
-        for doc in cursor:
-            yield cls(doc)
-            
-    @classmethod    
-    def match_values_or(cls,*tuples):
-        """Performs a query for a multiple MARC values in the database and returns a generator object which yields the results.
-        
-        The same as `dlx.Marc.match_values()` except that the query will be a boolean `or` search.
-        """        
-        
-        cursor = cls.handle().find(Q.or_values(*tuples))
-        
-        for doc in cursor:
-            yield cls(doc)
-    
-    @classmethod
-    def match_field(cls,tag,*tuples):
-        """Performs a query for a multiple subfield values in the database within the same MARC field.
-               
-        Parameters
-        ----------
-        tag : str
-            The field tag to match.
-        *tuples : (code [str], val [str / Pattern])
-            Accepts arbitrary number of tuples composed of the code and value to 
-            match against. Value can be a str or Pattern.
-        
-            Use `None` as the subfield code if the field is a controlfield.
-        
-        Returns
-        -------
-        type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.
-        
-        Examples
-        -------
-        >>> bibs = dlx.Bib.match_field(
-        >>>     '191', 
-        >>>     ('b', 'A/'), 
-        >>>     ('c', '73')
-        >>> ) 
-        >>> for bib in bibs: 
-        >>>     print(bib.symbol())
-        """
-    
-        cursor = cls.handle().find(Q.match_field(tag,*tuples))
-        
-        for doc in cursor:
-            yield cls(doc)
-    
-    @classmethod
-    def match_fields(cls,*tuples_of_tuples):
-        """Performs a query for a series of fields containing multiple subfield values within.
-        
-        The query will be a boolean `and` search.
-        
-        Parameters
-        ----------
-        *tuples_of_tuples : (tag [str], *more_tuples : (code [str], val [str / Pattern]))
-            Accepts an arbitrary number of "tuples of tuples" where the first element is the tag,
-            and the rest of the elements are tuples composed of a code and value to match against.
-            
-            `val` can be composed of a string value or compiled pattern to match against.
-        
-        Returns
-        -------
-        type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth`.
-        
-        Examples
-        ---------
-        >>> bibs = dlx.Bib.match_fields(
-        >>>     (
-        >>>         '191', 
-        >>>         ('a', re.compile('^A/RES/'),
-        >>>         ('c', '73')
-        >>>     ),
-        >>>     (
-        >>>         '650', 
-        >>>         ('a', 'HUMAN RIGHTS')
-        >>>     )
-        >>> )
-        """
-        
-        cursor = cls.handle().find(Q.and_fields(*tuples_of_tuples))
-
-        for doc in cursor:
-            yield cls(doc)
-            
-    @classmethod    
-    def match_fields_or(cls,*tuples_of_tuples):
-        """Performs a query for a series of fields containing multiple subfield values within.
-        
-        The same as `dlx.Marc.match_fields() except that the query will be a boolean `or` search.
-        """
-        
-        cursor = cls.handle().find(Q.or_fields(*tuples_of_tuples))
-
-        for doc in cursor:
-            yield cls(doc)
-            
-    @classmethod    
-    def match_xrefs(cls,tag,code,*xrefs):
+    def match_xrefs(cls,tag,code,*xrefs,**kwargs):
         """Performs a query for all the records that contain an Xref in a list of Xrefs.
         
         Parameters
@@ -265,39 +103,25 @@ class MARC(object):
             Yields instances of `dlx.Bib` or `dlx.Auth`.
         """
         
-        cursor = cls.handle().find(Q.match_xrefs(tag,code,*xrefs))
+        cursor = cls.handle().find(filter=Q.match_xrefs(tag,code,*xrefs),**kwargs)
         
         for doc in cursor:
             yield cls(doc)
             
-    @classmethod
-    def match_multi(cls,takes,excludes):
-        """This is provisional and very slow because it runs all the conditions as separate searches"""
-        
-        sets = []
-        
-        for ex in excludes:
-            sets.append(set([bib.id for bib in list(ex)]))
-        
-        exclude_ids = list(sets[0].union(*sets))
-        
-        sets = []
-        
-        for take in takes:
-            sets.append(set([bib.id for bib in list(take)]))
-            
-        take_ids = filter(lambda x: x not in exclude_ids,list(sets[0].intersection(*sets)))
-        
-        return Bib.match_ids(*take_ids)
-    
     @classmethod    
     def match(cls,*matchers,**kwargs):
         """
-        Only supports `not` and `not_exists` keywords so far. WIP
+        Deprecated
         """
         
-        query = cls.compile_matchers(*matchers)
-        args = [query]
+        warn('dlx.marc.MARC.match() is deprecated. Use dlx.marc.MARC.find() instead')
+             
+        pymongo_kwargs = {}
+        
+        if 'filter' in kwargs:
+            pymongo_kwargs['filter'] = kwargs['filter']
+        else:
+            pymongo_kwargs['filter'] = QueryDocument(*matchers).compile()
         
         if 'project' in kwargs:
             projection = {}
@@ -305,51 +129,20 @@ class MARC(object):
             for tag in kwargs['project']:
                 projection[tag] = 1
                 
-            args.append(projection)
-        
-        pymongo_kwargs = {}
+            pymongo_kwargs['projection'] = projection
         
         # sort only works on _id field
         for arg in ('limit', 'skip','sort'):
             if arg in kwargs:
                 pymongo_kwargs[arg] = kwargs[arg]
             
-        if pymongo_kwargs:
-            cursor = cls.handle().find(*args,**pymongo_kwargs)    
-        else:
-            cursor = cls.handle().find(*args)
-                
+        cursor = cls.handle().find(**pymongo_kwargs)    
+                        
         for doc in cursor:
             yield cls(doc)
-    
-    @classmethod
-    def compile_matchers(cls,*matchers):
-        match_docs = []
-        
-        for matcher in matchers:
-            if isinstance(matcher,OrMatch):
-                or_match_docs = []
-           
-                for m in matcher.matchers:
-                    or_match_docs.append(m.compile())
-                             
-                match_docs.append(
-                    SON(
-                        data = 
-                            {'$or': or_match_docs}
-                        )
-                    )
-            else:               
-                match_docs.append(matcher.compile())
-                
-        query = SON(
-            data = {'$and': match_docs}
-        )
-        
-        return query
         
     @classmethod
-    def find(cls,filter,*pymongo_params):
+    def find(cls,*args,**kwargs):
         """Performs a `pymongo` query.
 
         This method calls `pymongo.collection.Collection.find()` directly on the 'bibs' or `auths` database 
@@ -359,7 +152,7 @@ class MARC(object):
         ----------
         filter : bson.SON
             A valid `pymongo` query filter against the raw JMARC data in the database.            
-        *pymongo_params    : ...
+        *kwargs    : ...
             Passes all remaining arguments to `pymongo.collection.Collection.find())
         
         Returns
@@ -368,23 +161,27 @@ class MARC(object):
             Yields instances of `dlx.Bib` or `dlx.Auth`.
         """
         
-        cursor = cls.handle().find(filter,*pymongo_params)
+        cursor = cls.handle().find(*args,**kwargs)
         
         for doc in cursor:
             yield cls(doc)
     
     @classmethod
-    def find_one(cls,filter,*pymongo_params):
+    def find_one(cls,*args,**kwargs):
         """Performs a `Pymongo` query.
         
         The same as `dlx.Marc.find()` except it returns only the first result as a `dlx.Bib` or `dlx.Auth`
         instance.
         """
         
-        found = cls.handle().find_one(filter,*pymongo_params)
+        found = cls.handle().find_one(*args,**kwargs)
         
         if found is not None:
             return cls(found)
+    
+    @classmethod
+    def count_documents(cls,*args,**kwargs):
+        return cls.handle().count_documents(*args,**kwargs)
         
     #### database index creation
     
@@ -1001,10 +798,13 @@ class Matcher(object):
         self._subfields = [*subs]
     
     def __init__(self,tag=None,*subs,**kwargs):    
-        if tag:
-            self.tag = tag
+        self.tag = tag
+        
         if subs is not None:
             self._subfields = [*subs]
+            
+        if 'subfields' in kwargs:
+             self._subfields += kwargs['subfields']
             
         self.modifier = ''
         
@@ -1021,10 +821,32 @@ class Matcher(object):
         mod = self.modifier.lower()
         
         return Q.match_field(self.tag,*subs,modifier=mod)
+        
+class OrQueryFields(object):
+    def __init__(self,*matchers):
+        self.matchers = matchers
                 
-class OrMatch(object):
+class OrMatch(OrQueryFields):
+    def __init__(self,*matchers):
+        super().__init__(*matchers)
+        
+class QueryDocument(object):
     def __init__(self,*matchers):
         self.matchers = matchers
 
+    def compile(self):        
+        match_docs = []
+        
+        for matcher in self.matchers:
+            if isinstance(matcher,OrMatch):
+                ors = [m.compile() for m in matcher.matchers]
+                match_docs.append(Q.or_fields(*ors))
+            else:               
+                match_docs.append(matcher.compile())
+                
+        if len(match_docs) == 1:
+            return match_docs[0]
+        else:
+            return Q.and_fields(*match_docs)
         
 # end
