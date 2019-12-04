@@ -8,8 +8,9 @@ from bson import SON
 
 from dlx.config import Configs
 from dlx.db import DB
-from dlx.query import jmarc as Q
+#from dlx.query import jmarc as Q
 from dlx.query import jfile as FQ
+from dlx.marc.query import QueryDocument, Condition, Or
 
 ### Record classes
      
@@ -85,28 +86,6 @@ class MARC(object):
         """
         
         return cls.find(filter={'_id' : {'$in' : [*ids]}})
-    
-    @classmethod    
-    def match_xrefs(cls,tag,code,*xrefs,**kwargs):
-        """Performs a query for all the records that contain an Xref in a list of Xrefs.
-        
-        Parameters
-        ---------
-        tag : str
-        code : str
-        *xrefs : int
-            Variable-length list of Xrefs to mathc against
-        
-        Returns
-        -------
-        type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth`.
-        """
-        
-        cursor = cls.handle().find(filter=Q.match_xrefs(tag,code,*xrefs),**kwargs)
-        
-        for doc in cursor:
-            yield cls(doc)
             
     @classmethod    
     def match(cls,*matchers,**kwargs):
@@ -784,69 +763,23 @@ class Linked(Subfield):
     def to_bson(self):
         return SON(data = {'code' : self.code, 'xref' : self.xref})
 
-### Matcher classes  
-            
-class Matcher(object):
-    valid_modifiers = ['or','not','exists','not_exists']
-    
-    @property
-    def subfields(self):
-        return self._subfields
-    
-    @subfields.setter
-    def subfields(self,subs):
-        self._subfields = [*subs]
-    
-    def __init__(self,tag=None,*subs,**kwargs):    
-        self.tag = tag
+### Matcher classes
         
-        if subs is not None:
-            self._subfields = [*subs]
-            
-        if 'subfields' in kwargs:
-             self._subfields += kwargs['subfields']
-            
-        self.modifier = ''
+class Matcher(Condition):
+    # for backwards compatibility
+    
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
         
-        if 'modifier' in kwargs:
-            mod = kwargs['modifier'].lower()
-            
-            if mod in Matcher.valid_modifiers:
-                self.modifier = mod
-            else:
-                raise Exception
+        warn('dlx.marc.Matcher is deprecated. Use dlx.marc.query.Condition instead')
                 
-    def compile(self):
-        subs = self.subfields
-        mod = self.modifier.lower()
-        
-        return Q.match_field(self.tag,*subs,modifier=mod)
-        
-class OrQueryFields(object):
-    def __init__(self,*matchers):
-        self.matchers = matchers
-                
-class OrMatch(OrQueryFields):
+class OrMatch(Or):
+    # for backwards compatibility
+    
     def __init__(self,*matchers):
         super().__init__(*matchers)
-        
-class QueryDocument(object):
-    def __init__(self,*matchers):
         self.matchers = matchers
-
-    def compile(self):        
-        match_docs = []
         
-        for matcher in self.matchers:
-            if isinstance(matcher,OrMatch):
-                ors = [m.compile() for m in matcher.matchers]
-                match_docs.append(Q.or_fields(*ors))
-            else:               
-                match_docs.append(matcher.compile())
-                
-        if len(match_docs) == 1:
-            return match_docs[0]
-        else:
-            return Q.and_fields(*match_docs)
-        
+        warn('dlx.marc.OrMatch is deprecated. Use dlx.marc.query.Or instead')
+            
 # end

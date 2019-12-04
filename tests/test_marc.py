@@ -231,6 +231,9 @@ class Query(TestCase):
         bibs = list(bibs)
         for bib in bibs: self.assertIsInstance(bib,Bib)
         self.assertEqual(len(bibs),2)
+        
+        from dlx.marc.query import QueryDocument, Condition
+        
     
     def test_match_id(self):
         bib = Bib.match_id(999)    
@@ -240,13 +243,6 @@ class Query(TestCase):
         auth = Auth.match_id(777)        
         self.assertIsInstance(auth,Auth)
         self.assertEqual(auth.id,777)
-    
-    def test_match_xrefs(self):
-        bibs = Bib.match_xrefs('650','a',777)
-        self.assertIsInstance(bibs,Generator)
-        bibs = list(bibs)
-        for bib in bibs: self.assertIsInstance(bib,Bib)
-        self.assertEqual(len(bibs),2)
         
     def test_matcher_object(self):
         matcher = marc.Matcher('245',('a','This'),('b','is the'),modifier='not')
@@ -269,8 +265,8 @@ class Query(TestCase):
     
     def test_ormatch_object(self):
         om = marc.OrMatch(
-            marc.Matcher(),
-            marc.Matcher()
+            marc.Matcher('245'),
+            marc.Matcher('500')
         )
         
         for m in om.matchers: self.assertIsInstance(m,marc.Matcher)
@@ -359,7 +355,43 @@ class Query(TestCase):
         self.assertEqual(len(list(bibs)),1)
         
         
-        #print(MARC.compile_matchers(Matcher('710',modifier='exists')))
+    def test_revised_query(self):
+        from dlx.marc.query import Condition, QueryDocument, Or
+        
+        bibs = list(Bib.match(Condition('999',modifier='not_exists'),skip=1))
+        self.assertEqual(len(bibs),1)
+        
+        bibs = list(Bib.match(Condition('999',modifier='not_exists'),skip=0,limit=1))
+        self.assertEqual(len(bibs),1)
+        
+        # sort works but only on '_id', which isn't very useful
+        bibs = Bib.match(
+            Condition('999',modifier='not_exists'),
+            sort=[('_id', pymongo.ASCENDING)]
+        )
+        
+        first_result = next(bibs)
+        self.assertEqual(first_result.id,555)
+        
+        bibs = Bib.match(
+            Condition('710',modifier='exists')
+        )
+        self.assertEqual(len(list(bibs)),1)
+        
+        ###
+        
+        match1 = Condition('245',('a','This'))
+        match2 = Condition('245',('a','Another'))
+        
+        cursor = Bib.match(Or(match1,match2))
+        bibs = list(cursor)
+        self.assertEqual(len(bibs),2)
+       
+        match2 = marc.Condition('245',('a','Fake'))
+        
+        cursor = Bib.match(Or(match1,match2))
+        bibs = list(cursor)
+        self.assertEqual(len(bibs),1)
     
 
 class Index(TestCase):
