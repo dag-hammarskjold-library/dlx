@@ -272,7 +272,7 @@ class Query(TestCase):
         for m in om.matchers: self.assertIsInstance(m,marc.Matcher)
        
     def test_match(self):
-        m = marc.Matcher('245',('a','This'),('b','is the'))
+        m = marc.Matcher('245',{'a':'This', 'b': 'is the'})
         bibs = list(Bib.match(m))
         self.assertEqual(len(bibs),1)
         self.assertEqual(bibs[0].id,999)
@@ -387,7 +387,7 @@ class Query(TestCase):
         bibs = list(cursor)
         self.assertEqual(len(bibs),2)
        
-        match2 = marc.Condition('245',('a','Fake'))
+        match2 = marc.Condition('245',{'a': 'Fake'})
         
         cursor = Bib.match(Or(match1,match2))
         bibs = list(cursor)

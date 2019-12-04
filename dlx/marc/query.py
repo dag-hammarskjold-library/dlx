@@ -38,19 +38,27 @@ class Condition(object):
     
     @subfields.setter
     def subfields(self,subs):
-        self._subfields = [*subs]
+        if isinstance(subs,dict):
+            self._subfields = [(key,val) for key,val in subs.items()]        
+        else:
+            self._subfields = [*subs]
     
     def __init__(self,tag=None,*subs,**kwargs):
         if tag:
             self.tag = tag  
         elif 'tag' in kwargs:
             self.tag = kwargs['tag'] 
-    
-        if subs is not None:
-            self._subfields = [*subs]
+        
+        if len(subs) > 0:
+            if isinstance(subs[0],dict):
+                self.subfields = subs[0]       
+            else:
+                self.subfields = subs
+        else:
+            self._subfields = []
         
         if 'subfields' in kwargs:
-             self._subfields += kwargs['subfields']
+             self._subfields = kwargs['subfields']
         
         self.modifier = ''
     
