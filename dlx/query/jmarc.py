@@ -33,13 +33,13 @@ def _match_subfield_xref(code,xref):
     )
     
 def _match_subfield_xrefs(code,*xrefs):
+    xmatch = xrefs[0] if len(xrefs) == 1 else {'$in' : [*xrefs]}
+    
     return SON (
         data = {
             '$elemMatch' : {
                 'code' : code,
-                'xref' : {
-                    '$in' : [*xrefs]
-                }
+                'xref' : xmatch
             }
         }
     )
@@ -138,6 +138,8 @@ def match_field(tag,*tuples,**kwargs):
         else:
             xrefs = _get_xrefs(auth_tag,code,val)
             conditions.append(_match_subfield_xrefs(code,*xrefs))
+            
+    submatch = conditions[0] if len(conditions) == 1 else {'$all' : conditions}
     
     if 'modifier' in kwargs.keys():
         if kwargs['modifier'].lower() == 'not':
@@ -148,9 +150,7 @@ def match_field(tag,*tuples,**kwargs):
                             tag: {
                                 '$not': {
                                     '$elemMatch' : {
-                                        'subfields' : {
-                                            '$all' : conditions
-                                        }
+                                        'subfields' : submatch
                                     }
                                 }
                             }
@@ -178,23 +178,17 @@ def match_field(tag,*tuples,**kwargs):
         }
     )
 
-def and_fields(*tuples):
-    field_matchers = _field_matchers(*tuples)
-        
-    return SON (
-        data = {
-            '$and' : field_matchers
+def and_fields(*docs):
+    return {
+            '$and' : docs
         }
-    )
     
-def or_fields(*tuples):
-    field_matchers = _field_matchers(*tuples)
-            
-    return SON (
-        data = {
-            '$or' : field_matchers
+    
+def or_fields(*docs):
+    return {
+            '$or' : docs
         }
-    )
+    
     
 def _field_matchers(*tuples):
     field_matchers = []

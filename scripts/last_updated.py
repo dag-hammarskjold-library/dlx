@@ -4,6 +4,10 @@ from dlx import DB, Bib, Auth
 
 db = DB.connect(sys.argv[1])
 
+#Bib.literal_index('998')
+
+#exit()
+
 pipeline = [
     {
         '$unwind' : '$998'
@@ -31,7 +35,7 @@ pipeline = [
     }
 ]
 
-for doc in db.auths.aggregate(pipeline): 
+for doc in db.bibs.aggregate(pipeline): 
     print('Largest value in 998$z : ' + doc['_id'])
 
 
