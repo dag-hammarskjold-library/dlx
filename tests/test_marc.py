@@ -12,6 +12,8 @@ import pymongo
 
 from dlx import DB, marc
 from dlx.marc import MARC, Bib, Auth, Matcher, OrMatch
+from dlx.marc.set import BibSet
+from dlx.marc.query import QueryDocument, Condition
 
 ### test data
 
@@ -589,3 +591,29 @@ class Serialization(TestCase):
         
     #def test_to_mrc(self):
     #    pass
+
+class Set(TestCase):
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
+        Bib(Data.jbib).commit()
+        Bib(Data.jbib2).commit()
+        
+    def test_from_query(self):
+        set = BibSet.from_query({'_id': {'$in': [555,999]}})
+        self.assertEqual(len(list(set.records)),2)
+        
+        query = QueryDocument(
+            Condition('245',{'a': 'Another'})
+        )
+        set = BibSet.from_query(query)
+        self.assertEqual(len(list(set.records)),1)
+        
+    def test_cache(self):
+        query = QueryDocument(
+            Condition('245',{'a': 'Another'})
+        )
+        set = BibSet.from_query(query).cache()
+        self.assertEqual(len(list(set.records)),1)
+        self.assertEqual(len(list(set.records)),1)
+        
+        

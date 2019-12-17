@@ -788,6 +788,7 @@ class Linked(Subfield):
         return SON(data = {'code' : self.code, 'xref' : self.xref})
 
 ### Matcher classes
+# deprecated
         
 class Matcher(Condition):
     # for backwards compatibility
