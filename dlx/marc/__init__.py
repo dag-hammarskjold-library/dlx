@@ -15,6 +15,75 @@ from dlx.marc.query import QueryDocument, Condition, Or
 from xml.etree import ElementTree as XML
 #from lxml.etree import tostring as write_xml
 
+from pandas import read_excel
+
+### Set classes
+
+class MARCSet(object):
+    # constructors
+    
+    @classmethod
+    def from_query(cls,*args,**kwargs):
+        if isinstance(args[0],QueryDocument):
+            query = args[0].compile()
+            args = [query]
+        
+        self = cls()
+        MARC = self.record_class
+        self.count = self.handle.count_documents(*args,**kwargs)
+        self.records = map(lambda r: MARC(r), self.handle.find(*args,**kwargs))
+        
+        return self
+    
+    @classmethod    
+    def from_dataframe(cls,df):
+        pass
+    
+    def from_excel(cls,file):
+        df = read_excel(file)
+        return cls.from_dataframe(df)
+    
+    def __init__(self):
+        self.records = None # can be any type iterable
+        
+    def cache(self):
+        self.records = list(self.records)
+        return self
+        
+    def remove(self,id):
+        pass
+
+    # serializations
+    
+    def to_mrc(self):
+        mrc = ''
+        
+        for record in self.records:
+            mrc += record.to_mrc()
+            
+        return mrc
+    
+    def to_xml(self):
+        xml = ''
+        
+        for record in self.records:
+            xml += str(record.to_xml())
+            
+        return xml
+    
+class BibSet(MARCSet):
+    def __init__(self):
+        self.handle = DB.bibs
+        self.record_class = Bib
+        super().__init__()
+        
+class AuthSet(MARCSet):
+    def __init__(self):
+        self.handle = DB.auths
+        self.record_class = Auth
+        super().__init__()
+
+
 ### Record classes
      
 class MARC(object):
