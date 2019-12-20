@@ -8,16 +8,117 @@ from bson import SON
 
 from dlx.config import Configs
 from dlx.db import DB
-#from dlx.query import jmarc as Q
 from dlx.query import jfile as FQ
 from dlx.marc.query import QueryDocument, Condition, Or
 
 from xml.etree import ElementTree as XML
-#from lxml.etree import tostring as write_xml
+from pandas import read_excel
+
+### Set classes
+
+class MarcSet(object):
+    # constructors
+    
+    @classmethod
+    def from_query(cls,*args,**kwargs):
+        if isinstance(args[0],QueryDocument):
+            query = args[0].compile()
+            args = [query]
+        
+        self = cls()
+        Marc = self.record_class
+        self.count = self.handle.count_documents(*args,**kwargs)
+        self.records = map(lambda r: Marc(r), self.handle.find(*args,**kwargs))
+        
+        return self
+    
+    @classmethod    
+    def from_dataframe(cls,df):
+        # does not support repeated subfield codes
+        self = cls()
+        self.records = []
+        labels = df.columns.values
+        
+        for index,row in df.iterrows():
+            record = cls().record_class()
+            
+            for label in labels:
+                instance = 0
+                
+                match = re.match('^(\d+)\.(\d{3})([a-z0-9])',label)
+                if match:
+                    instance = int(match.group(1))
+                    tag,code,val = match.group(2), match.group(3), row[label]
+                else:
+                    tag,code,val = label[:3],label[3],row[label]
+                
+                if record.get_field(tag,place=instance):
+                    record.set(tag,code,val,address=[instance])
+                else:
+                   record.set(tag,code,val,address=['+'])
+                
+            self.records.append(record)
+        
+        self.count = len(self.records)
+        
+        return self    
+           
+    def from_excel(cls,path):
+        df = read_excel(path)
+        return cls.from_dataframe(df)
+    
+    def __init__(self):
+        self.records = None # can be any type of  iterable
+        
+    def cache(self):
+        self.records = list(self.records)
+        return self
+        
+    def remove(self,id):
+        pass
+
+    # serializations
+    
+    def to_mrc(self):
+        # todo: stream instead of queue in memory
+        mrc = ''
+        
+        for record in self.records:
+            mrc += record.to_mrc()
+            
+        return mrc
+    
+    def to_xml(self):
+        # todo: stream instead of queue in memory
+        xml = ''
+        
+        for record in self.records:
+            xml += str(record.to_xml())
+            
+        return xml
+        
+    def to_dataframe(self):
+        pass
+        
+    def to_excel(self,path):
+        return self.to_dataframe().write_excel(path)
+    
+class BibSet(MarcSet):
+    def __init__(self):
+        self.handle = DB.bibs
+        self.record_class = Bib
+        super().__init__()
+        
+class AuthSet(MarcSet):
+    def __init__(self):
+        self.handle = DB.auths
+        self.record_class = Auth
+        super().__init__()
+
 
 ### Record classes
      
-class MARC(object):
+class Marc(object):
     '''
     '''
 
@@ -96,7 +197,7 @@ class MARC(object):
         Deprecated
         """
         
-        warn('dlx.marc.MARC.match() is deprecated. Use dlx.marc.MARC.find() instead')
+        warn('dlx.marc.Marc.match() is deprecated. Use dlx.marc.MarcSet.from_query() instead')
              
         pymongo_kwargs = {}
         
@@ -536,7 +637,7 @@ class MARC(object):
         
         for f in self.get_fields():    
             string += f.tag + '  '     
-            string += MARC.field_text(f,'$','') + '\n'
+            string += Marc.field_text(f,'$','') + '\n'
         
         return string
     
@@ -604,7 +705,7 @@ class MARC(object):
     def from_xml(self,string):
         pass
 
-class Bib(MARC):
+class Bib(Marc):
     def __init__(self,doc={}):
         super().__init__(doc)
         
@@ -642,7 +743,7 @@ class Bib(MARC):
         
         return DB.files.find_one(FQ.latest_by_id_lang('symbol',symbol,lang))['uri']
           
-class Auth(MARC):
+class Auth(Marc):
     _cache = {}
      
     @classmethod
@@ -788,6 +889,7 @@ class Linked(Subfield):
         return SON(data = {'code' : self.code, 'xref' : self.xref})
 
 ### Matcher classes
+# deprecated
         
 class Matcher(Condition):
     # for backwards compatibility
@@ -795,7 +897,7 @@ class Matcher(Condition):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
         
-        warn('dlx.marc.Matcher is deprecated. Use dlx.marc.query.Condition instead')
+        warn('dlx.marc.Matcher is deprecated. Use dlx.marc.Condition instead')
                 
 class OrMatch(Or):
     # for backwards compatibility
