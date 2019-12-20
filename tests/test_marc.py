@@ -11,7 +11,9 @@ from bson.regex import Regex
 import pymongo
 
 from dlx import DB, marc
-from dlx.marc import MARC, Bib, Auth, Matcher, OrMatch
+from dlx.marc import Marc, Bib, Auth, Matcher, OrMatch
+from dlx.marc import BibSet
+from dlx.marc.query import QueryDocument, Condition
 
 ### test data
 
@@ -177,11 +179,11 @@ class Instantiation(TestCase):
     def test_instantiation(self):
         # test instantiation
         
-        record = MARC(Data.jbib)
-        self.assertIsInstance(record,MARC)
+        record = Marc(Data.jbib)
+        self.assertIsInstance(record,Marc)
 
-        record = MARC(Data.jauth)
-        self.assertIsInstance(record,MARC)
+        record = Marc(Data.jauth)
+        self.assertIsInstance(record,Marc)
         
         bib = Bib(Data.jauth)
         self.assertIsInstance(bib,Bib)
@@ -388,6 +390,7 @@ class Query(TestCase):
         self.assertEqual(len(bibs),2)
        
         match2 = marc.Condition('245',{'a': 'Fake'})
+        match2 = marc.Condition(tag='245',subfields={'a': 'Fake'})
         
         cursor = Bib.match(Or(match1,match2))
         bibs = list(cursor)
@@ -589,3 +592,47 @@ class Serialization(TestCase):
         
     #def test_to_mrc(self):
     #    pass
+
+class Batch(TestCase):
+    def setUp(self):
+        DB.connect('mongodb://.../?authSource=dummy',mock=True)
+        Bib(Data.jbib).commit()
+        Bib(Data.jbib2).commit()
+        
+    def test_from_query(self):
+        bibset = BibSet.from_query({'_id': {'$in': [555,999]}})
+        self.assertEqual(len(list(bibset.records)),2)
+        
+        query = QueryDocument(
+            Condition(tag='245',subfields={'a': 'Another'})
+        )
+        bibset = BibSet.from_query(query)
+        self.assertEqual(len(list(bibset.records)),1)
+        
+    def test_count(self):
+        query = QueryDocument(Condition('245',modifier='exists'))
+        self.assertEqual(BibSet.from_query(query).count,2)
+        print(type(BibSet.from_query(query)))
+        
+    def test_cache(self):
+        query = QueryDocument(Condition('245',{'a': 'Another'}))
+        bibset = BibSet.from_query(query).cache()
+        self.assertEqual(len(list(bibset.records)),1)
+        self.assertEqual(len(list(bibset.records)),1)
+        
+    def test_from_dataframe(self):
+        from pandas import DataFrame
+        
+        df = DataFrame(
+            data=[
+                ({'246a': 'Some','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'}),
+                ({'246a': 'Another','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'})
+            ]
+        )
+        
+        for bib in BibSet.from_dataframe(df).records:
+            self.assertEqual(bib.get_value('246','b'), 'Title')
+            self.assertEqual(bib.get_values('246','a')[1:3],['Repeated','Again'])
+            
+        
+        
