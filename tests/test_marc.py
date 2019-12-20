@@ -11,7 +11,7 @@ from bson.regex import Regex
 import pymongo
 
 from dlx import DB, marc
-from dlx.marc import MARC, Bib, Auth, Matcher, OrMatch
+from dlx.marc import Marc, Bib, Auth, Matcher, OrMatch
 from dlx.marc import BibSet
 from dlx.marc.query import QueryDocument, Condition
 
@@ -179,11 +179,11 @@ class Instantiation(TestCase):
     def test_instantiation(self):
         # test instantiation
         
-        record = MARC(Data.jbib)
-        self.assertIsInstance(record,MARC)
+        record = Marc(Data.jbib)
+        self.assertIsInstance(record,Marc)
 
-        record = MARC(Data.jauth)
-        self.assertIsInstance(record,MARC)
+        record = Marc(Data.jauth)
+        self.assertIsInstance(record,Marc)
         
         bib = Bib(Data.jauth)
         self.assertIsInstance(bib,Bib)

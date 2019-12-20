@@ -16,7 +16,7 @@ from pandas import read_excel
 
 ### Set classes
 
-class MARCSet(object):
+class MarcSet(object):
     # constructors
     
     @classmethod
@@ -40,7 +40,7 @@ class MARCSet(object):
         labels = df.columns.values
         
         for index,row in df.iterrows():
-            record = cls().record_class({'_id': 000})
+            record = cls().record_class()
             
             for label in labels:
                 instance = 0
@@ -103,13 +103,13 @@ class MARCSet(object):
     def to_excel(self,path):
         return self.to_dataframe().write_excel(path)
     
-class BibSet(MARCSet):
+class BibSet(MarcSet):
     def __init__(self):
         self.handle = DB.bibs
         self.record_class = Bib
         super().__init__()
         
-class AuthSet(MARCSet):
+class AuthSet(MarcSet):
     def __init__(self):
         self.handle = DB.auths
         self.record_class = Auth
@@ -118,7 +118,7 @@ class AuthSet(MARCSet):
 
 ### Record classes
      
-class MARC(object):
+class Marc(object):
     '''
     '''
 
@@ -197,7 +197,7 @@ class MARC(object):
         Deprecated
         """
         
-        warn('dlx.marc.MARC.match() is deprecated. Use dlx.marc.MARCSet.from_query() instead')
+        warn('dlx.marc.Marc.match() is deprecated. Use dlx.marc.MarcSet.from_query() instead')
              
         pymongo_kwargs = {}
         
@@ -637,7 +637,7 @@ class MARC(object):
         
         for f in self.get_fields():    
             string += f.tag + '  '     
-            string += MARC.field_text(f,'$','') + '\n'
+            string += Marc.field_text(f,'$','') + '\n'
         
         return string
     
@@ -705,7 +705,7 @@ class MARC(object):
     def from_xml(self,string):
         pass
 
-class Bib(MARC):
+class Bib(Marc):
     def __init__(self,doc={}):
         super().__init__(doc)
         
@@ -743,7 +743,7 @@ class Bib(MARC):
         
         return DB.files.find_one(FQ.latest_by_id_lang('symbol',symbol,lang))['uri']
           
-class Auth(MARC):
+class Auth(Marc):
     _cache = {}
      
     @classmethod
