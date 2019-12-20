@@ -578,20 +578,26 @@ class Serialization(TestCase):
     def setUp(self):
         DB.connect('mongodb://.../?authSource=dummy',mock=True)
         Bib(Data.jbib).commit()
+        Auth(Data.jauth).commit()
+        Auth(Data.jauth2).commit()
         
     def test_to_xml(self):
         bib = Bib.match_id(999)
          
         self.assertEqual(
             bib.to_xml(),
-            b'<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">another description</subfield><subfield code="a">repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">N/A</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">N/A</subfield></datafield></record>'
+            b'<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">another description</subfield><subfield code="a">repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">header text</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">another header</subfield></datafield></record>'
         )
-        
-    #def test_to_mij(self):
-    #    pass
-        
-    #def test_to_mrc(self):
-    #    pass
+   
+    def test_to_mrc(self):
+        self.assertEqual(
+            Auth.match_id(777).to_mrc(),
+            '00054    a 00037    4500150001600000  aheader text'
+        )
+        self.assertEqual(
+            Bib(Data.jbib).to_mrc(),
+            '00228ra000974500008001200000245002400012520001600036520004300052650001600095710001900111controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
+        )
 
 class Batch(TestCase):
     def setUp(self):

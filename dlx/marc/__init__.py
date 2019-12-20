@@ -62,7 +62,8 @@ class MarcSet(object):
         self.count = len(self.records)
         
         return self    
-           
+    
+    @classmethod
     def from_excel(cls,path):
         df = read_excel(path)
         return cls.from_dataframe(df)
@@ -621,6 +622,9 @@ class Marc(object):
         leader_dir_len = len(directory.encode('utf-8')) + 24 
         base_address = str(leader_dir_len).zfill(5)
         total_len = str(leader_dir_len + len(data.encode('utf-8'))).zfill(5)
+        
+        if not hasattr(self,'leader'):
+            self.leader = ' ' * 24
         
         new_leader = total_len \
             + self.leader[5:9] \
