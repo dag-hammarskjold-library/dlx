@@ -600,21 +600,39 @@ class Batch(TestCase):
         Bib(Data.jbib2).commit()
         
     def test_from_query(self):
-        set = BibSet.from_query({'_id': {'$in': [555,999]}})
-        self.assertEqual(len(list(set.records)),2)
+        bibset = BibSet.from_query({'_id': {'$in': [555,999]}})
+        self.assertEqual(len(list(bibset.records)),2)
         
         query = QueryDocument(
             Condition(tag='245',subfields={'a': 'Another'})
         )
-        set = BibSet.from_query(query)
-        self.assertEqual(len(list(set.records)),1)
+        bibset = BibSet.from_query(query)
+        self.assertEqual(len(list(bibset.records)),1)
+        
+    def test_count(self):
+        query = QueryDocument(Condition('245',modifier='exists'))
+        self.assertEqual(BibSet.from_query(query).count,2)
+        print(type(BibSet.from_query(query)))
         
     def test_cache(self):
-        query = QueryDocument(
-            Condition('245',{'a': 'Another'})
+        query = QueryDocument(Condition('245',{'a': 'Another'}))
+        bibset = BibSet.from_query(query).cache()
+        self.assertEqual(len(list(bibset.records)),1)
+        self.assertEqual(len(list(bibset.records)),1)
+        
+    def test_from_dataframe(self):
+        from pandas import DataFrame
+        
+        df = DataFrame(
+            data=[
+                ({'246a': 'Some','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'}),
+                ({'246a': 'Another','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'})
+            ]
         )
-        set = BibSet.from_query(query).cache()
-        self.assertEqual(len(list(set.records)),1)
-        self.assertEqual(len(list(set.records)),1)
+        
+        for bib in BibSet.from_dataframe(df).records:
+            self.assertEqual(bib.get_value('246','b'), 'Title')
+            self.assertEqual(bib.get_values('246','a')[1:3],['Repeated','Again'])
+            
         
         
