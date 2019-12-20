@@ -1,5 +1,6 @@
 
 from bson import SON
+from bson.json_util import dumps
 from dlx.db import DB
 from dlx.config import Configs
 
@@ -24,6 +25,9 @@ class QueryDocument(object):
             return compiled[0]
         else:
             return {'$and': compiled}
+            
+    def to_json(self):
+        return dumps(self.compile())
             
 class Or(object):
     def __init__(self,*conditions):
@@ -58,7 +62,12 @@ class Condition(object):
             self._subfields = []
         
         if 'subfields' in kwargs:
-             self._subfields = kwargs['subfields']
+            subs = kwargs['subfields']
+            
+            if isinstance(subs,dict):
+                self._subfields = [(key, subs[key]) for key in subs.keys()] 
+            else:
+                self._subfields = subs
         
         self.modifier = ''
     
