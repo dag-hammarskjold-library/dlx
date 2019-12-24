@@ -21,13 +21,20 @@ class MarcSet(object):
     
     @classmethod
     def from_query(cls,*args,**kwargs):
-        if isinstance(args[0],QueryDocument):
+        if isinstance(args[0],QueryDocument) or isinstance(args[0],Condition):
             query = args[0].compile()
             args = [query]
-        
+        elif isinstance(args[0],(list,tuple)):
+            conditions = arg[0]
+            query = QueryDocument(*conditions)
+            args = [query]
+        else:
+            query = args[0]
+            
         self = cls()
+        self.query_params = [args,kwargs]
         Marc = self.record_class
-        self.count = self.handle.count_documents(*args,**kwargs)
+        #self.count = self.handle.count_documents(*args,**kwargs)
         self.records = map(lambda r: Marc(r), self.handle.find(*args,**kwargs))
         
         return self
@@ -70,6 +77,22 @@ class MarcSet(object):
     
     def __init__(self):
         self.records = None # can be any type of  iterable
+    
+    @property    
+    def count(self):
+        if hasattr(self,'_count'):
+            return self._count
+            
+        if hasattr(self,'query_params') and isinstance(self.records,map):
+            args,kwargs = self.query_params
+            self._count = self.handle.count_documents(*args,**kwargs)
+            return self._count
+        else: 
+            return len(self.records)
+    
+    @count.setter
+    def count(self,val):
+        self._count = val
         
     def cache(self):
         self.records = list(self.records)
@@ -115,7 +138,6 @@ class AuthSet(MarcSet):
         self.handle = DB.auths
         self.record_class = Auth
         super().__init__()
-
 
 ### Record classes
      
