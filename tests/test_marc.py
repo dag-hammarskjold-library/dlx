@@ -2,7 +2,7 @@
 Tests for dlx.marc
 """
 
-import re
+import re, os
 from unittest import TestCase
 from collections import Generator
 from jsonschema import exceptions as X
@@ -618,7 +618,6 @@ class Batch(TestCase):
     def test_count(self):
         query = QueryDocument(Condition('245',modifier='exists'))
         self.assertEqual(BibSet.from_query(query).count,2)
-        print(type(BibSet.from_query(query)))
         
     def test_cache(self):
         query = QueryDocument(Condition('245',{'a': 'Another'}))
@@ -626,19 +625,28 @@ class Batch(TestCase):
         self.assertEqual(len(list(bibset.records)),1)
         self.assertEqual(len(list(bibset.records)),1)
         
-    def test_from_dataframe(self):
-        from pandas import DataFrame
+    def test_from_table(self):
+        from dlx.util import Table
         
-        df = DataFrame(
-            data=[
-                ({'246a': 'Some','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'}),
-                ({'246a': 'Another','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'})
+        t = Table(
+            [
+                ['246a','246b','269c','1.269c'],
+                ['title','subtitle','1999-12-31','repeated'],
+                ['title2','subtitle2','2000-01-01','repeated'],
             ]
         )
         
-        for bib in BibSet.from_dataframe(df).records:
-            self.assertEqual(bib.get_value('246','b'), 'Title')
-            self.assertEqual(bib.get_values('246','a')[1:3],['Repeated','Again'])
+        bibset = BibSet.from_table(t)
+        for bib in bibset.records:
+            self.assertEqual(bib.get_value('246','b')[:8],'subtitle')
+            self.assertEqual(bib.get_values('269','c')[1],'repeated')
             
+    def test_from_excel(self):
+        path = os.path.join(os.path.dirname(__file__), 'test.xlsx')        
         
+        bibset = BibSet.from_excel(path)
+        for bib in bibset.records:
+            self.assertEqual(bib.get_value('246','b')[:8],'subtitle')
+            self.assertEqual(bib.get_values('269','c')[1],'repeated')
+
         
