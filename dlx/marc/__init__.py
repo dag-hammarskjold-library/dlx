@@ -12,7 +12,7 @@ from dlx.query import jfile as FQ
 from dlx.marc.query import QueryDocument, Condition, Or
 
 from xml.etree import ElementTree as XML
-from pandas import read_excel
+from dlx.util import Table
 
 ### Set classes
 
@@ -38,42 +38,43 @@ class MarcSet(object):
         self.records = map(lambda r: Marc(r), self.handle.find(*args,**kwargs))
         
         return self
-    
+     
     @classmethod    
-    def from_dataframe(cls,df):
+    def from_table(cls,table):
         # does not support repeated subfield codes
         self = cls()
         self.records = []
-        labels = df.columns.values
-        
-        for index,row in df.iterrows():
+
+        for temp_id in table.index.keys():
             record = cls().record_class()
             
-            for label in labels:
+            for field_name in table.index[temp_id].keys():
                 instance = 0
-                
-                match = re.match('^(\d+)\.(\d{3})([a-z0-9])',label)
+                value = table.index[temp_id][field_name]
+
+                match = re.match('^(\d+)\.(\d{3})([a-z0-9])',str(field_name))
                 if match:
                     instance = int(match.group(1))
-                    tag,code,val = match.group(2), match.group(3), row[label]
+                    tag,code = match.group(2), match.group(3)
                 else:
-                    tag,code,val = label[:3],label[3],row[label]
-                
+                    tag,code = field_name[:3],field_name[3]
+                        
                 if record.get_field(tag,place=instance):
-                    record.set(tag,code,val,address=[instance])
+                    record.set(tag,code,value,address=[instance])
                 else:
-                   record.set(tag,code,val,address=['+'])
+                   record.set(tag,code,value,address=['+'])
                 
             self.records.append(record)
-        
+               
         self.count = len(self.records)
         
-        return self    
+        return self        
     
     @classmethod
     def from_excel(cls,path):
-        df = read_excel(path)
-        return cls.from_dataframe(df)
+        table = Table.from_excel(path)
+        
+        return cls.from_table(table)
     
     def __init__(self):
         self.records = None # can be any type of  iterable
@@ -118,14 +119,13 @@ class MarcSet(object):
         
         for record in self.records:
             xml += str(record.to_xml())
-            
+        
+        xml = '<collection>{}</collection>'.format(xml)    
+        
         return xml
         
-    def to_dataframe(self):
-        pass
-        
     def to_excel(self,path):
-        return self.to_dataframe().write_excel(path)
+        pass
     
 class BibSet(MarcSet):
     def __init__(self):
