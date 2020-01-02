@@ -466,13 +466,17 @@ class Get(TestCase):
         # test auth lookup
         
         bib = Bib.match_id(999)
-        
         self.assertEqual(bib.get_value('650','a'),'N/A')
         
-        Auth(Data.jauth).commit()
-        
+        auth = Auth(Data.jauth)
+        auth.commit()
         self.assertEqual(bib.get_value('650','a'),'header text')
-
+        
+        auth = Auth({'_id': 111})
+        auth.set('191','a','new header').commit()
+        bib = Bib({'_id': 222}).set('991','a',111)
+        self.assertEqual(bib.get_value('991','a'),'new header')
+        
 class Set(TestCase):
     def setUp(self):
         DB.connect('mongodb://.../?authSource=dummy',mock=True)
@@ -598,7 +602,13 @@ class Serialization(TestCase):
             Bib(Data.jbib).to_mrc(),
             '00228ra000974500008001200000245002400012520001600036520004300052650001600095710001900111controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
         )
-
+        
+    def test_to_mrk(self):
+        self.assertEqual(
+            Auth(Data.jauth).to_mrk(),
+                '150  \\\\$aheader text\n'
+            )
+    
 class Batch(TestCase):
     def setUp(self):
         DB.connect('mongodb://.../?authSource=dummy',mock=True)
