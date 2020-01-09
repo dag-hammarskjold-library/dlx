@@ -659,4 +659,8 @@ class Batch(TestCase):
             self.assertEqual(bib.get_value('246','b')[:8],'subtitle')
             self.assertEqual(bib.get_values('269','c')[1],'repeated')
 
+class BatchSerialization(TestCase):
+    def test_xml(self):
+        bibset = BibSet.from_query({'_id': {'$in': [555,999]}})
+        self.assertEqual(bibset.to_xml(),b'<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">another description</subfield><subfield code="a">repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">N/A</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">N/A</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">N/A</subfield></datafield></record></collection>')
         
