@@ -114,14 +114,12 @@ class MarcSet():
 
     def to_xml(self):
         # todo: stream instead of queue in memory
-        xml = ''
+        root = XML.Element('collection')
 
         for record in self.records:
-            xml += str(record.to_xml())
+            root.append(record.to_xml_raw())
 
-        xml = '<collection>{}</collection>'.format(xml)
-
-        return xml
+        return XML.tostring(root, 'utf-8')
 
     def to_excel(self, path):
         pass
@@ -681,7 +679,7 @@ class Marc():
 
         return string
 
-    def to_xml(self, *tags):
+    def to_xml_raw(self, *tags):
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
 
         root = XML.Element('record')
@@ -702,7 +700,10 @@ class Marc():
                     subnode.set('code', sub.code)
                     subnode.text = sub.value
 
-        return XML.tostring(root, 'utf-8')
+        return root
+        
+    def to_xml(self, *tags):
+        return XML.tostring(self.to_xml_raw(), 'utf-8')
 
     #### de-serializations
     # these formats don't fully support linked values.
