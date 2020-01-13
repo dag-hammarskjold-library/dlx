@@ -21,10 +21,14 @@ class Config():
         '191': {'b': '190', 'c': '190'},
         '600': {'a': '100'},
         '610': {'a': '110'},
+        '611': {'a': '111'},
+        '630': {'a': '130'},
         '650': {'a': '150'},
         '651': {'a': '151'},
         '700': {'a': '100'},
         '710': {'a': '110'},
+        '711': {'a': '111'},
+        '730': {'a': '130'},
         '791': {'b': '190', 'c' : '190'},
         '991': {'a': '191', 'b': '191', 'c': '191', 'd': '191'}
     }
@@ -36,6 +40,11 @@ class Config():
         '511': {'a': '100'},
         '550': {'a': '100'},
         '551': {'a': '100'},
+    }
+    
+    auth_language_tag = {
+        '150': {'fr': '993', 'es': '994'},
+        '151': {'fr': '993', 'es': '994'}
     }
 
     @staticmethod
@@ -61,9 +70,44 @@ class Config():
             index = Config.auth_authority_controlled
 
         if tag not in index:
-            raise Exception('{}{} is not configured as authority-controlled'.format(tag, code))
+            return
 
         if code in index[tag]:
             return index[tag][code]
-
-        raise Exception('{}{} is not configured as authority-controlled'.format(tag, code))
+            
+        return
+    
+    @staticmethod    
+    def auth_heading_tags():
+        r = []
+        
+        for tag, langs in list(Config.bib_authority_controlled.items()) + list(Config.auth_authority_controlled.items()):
+            r += [tag for tag in langs.values()]
+        
+        return list(set(r))
+    
+    @staticmethod
+    def language_source_tag(tag, language):
+        tags = Config.auth_language_tag
+        
+        if tag in tags:
+            if language in tags[tag]:
+                return tags[tag][language]
+                
+        return
+        
+    @staticmethod
+    def linked_language_source_tag(record_type, tag, code, language):
+        auth_tag = Config.authority_source_tag(record_type, tag, code)
+        
+        return Config.language_source_tag(auth_tag, language)
+    
+    @staticmethod    
+    def get_language_tags():
+        r = []
+        
+        for tag, langs in Config.auth_language_tag.items():
+            for t in langs.values():
+                r.append(t)
+        
+        return r    
