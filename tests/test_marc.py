@@ -179,13 +179,13 @@ class Instantiation(TestCase):
     def test_instantiation(self):
         # test instantiation
         
-        record = Marc(Data.jbib)
+        record = Bib(Data.jbib)
         self.assertIsInstance(record,Marc)
 
-        record = Marc(Data.jauth)
+        record = Auth(Data.jauth)
         self.assertIsInstance(record,Marc)
         
-        bib = Bib(Data.jauth)
+        bib = Bib(Data.jbib)
         self.assertIsInstance(bib,Bib)
         
         auth = Auth(Data.jauth)
@@ -460,13 +460,11 @@ class Get(TestCase):
         auth = Auth.match_id(777)
 
         self.assertEqual(auth.get_value('150','a'), 'header text')
-        self.assertEqual(auth.header_value('a'), 'header text')
+        self.assertEqual(auth.heading_value('a'), 'header text')
         
     def test_lookup(self):
-        # test auth lookup
-        
         bib = Bib.match_id(999)
-        self.assertEqual(bib.get_value('650','a'),'N/A')
+        self.assertEqual(bib.get_value('650','a'),'**Linked Auth Not Found**')
         
         auth = Auth(Data.jauth)
         auth.commit()
@@ -476,6 +474,13 @@ class Get(TestCase):
         auth.set('191','a','new header').commit()
         bib = Bib({'_id': 222}).set('991','a',111)
         self.assertEqual(bib.get_value('991','a'),'new header')
+    
+    def test_language(self):
+        auth = Auth({'_id': 888}).set('150','a','text').set('994','a','texto')
+        auth.commit()
+        bib = Bib({'_id': 444}).set('650','a',888)
+        self.assertEqual(bib.get_value('650','a', language='es'),'texto')
+        
         
 class Set(TestCase):
     def setUp(self):
@@ -592,6 +597,14 @@ class Serialization(TestCase):
             bib.to_xml(),
             b'<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">another description</subfield><subfield code="a">repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">header text</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">another header</subfield></datafield></record>'
         )
+        
+        auth = Auth({'_id': 777}).set('150','a','text').set('994','a','texto')
+        auth.commit()
+        
+        self.assertEqual(
+            bib.to_xml(language='es'),
+            b'<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">another description</subfield><subfield code="a">repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">texto</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">another header</subfield></datafield></record>'
+        )
    
     def test_to_mrc(self):
         self.assertEqual(
@@ -601,6 +614,14 @@ class Serialization(TestCase):
         self.assertEqual(
             Bib(Data.jbib).to_mrc(),
             '00228ra000974500008001200000245002400012520001600036520004300052650001600095710001900111controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
+        )
+        
+        auth = Auth({'_id': 777}).set('150','a','text').set('994','a','texto')
+        auth.commit()
+        
+        self.assertEqual(
+            Bib(Data.jbib).to_mrc(language='es'),
+            '00222ra000974500008001200000245002400012520001600036520004300052650001000095710001900105controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  atexto  aanother header'
         )
         
     def test_to_mrk(self):

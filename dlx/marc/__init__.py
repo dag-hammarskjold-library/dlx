@@ -326,6 +326,10 @@ class Marc():
             self.id = int(doc['_id'])
 
         self.parse(doc)
+        
+    @property
+    def fields(self):
+        return self.controlfields + self.datafields
 
     def parse(self, doc):
         for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
@@ -334,7 +338,7 @@ class Marc():
 
             if tag[:2] == '00':
                 for value in doc[tag]:
-                    self.controlfields.append(Controlfield(tag, value))
+                    self.controlfields.append(Controlfield(tag, value, record_type=self.record_type))
             else:
                 for field in doc[tag]:
                     ind1 = field['indicators'][0]
@@ -347,7 +351,7 @@ class Marc():
                         elif 'xref' in sub:
                             subfields.append(Linked(sub['code'], sub['xref']))
 
-                    self.datafields.append(Datafield(tag, ind1, ind2, subfields))
+                    self.datafields.append(Datafield(tag, ind1, ind2, subfields, record_type=self.record_type))
 
     #### "get"-type methods
 
@@ -415,7 +419,11 @@ class Marc():
             return field.value
 
         sub = next(filter(lambda sub: sub.code == code, field.subfields), None)
-
+        
+        if 'language' in kwargs:
+            #val = sub.value # force the lookup ??
+            return sub.translated(kwargs['language'])
+        
         return sub.value if sub else ''
 
     def get(self, tag, code=None, **kwargs):
@@ -584,7 +592,7 @@ class Marc():
         self.validate()
 
         # upsert (replace if exists, else new)
-        return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), True)
+        return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), upsert=True)
 
     #### utlities
 
@@ -624,15 +632,15 @@ class Marc():
 
         return json.dumps(mij)
 
-    def to_mrc(self):
+    def to_mrc(self, *tags, language=None):
         directory = ''
         data = ''
         next_start = 0
         field_terminator = u'\u001e'
         record_terminator = u'\u001d'
 
-        for f in filter(lambda x: x.tag != '000', self.get_fields()):
-            text = f.to_mrc()
+        for f in filter(lambda x: x.tag != '000', self.get_fields(*tags)):
+            text = f.to_mrc(language=language)
             data += text
             field_length = len(text.encode('utf-8'))
             directory += f.tag + str(field_length).zfill(4) + str(next_start).zfill(5)
@@ -657,31 +665,35 @@ class Marc():
 
         return new_leader + directory + data
 
-    def to_mrk(self, *tags):
+    def to_mrk(self, *tags, language=None):
         string = ''
 
         for field in self.get_fields():
-            string += field.to_mrk() + '\n'
+            string += field.to_mrk(language=language) + '\n'
 
         return string
 
-    def to_str(self, *tags):
+    def to_str(self, *tags, language=None):
         # non-standard format intended to be human readable
         string = ''
 
-        for f in self.get_fields(*tags):
-            string += f.tag + '\n'
+        for field in self.get_fields(*tags):
+            string += field.tag + '\n'
 
-            if isinstance(f, Controlfield):
-                string += '   ' + f.value + '\n'
+            if isinstance(field, Controlfield):
+                string += '   ' + field.value + '\n'
             else:
-                for s in f.subfields:
-                    val = s.value
-                    string += '   ' + s.code + ': ' + val + '\n'
+                for sub in field.subfields:
+                    if language and Config.linked_language_source_tag(self.record_type, field.tag, sub.code, language):
+                        val = sub.translated(language)
+                    else:
+                        val = sub.value
+
+                    string += '   ' + sub.code + ': ' + val + '\n'
 
         return string
 
-    def to_xml(self, *tags):
+    def to_xml(self, *tags, language=None):
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
 
         root = XML.Element('record')
@@ -700,6 +712,11 @@ class Marc():
                 for sub in field.subfields:
                     subnode = XML.SubElement(node, 'subfield')
                     subnode.set('code', sub.code)
+                    
+                    if language and Config.linked_language_source_tag(self.record_type, field.tag, sub.code, language):
+                        subnode.text = sub.translated(language)
+                        continue
+                        
                     subnode.text = sub.value
 
         return XML.tostring(root, 'utf-8')
@@ -769,23 +786,33 @@ class Auth(Marc):
     _cache = {}
 
     @classmethod
-    def lookup(cls, xref, code):
+    def lookup(cls, xref, code, language=None):
         DB.check_connection()
-
+        
         if xref in cls._cache:
             if code in cls._cache[xref]:
-                return cls._cache[xref][code]
+                if language:
+                    if language in cls._cache[xref][code]:
+                        return cls._cache[xref][code][language]
+                else:
+                    return cls._cache[xref][code]
         else:
             cls._cache[xref] = {}
-
-        auth = Auth.find_one({'_id': xref}, {'100': 1, '110': 1, '111': 1, '130': 1, '150': 1, '151': 1, '190': 1, '191': 1})
-
-        if auth is None:
-            value = 'N/A'
+            
+        projection = dict.fromkeys(Config.auth_heading_tags(), True)
+        
+        if language:
+            for x in Config.get_language_tags():
+                projection[x] = True
+        
+        auth = Auth.find_one({'_id': xref}, projection)
+        value = auth.heading_value(code, language) if auth else '**Linked Auth Not Found**'
+            
+        if language:
+            cls._cache[xref][code] = {}
+            cls._cache[xref][code][language] = value
         else:
-            value = auth.header_value(code)
-
-        cls._cache[xref][code] = value
+            cls._cache[xref][code] = value
 
         return value
 
@@ -793,13 +820,23 @@ class Auth(Marc):
         self.record_type = 'auth'
         super().__init__(doc)
 
-        self.header = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
+        self.heading_field = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
 
-    def header_value(self, code):
-        if self.header is None:
-            return
-
-        for sub in filter(lambda sub: sub.code == code, self.header.subfields):
+    def heading_value(self, code, language=None):
+        if language:
+            tag = self.heading_field.tag
+            lang_tag = Config.language_source_tag(tag, language)
+            source_field = self.get_field(lang_tag)
+            
+            if source_field is None:
+                return '**Linked Auth Translation Not Found**'
+        else:
+            source_field = self.heading_field
+            
+            if source_field is None:
+                return '**Linked Auth Label Not Found**'
+        
+        for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
 
 ### Field classes
@@ -812,7 +849,8 @@ class Field():
         raise Exception('This is a stub')
 
 class Controlfield(Field):
-    def __init__(self, tag, value):
+    def __init__(self, tag, value, record_type=None):
+        self.record_type = record_type
         self.tag = tag
         self.value = value
 
@@ -822,14 +860,15 @@ class Controlfield(Field):
     def to_mij(self):
         return {self.tag: self.value}
 
-    def to_mrc(self):
+    def to_mrc(self, language=None):
         return self.value
 
     def to_mrk(self):
         return '{}  {}'.format(self.tag, self.value)
 
 class Datafield(Field):
-    def __init__(self, tag, ind1, ind2, subfields):
+    def __init__(self, tag, ind1, ind2, subfields, record_type=None):
+        self.record_type = record_type
         self.tag = tag
         self.ind1 = ind1
         self.ind2 = ind2
@@ -864,18 +903,34 @@ class Datafield(Field):
 
         return serialized
 
-    def to_mrc(self, delim=u'\u001f', term=u'\u001e'):
+    def to_mrc(self, delim=u'\u001f', term=u'\u001e', language=None):
         string = self.ind1 + self.ind2
-        string += ''.join([delim + sub.code + sub.value for sub in self.subfields])
+        
+        for sub in self.subfields:
+            if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
+                value = sub.translated(language)
+            else: 
+                value = sub.value
+
+            string += ''.join([delim + sub.code + value])
 
         return string + term
 
-    def to_mrk(self):
+    def to_mrk(self, language=None):
         inds = self.ind1 + self.ind2
         inds = inds.replace(' ', '\\')
 
         string = '{}  {}'.format(self.tag, inds)
-        string += ''.join(['${}{}'.format(sub.code, sub.value) for sub in self.subfields])
+        
+        for sub in self.subfields:
+            if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
+                value = sub.translated(language)
+            else: 
+                value = sub.value
+                
+        string += '${}{}'.format(sub.code, sub.value)
+        
+        #string += ''.join(['${}{}'.format(sub.code, sub.value) for sub in self.subfields])
 
         return string
 
@@ -912,7 +967,10 @@ class Linked(Subfield):
     @property
     def value(self):
         return Auth.lookup(self.xref, self.code)
-
+        
+    def translated(self, language):
+        return Auth.lookup(self.xref, self.code, language)
+        
     def to_bson(self):
         return SON(data = {'code' : self.code, 'xref' : self.xref})
 
