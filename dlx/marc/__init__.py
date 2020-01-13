@@ -85,7 +85,7 @@ class MarcSet():
 
         if hasattr(self, 'query_params') and isinstance(self.records, map):
             args, kwargs = self.query_params
-            self._count = self.handle.count_documents(*args, **kwargs)
+            self._count = self.handle.count_documents(*args)
             return self._count
         else:
             return len(self.records)
