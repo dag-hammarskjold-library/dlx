@@ -11,61 +11,33 @@ DLX is a serialization, storage, and query toolkit for MARC data and associated 
 DLX provides various classes for working with the DLX data.
 
 ```python
-#/usr/bin/env python
-
+from bson import Regex
 from dlx import DB
-from dlx.marc import Bib, Auth, Matcher, OrMatch
-from bson.regex import Regex
-```
-Connect to the database using a [MongoDB connection string](https://docs.mongodb.com/manual/reference/connection-string/).
+from dlx.marc import BibSet, QueryDocument, Condition
 
-```python
-DB.connect('connection string')
-```
+DB.connect(<connection_string>)
 
- `Bib` and `Auth` have class methods for accessing the
- `db.bibs` and `db.auths` database collections.
- 
-```python
-bib = Bib.match_id(99999) # returns a Bib() object
-auth = Auth.match_id(283289) # returns an Auth() object
-```
-
-Use the class method `.match()` with a series of `Matcher`
-objects to write queries.
-
-```python
-bibs = Bib.match(
-    Matcher('269',('a','2012-12-31')),
-    Matcher('245',('a',Regex('^Report')))
-)
-
-auths = Auth.match(
-    Matcher('100',('a',Regex('Dag'))),
-    Matcher('400',('a',Regex('Carl')))
-)
-```
-
-Use `OrMatch` to group matcher objects into OR queries.
-
-```python
-bibs = Bib.match(
-    OrMatch(
-        Matcher('191',('b','A/'),('c','72')),
-        Matcher('791',('b','A/'),('c','72'))
+query = QueryDocument(
+    Condition(
+        tag='191',
+        modifier='exists'
+    ),
+    Condition(
+        tag='269',
+        subfields={'a': Regex('^1975')}
     )
 )
-```
 
-`.match()` returns a generator for iterating through
-matching records. The generator yeilds instances of `Bib()`
-or `Auth()`, which have instance methods for getting values 
-from the instance such as `.get_value()`.
+print(query.to_json())
 
-```python
-for bib in bibs:
-    # The `Bib` and `Auth` objects
-    print('date: ' + bib.get_value('269','a'))
-    print('title: ' + ' '.join(bib.get_values('245','a','b','c')))
-    print('-' * 100) 
+bibset = BibSet.from_query(query, projection={'191': True}, skip=0, limit=0)
+print('There are {} results'.format(bibset.count))
+
+bibset.cache()
+
+for bib in bibset.records:
+    print('id: {}, symbol: {}'.format(bib.id, bib.get_value('191','a')))
+
+print(bibset.to_xml())
+
 ```
