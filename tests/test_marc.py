@@ -661,7 +661,7 @@ class Batch(TestCase):
         
         t = Table(
             [
-                ['246a','246b','269c','1.269c'],
+                ['246a','246b','1.269c','2.269c'],
                 ['title','subtitle','1999-12-31','repeated'],
                 ['title2','subtitle2','2000-01-01','repeated'],
             ]

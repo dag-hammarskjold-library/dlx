@@ -4,7 +4,7 @@ from dlx.util import Table
 
 class Data(object):
     data = [
-        ['246a','246b','269c','1.269c'],
+        ['246a','246b','1.269c','2.269c'],
         ['title','subtitle','1999-12-31','repeated'],
         ['title2','subtitle2','2000-01-01','repeated'],
     ]
@@ -28,5 +28,5 @@ class TestTable(TestCase):
         self.assertEqual(t.get(1,'246a'),'changed')
         
     def test_to_html(self):
-        data = '<table><tr><td>246a</td><td>246b</td><td>269c</td><td>1.269c</td></tr><tr><td>title</td><td>subtitle</td><td>1999-12-31</td><td>repeated</td></tr><tr><td>title2</td><td>subtitle2</td><td>2000-01-01</td><td>repeated</td></tr></table>'
+        data = '<table><tr><td>246a</td><td>246b</td><td>1.269c</td><td>2.269c</td></tr><tr><td>title</td><td>subtitle</td><td>1999-12-31</td><td>repeated</td></tr><tr><td>title2</td><td>subtitle2</td><td>2000-01-01</td><td>repeated</td></tr></table>'
         self.assertEqual(Table(Data.data).to_html(),data)
