@@ -487,6 +487,12 @@ class Get(TestCase):
         auth.commit()
         bib = Bib({'_id': 444}).set('650','a',888)
         self.assertEqual(bib.get_value('650','a', language='es'),'texto')
+    
+    def test_field_get(self):
+        bib = Bib.match_id(999)
+        field = bib.get_field('245')
+        self.assertEqual(field.get_value('a'), 'This')
+        self.assertEqual(field.get_values('a','b'), ['This', 'is the'])
         
 class Set(TestCase):
     def setUp(self):
