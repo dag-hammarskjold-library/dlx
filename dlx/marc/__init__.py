@@ -51,10 +51,12 @@ class MarcSet():
                 instance = 0
                 value = table.index[temp_id][field_name]
 
-                match = re.match(r'^(\d+)\.(\d{3})([a-z0-9])', str(field_name))
+                match = re.match(r'^(\d+)\.(\d{3})(\$)?([a-z0-9])', str(field_name))
+                
                 if match:
                     instance = int(match.group(1))
-                    tag, code = match.group(2), match.group(3)
+                    instance -= 1 # place numbers start at 1 in col headers instead of 0
+                    tag, code = match.group(2), match.group(4)
                 else:
                     tag, code = field_name[:3], field_name[3]
 
@@ -87,7 +89,7 @@ class MarcSet():
     
 >>>>>>> 2d58dcf... mrc (#54)
     def __init__(self):
-        self.records = None # can be any type of  iterable
+        self.records = None # can be any type of iterable
 
     @property
     def count(self):
