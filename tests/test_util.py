@@ -18,7 +18,7 @@ class TestTable(TestCase):
         self.assertEqual(Table(d).to_list(),d)
         
     def test_from_excel(self):
-        path = os.path.join(os.path.dirname(__file__), 'test.xlsx')
+        path = os.path.join(os.path.dirname(__file__), 'marc.xlsx')
         table = Table.from_excel(path)
         self.assertEqual(table.to_list(),Data.data)
     
