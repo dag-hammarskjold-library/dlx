@@ -661,7 +661,7 @@ class Batch(TestCase):
         
         t = Table(
             [
-                ['246a','246b','269c','1.269c'],
+                ['246a','246b','1.269c','2.269c'],
                 ['title','subtitle','1999-12-31','repeated'],
                 ['title2','subtitle2','2000-01-01','repeated'],
             ]
@@ -673,7 +673,7 @@ class Batch(TestCase):
             self.assertEqual(bib.get_values('269','c')[1],'repeated')
             
     def test_from_excel(self):
-        path = os.path.join(os.path.dirname(__file__), 'test.xlsx')        
+        path = os.path.join(os.path.dirname(__file__), 'marc.xlsx')        
         
         bibset = BibSet.from_excel(path)
         for bib in bibset.records:
