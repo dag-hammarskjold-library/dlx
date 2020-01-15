@@ -865,7 +865,7 @@ class Controlfield(Field):
     def to_mrc(self, language=None):
         return self.value
 
-    def to_mrk(self):
+    def to_mrk(self, language=None):
         return '{}  {}'.format(self.tag, self.value)
 
 class Datafield(Field):
@@ -875,7 +875,17 @@ class Datafield(Field):
         self.ind1 = ind1
         self.ind2 = ind2
         self.subfields = subfields
-
+    
+    def get_value(self, code):
+        sub = next(filter(lambda sub: sub.code == code, self.subfields), None)
+        
+        return sub.value if sub else ''
+        
+    def get_values(self, *codes):
+        subs = filter(lambda sub: sub.code in codes, self.subfields)
+        
+        return [sub.value for sub in subs]
+        
     def get_xrefs(self):
         return [sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]
 
@@ -929,8 +939,10 @@ class Datafield(Field):
                 value = sub.translated(language)
             else: 
                 value = sub.value
-                
-        string += '${}{}'.format(sub.code, sub.value)
+            
+            string += ''.join(['${}{}'.format(sub.code, sub.value)])
+            
+        #string += '${}{}'.format(sub.code, sub.value)
         
         #string += ''.join(['${}{}'.format(sub.code, sub.value) for sub in self.subfields])
 
