@@ -618,9 +618,10 @@ class Serialization(TestCase):
             Auth.match_id(777).to_mrc(),
             '00054    a 00037    4500150001600000  aheader text'
         )
+        
         self.assertEqual(
             Bib(Data.jbib).to_mrc(),
-            '00228ra000974500008001200000245002400012520001600036520004300052650001600095710001900111controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
+            '00229ra000974500008001300000245002400013520001600037520004300053650001600096710001900112controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
         )
 
         auth = Auth({'_id': 777}).set('150','a','text').set('994','a','texto')
@@ -636,14 +637,19 @@ class Serialization(TestCase):
         
         self.assertEqual(
             Bib(Data.jbib).to_mrc(language='es'),
-            '00222ra000974500008001200000245002400012520001600036520004300052650001000095710001900105controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  atexto  aanother header'
+            '00223ra000974500008001300000245002400013520001600037520004300053650001000096710001900106controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  atexto  aanother header'
         )
         
     def test_to_mrk(self):
         self.assertEqual(
             Auth(Data.jauth).to_mrk(),
-                '150  \\\\$aheader text\n'
-            )
+            '150  \\\\$aheader text\n'
+        )
+            
+        self.assertEqual(
+            Bib().set('001', None, '1').set('245', 'a', 'Title').to_mrk(),
+            '001  1\n245  \\\\$aTitle\n'
+        )  
     
 class Batch(TestCase):
     def setUp(self):

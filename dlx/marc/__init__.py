@@ -133,7 +133,7 @@ class MarcSet():
             root.append(record.to_xml_raw())
 
         return XML.tostring(root, 'utf-8')
-
+            
     def to_excel(self, path):
         pass
 
@@ -732,10 +732,10 @@ class Marc(object):
                     
                     if language and Config.linked_language_source_tag(self.record_type, field.tag, sub.code, language):
                         subnode.text = sub.translated(language)
-                        continue
+                        continue   
                         
                     subnode.text = sub.value
-
+                    
         return root
 
     def to_xml(self, *tags, language=None):
@@ -814,8 +814,6 @@ class Auth(Marc):
                 if language:
                     if language in cls._cache[xref][code]:
                         return cls._cache[xref][code][language]
-                else:
-                    return cls._cache[xref][code]
         else:
             cls._cache[xref] = {}
             
@@ -827,7 +825,7 @@ class Auth(Marc):
         
         auth = Auth.find_one({'_id': xref}, projection)
         value = auth.heading_value(code, language) if auth else '**Linked Auth Not Found**'
-            
+        
         if language:
             cls._cache[xref][code] = {}
             cls._cache[xref][code][language] = value
@@ -880,10 +878,10 @@ class Controlfield(Field):
     def to_mij(self):
         return {self.tag: self.value}
 
-    def to_mrc(self, language=None):
-        return self.value
+    def to_mrc(self, term=u'\u001e', language=None):
+        return self.value + term
 
-    def to_mrk(self):
+    def to_mrk(self, language=None):
         return '{}  {}'.format(self.tag, self.value)
 
 class Datafield(Field):
