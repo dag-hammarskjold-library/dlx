@@ -395,7 +395,6 @@ class Query(TestCase):
         cursor = Bib.match(Or(match1,match2))
         bibs = list(cursor)
         self.assertEqual(len(bibs),1)
-    
 
 class Index(TestCase):
     def setUp(self):
@@ -614,12 +613,12 @@ class Serialization(TestCase):
     def test_to_mrc(self):
         self.assertEqual(
             Auth.match_id(777).to_mrc(),
-            '00054    a 00037    4500150001600000  aheader text'
+            '00054   a   00037   4500150001600000  aheader text'
         )
         
         self.assertEqual(
             Bib(Data.jbib).to_mrc(),
-            '00229ra000974500008001300000245002400013520001600037520004300053650001600096710001900112controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
+            '00229r||a|||00097|||4500008001300000245002400013520001600037520004300053650001600096710001900112controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
         )
         
         auth = Auth({'_id': 777}).set('150','a','text').set('994','a','texto')
@@ -627,7 +626,7 @@ class Serialization(TestCase):
         
         self.assertEqual(
             Bib(Data.jbib).to_mrc(language='es'),
-            '00223ra000974500008001300000245002400013520001600037520004300053650001000096710001900106controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  atexto  aanother header'
+            '00223r||a|||00097|||4500008001300000245002400013520001600037520004300053650001000096710001900106controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  atexto  aanother header'
         )
         
     def test_to_mrk(self):
@@ -672,7 +671,7 @@ class Batch(TestCase):
         
         t = Table(
             [
-                ['246a','246b','1.269c','2.269c'],
+                ['246a','1.246$b','1.269c','2.269c'],
                 ['title','subtitle','1999-12-31','repeated'],
                 ['title2','subtitle2','2000-01-01','repeated'],
             ]
