@@ -179,17 +179,10 @@ class Instantiation(TestCase):
     def test_instantiation(self):
         # test instantiation
         
-<<<<<<< HEAD
         record = Bib(Data.jbib)
         self.assertIsInstance(record,Marc)
 
         record = Auth(Data.jauth)
-=======
-        record = Marc(Data.jbib)
-        self.assertIsInstance(record,Marc)
-
-        record = Marc(Data.jauth)
->>>>>>> 45c2199... MarcSet (#53)
         self.assertIsInstance(record,Marc)
         
         bib = Bib(Data.jbib)
@@ -608,7 +601,6 @@ class Serialization(TestCase):
         self.assertEqual(
             bib.to_xml(),
             b'<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">another description</subfield><subfield code="a">repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">header text</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">another header</subfield></datafield></record>'
-<<<<<<< HEAD
         )
         
         auth = Auth({'_id': 777}).set('150','a','text').set('994','a','texto')
@@ -628,14 +620,6 @@ class Serialization(TestCase):
         self.assertEqual(
             Bib(Data.jbib).to_mrc(),
             '00229ra000974500008001300000245002400013520001600037520004300053650001600096710001900112controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
-        )
-
-        auth = Auth({'_id': 777}).set('150','a','text').set('994','a','texto')
-        auth.commit()
-        
-        self.assertEqual(
-            Bib(Data.jbib).to_mrc(language='es'),
-            '00222ra000974500008001200000245002400012520001600036520004300052650001000095710001900105controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  atexto  aanother header'
         )
         
         auth = Auth({'_id': 777}).set('150','a','text').set('994','a','texto')
@@ -701,8 +685,7 @@ class Batch(TestCase):
             
     def test_from_excel(self):
         path = os.path.join(os.path.dirname(__file__), 'marc.xlsx')        
-        
-<<<<<<< HEAD
+
         bibset = BibSet.from_excel(path)
         for bib in bibset.records:
             self.assertEqual(bib.get_value('246','b')[:8],'subtitle')
@@ -712,64 +695,4 @@ class BatchSerialization(TestCase):
     def test_xml(self):
         bibset = BibSet.from_query({'_id': {'$in': [555,999]}})
         self.assertEqual(bibset.to_xml(),b'<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">another description</subfield><subfield code="a">repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">**Linked Auth Not Found**</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">**Linked Auth Not Found**</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">**Linked Auth Not Found**</subfield></datafield></record></collection>')
-=======
-    #def test_to_mrc(self):
-    #    pass
-=======
-        )
-   
-    def test_to_mrc(self):
-        self.assertEqual(
-            Auth.match_id(777).to_mrc(),
-            '00054    a 00037    4500150001600000  aheader text'
-        )
-        self.assertEqual(
-            Bib(Data.jbib).to_mrc(),
-            '00228ra000974500008001200000245002400012520001600036520004300052650001600095710001900111controlfield  aThisbis thectitle  adescription  aanother descriptionarepeated subfield  aheader text  aanother header'
-        )
->>>>>>> 2d58dcf... mrc (#54)
-
-class Batch(TestCase):
-    def setUp(self):
-        DB.connect('mongodb://.../?authSource=dummy',mock=True)
-        Bib(Data.jbib).commit()
-        Bib(Data.jbib2).commit()
-        
-    def test_from_query(self):
-        bibset = BibSet.from_query({'_id': {'$in': [555,999]}})
-        self.assertEqual(len(list(bibset.records)),2)
-        
-        query = QueryDocument(
-            Condition(tag='245',subfields={'a': 'Another'})
-        )
-        bibset = BibSet.from_query(query)
-        self.assertEqual(len(list(bibset.records)),1)
-        
-    def test_count(self):
-        query = QueryDocument(Condition('245',modifier='exists'))
-        self.assertEqual(BibSet.from_query(query).count,2)
-        print(type(BibSet.from_query(query)))
-        
-    def test_cache(self):
-        query = QueryDocument(Condition('245',{'a': 'Another'}))
-        bibset = BibSet.from_query(query).cache()
-        self.assertEqual(len(list(bibset.records)),1)
-        self.assertEqual(len(list(bibset.records)),1)
-        
-    def test_from_dataframe(self):
-        from pandas import DataFrame
-        
-        df = DataFrame(
-            data=[
-                ({'246a': 'Some','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'}),
-                ({'246a': 'Another','246b': 'Title', '1.246a': 'Repeated', '2.246a': 'Again'})
-            ]
-        )
-        
-        for bib in BibSet.from_dataframe(df).records:
-            self.assertEqual(bib.get_value('246','b'), 'Title')
-            self.assertEqual(bib.get_values('246','a')[1:3],['Repeated','Again'])
-            
-        
->>>>>>> 45c2199... MarcSet (#53)
         

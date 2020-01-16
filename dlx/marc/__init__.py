@@ -68,7 +68,6 @@ class MarcSet():
             self.records.append(record)
 
         self.count = len(self.records)
-<<<<<<< HEAD
 
         return self
 
@@ -78,16 +77,6 @@ class MarcSet():
 
         return cls.from_table(table)
 
-=======
-        
-        return self    
-    
-    @classmethod
-    def from_excel(cls,path):
-        df = read_excel(path)
-        return cls.from_dataframe(df)
-    
->>>>>>> 2d58dcf... mrc (#54)
     def __init__(self):
         self.records = None # can be any type of iterable
 
@@ -662,17 +651,10 @@ class Marc(object):
         leader_dir_len = len(directory.encode('utf-8')) + 24
         base_address = str(leader_dir_len).zfill(5)
         total_len = str(leader_dir_len + len(data.encode('utf-8'))).zfill(5)
-<<<<<<< HEAD
 
         if not hasattr(self, 'leader'):
             self.leader = ' ' * 24
 
-=======
-        
-        if not hasattr(self,'leader'):
-            self.leader = ' ' * 24
-        
->>>>>>> 2d58dcf... mrc (#54)
         new_leader = total_len \
             + self.leader[5:9] \
             + 'a' \
