@@ -19,7 +19,7 @@ class Table(object):
         lol = []        
         for row in sheet.get_rows():
             cells = []
-            for cell in row:
+            for cell in row:              
                 cells.append(clean(cell))
             lol.append(cells)
             

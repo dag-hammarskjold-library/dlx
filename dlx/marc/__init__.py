@@ -39,7 +39,7 @@ class MarcSet():
         return self
 
     @classmethod
-    def from_table(cls, table, auth_control=True, auth_flag=False):
+    def from_table(cls, table, auth_control=True, auth_flag=False, field_check=None):
         # does not support repeated subfield codes
         self = cls()
         self.records = []
@@ -50,6 +50,9 @@ class MarcSet():
             for field_name in table.index[temp_id].keys():
                 instance = 0
                 value = table.index[temp_id][field_name]
+                
+                if value == '':
+                    continue
 
                 match = re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name))
                 
@@ -62,6 +65,10 @@ class MarcSet():
                     
                 else:
                     raise Exception('Invalid column header "{}"'.format(field_name))
+                    
+                if field_check and field_check == tag + code:
+                    if self.record_class.find_one(Condition(tag, {code: value}).compile()):
+                        raise Exception('{}${}: "{}" is already in the system'.format(tag, code, value))
 
                 if record.get_field(tag, place=instance):
                     record.set(tag, code, value, address=[instance], auth_control=auth_control, auth_flag=auth_flag)
@@ -75,13 +82,13 @@ class MarcSet():
         return self
 
     @classmethod
-    def from_excel(cls, path, auth_control=True, auth_flag=False):
+    def from_excel(cls, path, auth_control=True, auth_flag=False, field_check=None):
         table = Table.from_excel(path)
 
-        return cls.from_table(table, auth_control=auth_control, auth_flag=auth_flag)
+        return cls.from_table(table, auth_control=auth_control, auth_flag=auth_flag, field_check=field_check)
 
-    def __init__(self):
-        self.records = None # can be any type of iterable
+    def __init__(self, *records):
+        self.records = records or None # can be any type of iterable
 
     @property
     def count(self):
@@ -124,7 +131,7 @@ class MarcSet():
         for record in self.records:
             root.append(record.to_xml_raw())
 
-        return XML.tostring(root, 'utf-8')
+        return XML.tostring(root, 'utf-8').decode('utf-8')
             
     def to_excel(self, path):
         pass
@@ -735,7 +742,7 @@ class Marc(object):
         return root
 
     def to_xml(self, *tags, language=None):
-        return XML.tostring(self.to_xml_raw(language=language), 'utf-8')
+        return XML.tostring(self.to_xml_raw(language=language)).decode('utf-8')
 
     #### de-serializations
     # these formats don't fully support linked values.
