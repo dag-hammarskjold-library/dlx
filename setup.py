@@ -40,5 +40,7 @@ setup(
     long_description_content_type = "text/markdown",
     classifiers = list(filter(None, classifiers.split('\n'))),
     python_requires = '>=3.3',
-    scripts = ['scripts/dlx-doc']
+    entry_points = {
+        'console_scripts': ['excel_marc=scripts.excel_marc:main'],
+    }
 )
