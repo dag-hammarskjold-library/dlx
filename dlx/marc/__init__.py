@@ -39,7 +39,7 @@ class MarcSet():
         return self
 
     @classmethod
-    def from_table(cls, table):
+    def from_table(cls, table, auth_control=True, auth_flag=False):
         # does not support repeated subfield codes
         self = cls()
         self.records = []
@@ -51,20 +51,23 @@ class MarcSet():
                 instance = 0
                 value = table.index[temp_id][field_name]
 
-                match = re.match(r'^(\d+)\.(\d{3})(\$)?([a-z0-9])', str(field_name))
+                match = re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name))
                 
                 if match:
-                    instance = int(match.group(1))
-                    instance -= 1 # place numbers start at 1 in col headers instead of 0
-                    tag, code = match.group(2), match.group(4)
+                    if match.group(1):
+                        instance = int(match.group(2))
+                        instance -= 1 # place numbers start at 1 in col headers instead of 0
+                    
+                    tag, code = match.group(3), match.group(5)
+                    
                 else:
-                    tag, code = field_name[:3], field_name[3]
+                    raise Exception('Invalid column header "{}"'.format(field_name))
 
                 if record.get_field(tag, place=instance):
-                    record.set(tag, code, value, address=[instance])
+                    record.set(tag, code, value, address=[instance], auth_control=auth_control, auth_flag=auth_flag)
                 else:
-                    record.set(tag, code, value, address=['+'])
-
+                    record.set(tag, code, value, address=['+'], auth_control=auth_control, auth_flag=auth_flag)
+            
             self.records.append(record)
 
         self.count = len(self.records)
@@ -72,10 +75,10 @@ class MarcSet():
         return self
 
     @classmethod
-    def from_excel(cls, path):
+    def from_excel(cls, path, auth_control=True, auth_flag=False):
         table = Table.from_excel(path)
 
-        return cls.from_table(table)
+        return cls.from_table(table, auth_control=auth_control, auth_flag=auth_flag)
 
     def __init__(self):
         self.records = None # can be any type of iterable
@@ -445,17 +448,26 @@ class Marc(object):
 
     #### "set"-type methods
 
-    def set(self, tag, code, new_val, **kwargs):
+    def set(self, tag, code, new_val, auth_control=True, auth_flag=False, **kwargs):
         ### WIP
         # kwargs: address [pair], matcher [Pattern/list]
-
-        if Config.is_authority_controlled(self.record_type, tag, code):
+        
+        if auth_control == True and Config.is_authority_controlled(self.record_type, tag, code):
             try:
                 new_val + int(new_val)
             except ValueError:
                 raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(tag, code))
-
+                
             auth_controlled = True
+        elif auth_flag == True and Config.is_authority_controlled(self.record_type, tag, code):
+            auth_tag = Config.authority_source_tag(self.record_type, tag, code)
+            query = QueryDocument(Condition(tag=auth_tag, subfields={code: new_val}))
+            authset = AuthSet.from_query(query)
+            
+            if authset.count == 0:
+                raise Exception('Authority-controlled field {}${} value "{}" is invalid'.format(tag, code, new_val))
+            
+            auth_controlled = False
         else:
             new_val = str(new_val)
             auth_controlled = False
@@ -654,15 +666,17 @@ class Marc(object):
 
         if not hasattr(self, 'leader'):
             self.leader = ' ' * 24
+        elif len(self.leader) < 24:
+            self.leader = self.leader.ljust(24, '|')
 
         new_leader = total_len \
-            + self.leader[5:9] \
+            + self.leader[5:8] \
             + 'a' \
-            + self.leader[10:11] \
+            + self.leader[10:13] \
             + base_address \
-            + self.leader[17:21] \
+            + self.leader[17:20] \
             + '4500'
-
+        
         return new_leader + directory + data
 
     def to_mrk(self, *tags, language=None):
@@ -939,10 +953,6 @@ class Datafield(Field):
                 value = sub.value
             
             string += ''.join(['${}{}'.format(sub.code, sub.value)])
-            
-        #string += '${}{}'.format(sub.code, sub.value)
-        
-        #string += ''.join(['${}{}'.format(sub.code, sub.value) for sub in self.subfields])
 
         return string
 
