@@ -13,13 +13,15 @@ class Table(object):
                 dt = datetime(*parts)
                 val = dt.strftime('%Y-%m-%d')
                 return val
+            elif cell.ctype == 2:
+                return(int(cell.value))
             else:
                 return cell.value
         
         lol = []        
         for row in sheet.get_rows():
             cells = []
-            for cell in row:
+            for cell in row:              
                 cells.append(clean(cell))
             lol.append(cells)
             
