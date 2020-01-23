@@ -9,9 +9,11 @@ class ExcelMarc(TestCase):
         pass
     
     def test_run(self):
-        path = os.path.join(os.path.dirname(__file__), 'marc.xlsx')
-        sys.argv += ['--connect=mongomock://localhost', '--file={}'.format(path), '--type=bib', '--format=xml']
-        
-        with open(os.devnull, 'w') as nul:
-            sys.stdout = nul
-            excel_marc.main()
+        file = os.path.dirname(__file__) + '/marc.xlsx'
+        out = os.path.dirname(__file__) + '/out.mrc'
+        sys.argv[1:] = ['--connect=mongomock://localhost', '--file={}'.format(file), '--type=bib', '--format=mrc', '--out={}'.format(out)]
+        excel_marc.main()
+        self.assertTrue(os.path.exists(out))
+    
+    def tearDown(self):
+        os.remove(os.path.dirname(__file__) + '/out.mrc')

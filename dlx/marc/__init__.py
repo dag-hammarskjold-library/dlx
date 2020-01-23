@@ -62,9 +62,11 @@ class MarcSet():
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
                     
                     tag, code = match.group(3), match.group(5)
-                    
                 else:
                     raise Exception('Invalid column header "{}"'.format(field_name))
+                    
+                if record.get_value(tag, code, address=[instance,0]):
+                    raise Exception('Column header {}.{}{} is repeated'.format(instance, tag, code))
 
                 if field_check and field_check == tag + code:
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
@@ -391,7 +393,8 @@ class Marc(object):
 
     def get_values(self, tag, *codes, **kwargs):
         if 'place' in kwargs:
-            fields = [self.get_field(tag, **kwargs)]
+            val = self.get_field(tag, **kwargs)
+            fields = [val] if val else []
         else:
             fields = self.get_fields(tag)
 
@@ -414,12 +417,16 @@ class Marc(object):
     def gets(self, tag, *codes, **kwargs):
         return self.get_values(tag, *codes, **kwargs)
 
-    def get_value(self, tag, code=None, **kwargs):
-        if 'address' in kwargs:
-            address = kwargs['address']
-
-            return self.get_values(tag, code, place=address[0])[address[1] or 0]
-
+    def get_value(self, tag, code=None, address=None, **kwargs):
+        if address:
+            if len(address) != 2:
+                raise Exdception('Invalid address')
+                
+            try:
+                return self.get_values(tag, code, place=address[0])[address[1] or 0]
+            except IndexError:
+                return ''
+                
         field = self.get_field(tag)
 
         if field is None:
@@ -677,9 +684,9 @@ class Marc(object):
             self.leader = self.leader.ljust(24, '|')
 
         new_leader = total_len \
-            + self.leader[5:8] \
+            + self.leader[5:9] \
             + 'a' \
-            + self.leader[10:13] \
+            + '22' \
             + base_address \
             + self.leader[17:20] \
             + '4500'
