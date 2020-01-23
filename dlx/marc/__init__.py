@@ -65,7 +65,7 @@ class MarcSet():
                     
                 else:
                     raise Exception('Invalid column header "{}"'.format(field_name))
-                
+
                 if field_check and field_check == tag + code:
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
                         raise Exception('{}${}: "{}" is already in the system'.format(tag, code, value))
