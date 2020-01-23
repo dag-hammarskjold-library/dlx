@@ -33,9 +33,9 @@ def main(*f_args):
     else:
         raise Exception
     
+
     data = Cls.from_excel(args.file, auth_control=False, auth_flag=True, field_check=args.check)
+
     convert_method = 'to_' + args.format
 
     print(getattr(data, convert_method)(), end='')
-
-
