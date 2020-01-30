@@ -12,6 +12,7 @@ parser.add_argument('--type', required=True, choices=['bib', 'auth'])
 parser.add_argument('--format', required=True, choices=['mrc', 'xml'])
 parser.add_argument('--check')
 parser.add_argument('--out')
+parser.add_argument('--defaults')
 
 ###
 
@@ -24,9 +25,16 @@ def main():
     args = parser.parse_args()
 
     DB.connect(args.connect)
-    
     Cls = BibSet if args.type == 'bib' else AuthSet
+
     data = Cls.from_excel(args.file, auth_control=False, auth_flag=True, field_check=args.check)
+    
+    if args.defaults:
+        defaults = Cls.from_excel(args.defaults, auth_control=False, auth_flag=True, field_check=args.check).records[0]
+        
+        for record in data.records:
+            record.merge(defaults)
+    
     convert_method = 'to_' + args.format
     fh = open(args.out, 'w', encoding='utf-8') if args.out else sys.stdout
     
