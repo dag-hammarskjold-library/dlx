@@ -82,14 +82,20 @@ class MarcSet():
                         continue
                         
                 if record.get_field(tag, place=instance):
-                    record.set(tag, code, value, address=[instance], auth_control=auth_control, auth_flag=auth_flag)
+                    try:
+                        record.set(tag, code, value, address=[instance], auth_control=auth_control, auth_flag=auth_flag)
+                    except Exception as e:
+                        exceptions.append(str(e))
                 else:
-                    record.set(tag, code, value, address=['+'], auth_control=auth_control, auth_flag=auth_flag)
-            
+                    try:
+                        record.set(tag, code, value, address=['+'], auth_control=auth_control, auth_flag=auth_flag)
+                    except Exception as e:
+                        exceptions.append(str(e))
+                        
             self.records.append(record)
 
         if exceptions:
-            raise Exception('\n'.join(exceptions))
+            raise Exception('\n\n' + '\n'.join(exceptions) + '\n')
         
         self.count = len(self.records)
 
