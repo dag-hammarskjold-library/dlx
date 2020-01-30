@@ -9,10 +9,8 @@ class Table(object):
         
         def clean(cell):
             if cell.ctype == 3:
-                parts = xldate.xldate_as_tuple(cell.value,0)[0:3]
-                dt = datetime(*parts)
-                val = dt.strftime('%Y-%m-%d')
-                return val
+                cell.ctype = 2
+                return(int(cell.value))
             elif cell.ctype == 2:
                 return(int(cell.value))
             else:
@@ -22,7 +20,7 @@ class Table(object):
         for row in sheet.get_rows():
             cells = []
             for cell in row:              
-                cells.append(clean(cell))
+                cells.append(str(clean(cell)).rstrip())
             lol.append(cells)
             
         return cls(lol)
