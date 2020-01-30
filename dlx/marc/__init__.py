@@ -43,7 +43,8 @@ class MarcSet():
         # does not support repeated subfield codes
         self = cls()
         self.records = []
-
+        exceptions = []
+        
         for temp_id in table.index.keys():
             record = cls().record_class()
 
@@ -62,16 +63,24 @@ class MarcSet():
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
                     
                     tag, code = match.group(3), match.group(5)
+                elif len(field_name) == 3 and field_name[0:2] == '00':
+                    tag, code = field_name, None
                 else:
-                    raise Exception('Invalid column header "{}"'.format(field_name))
+                    #raise Exception('Invalid column header "{}"'.format(field_name))
+                    exceptions.append('Invalid column header "{}"'.format(field_name))
+                    continue
                     
                 if record.get_value(tag, code, address=[instance,0]):
-                    raise Exception('Column header {}.{}{} is repeated'.format(instance, tag, code))
-
+                    #raise Exception('Column header {}.{}{} is repeated'.format(instance, tag, code))
+                    exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
+                    continue
+                    
                 if field_check and field_check == tag + code:
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
-                        raise Exception('{}${}: "{}" is already in the system'.format(tag, code, value))
-
+                        #raise Exception('{}${}: "{}" is already in the system'.format(tag, code, value))
+                        exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
+                        continue
+                        
                 if record.get_field(tag, place=instance):
                     record.set(tag, code, value, address=[instance], auth_control=auth_control, auth_flag=auth_flag)
                 else:
@@ -79,6 +88,9 @@ class MarcSet():
             
             self.records.append(record)
 
+        if exceptions:
+            raise Exception('\n'.join(exceptions))
+        
         self.count = len(self.records)
 
         return self
@@ -621,7 +633,22 @@ class Marc(object):
         return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), upsert=True)
 
     #### utlities
-
+    
+    def merge(self, to_merge):
+        # sets any value from to_merge if the field doesn't exist in self
+        # does not overwrite any values
+        
+        for field in to_merge.fields:
+            if isinstance(field, Controlfield):
+                if not self.get_value(field.tag):
+                    self.set(field.tag, None, field.value)
+            else:
+                for sub in field.subfields:
+                    if not self.get_value(field.tag, sub.code):
+                        self.set(field.tag, sub.code, sub.value)
+                
+        return self
+        
     def collection(self):
         if isinstance(self, Bib):
             return DB.bibs
