@@ -685,7 +685,7 @@ class Batch(TestCase):
     def test_from_excel(self):
         path = os.path.join(os.path.dirname(__file__), 'marc.xlsx')        
 
-        bibset = BibSet.from_excel(path)
+        bibset = BibSet.from_excel(path, date_format='%Y-%m-%d')
         for bib in bibset.records:
             self.assertEqual(bib.get_value('246','b')[:8],'subtitle')
             self.assertEqual(bib.get_values('269','c')[1],'repeated')

@@ -19,7 +19,7 @@ class TestTable(TestCase):
         
     def test_from_excel(self):
         path = os.path.join(os.path.dirname(__file__), 'marc.xlsx')
-        table = Table.from_excel(path)
+        table = Table.from_excel(path, date_format='%Y-%m-%d')
         self.assertEqual(table.to_list(),Data.data)
     
     def test_set_get(self):
