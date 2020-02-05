@@ -1,16 +1,20 @@
 from datetime import datetime
-from xlrd import open_workbook, xldate
+from xlrd import open_workbook
+from xlrd.xldate import xldate_as_tuple
 
 class Table(object):
     @classmethod
-    def from_excel(cls,path,sheet_number=0):
+    def from_excel(cls, path, sheet_number=0, date_format='%Y%m%d'):
         wkbook = open_workbook(path)
         sheet = wkbook.sheet_by_index(sheet_number)
         
         def clean(cell):
             if cell.ctype == 3:
-                cell.ctype = 2
-                return(int(cell.value))
+                # todo: get feedback on date formatting
+                parts = xldate_as_tuple(cell.value,0)[0:3]
+                dt = datetime(*parts)
+                val = dt.strftime(date_format)
+                return val
             elif cell.ctype == 2:
                 return(int(cell.value))
             else:

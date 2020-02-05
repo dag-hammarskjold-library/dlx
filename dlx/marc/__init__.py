@@ -75,7 +75,7 @@ class MarcSet():
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
                     
-                if field_check and field_check == tag + code:
+                if field_check and field_check == tag + (code or ''):
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
                         #raise Exception('{}${}: "{}" is already in the system'.format(tag, code, value))
                         exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
@@ -102,8 +102,8 @@ class MarcSet():
         return self
 
     @classmethod
-    def from_excel(cls, path, auth_control=True, auth_flag=False, field_check=None):
-        table = Table.from_excel(path)
+    def from_excel(cls, path, auth_control=True, auth_flag=False, field_check=None, date_format='%Y%m%d'):
+        table = Table.from_excel(path, date_format=date_format)
 
         return cls.from_table(table, auth_control=auth_control, auth_flag=auth_flag, field_check=field_check)
 
