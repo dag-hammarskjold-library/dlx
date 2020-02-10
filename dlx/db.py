@@ -4,16 +4,16 @@ Provides the DB class for connecting to and accessing the database.
 
 import re
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
-from mongomock import MongoClient as MockClient    
+#from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
+from mongomock import MongoClient as MockClient
 
-class DB(object):
+class DB():
     """Provides a global database connection.
-    
+
     Class attributes
     -----------
         All class attributes are set automatically by DB.connect()
-    
+
     connected : bool
     handle : pymongo.database.Database
     bibs : pymongo.collection.Collection
@@ -21,31 +21,33 @@ class DB(object):
     file : pymongo.collection.Collection
     config : dict
     """
-        
+
+    client = None
     connected = False
+    database_name = None
     handle = None
     bibs = None
     auths = None
     files = None
     config = {}
-    
-    ## class 
-    
+
+    ## class
+
     @classmethod
-    def connect(cls,connection_string,**kwargs):
+    def connect(cls, connection_string, **kwargs):
         """Connects to the database and stores database and collection handles
         as class attributes.
-        
+
         Parameters
         ----------
         param1 : str
             MongoDB connection string.
-        
+
         Returns
         -------
         pymongo.database.Database
             The database handle automatically gets stored as class attribute 'handle'.
-        
+
         Raises
         ------
         pymongo.errors.ServerSelectionTimeoutError
@@ -53,67 +55,66 @@ class DB(object):
         pymongo.errors.AuthenticationFailure
             If the supplied credentials are invalid.
         """
-        
+
         if 'mock' in kwargs.keys():
-            client = MockClient(connection_string,serverSelectionTimeoutMS=10)
+            client = MockClient(connection_string)
         elif connection_string == 'mongomock://localhost':
             # allows MongoEngine mock client connection string
             connection_string = 'mongodb://.../?authSource=dummy'
-            client = MockClient(connection_string,serverSelectionTimeoutMS=10)
-        else:    
-            client = MongoClient(connection_string,serverSelectionTimeoutMS=10)
-        
+            client = MockClient(connection_string)
+        else:
+            client = MongoClient(connection_string, serverSelectionTimeoutMS=10)
+
         # raises pymongo exceptions if connection fails
         try:
             client.admin.command('ismaster')
         except NotImplementedError:
             pass
-        
-        DB.connected = True        
+
+        DB.connected = True
         DB.config['connection_string'] = connection_string
-            
-        match = re.search('\?authSource=([\w]+)',connection_string)
-        
+
+        match = re.search(r'\?authSource=([\w]+)', connection_string)
+
         if match:
-            DB.config['database_name'] = match.group(1)
+            DB.database_name = match.group(1)
         else:
             # this should be impossible
             raise Exception('Could not parse database name from connection string')
-            
-        DB.handle = client[DB.config['database_name']]
+
+        DB.client = client
+        DB.handle = client[DB.database_name]
         DB.bibs = DB.handle['bibs']
         DB.auths = DB.handle['auths']
         DB.files = DB.handle['files']
-        
-        return DB.handle
-    
+
+        return DB.client
+
+    @classmethod
+    def disconnect(cls):
+        if DB.connected:
+            DB.client.close()
+
     ## static
-    
+
     @staticmethod
     def check_connection():
         """Raises an exception if the database has not been connected to.
-        
+
         This is used to prevent attempts at database operations without
         being connected, which can create hard-to-trace errors.
-        
+
         Returns
         -------
         None
-        
+
         Raises
         ------
         Exception
             If the database has not been connected to yet.
         """
-        
-        if DB.connected == False:
+
+        if not DB.connected:
             raise Exception('Not connected to database yet')
-        else:
-            return True
-        
-    
-    
-    
-    
-    
-    
+
+        return True
