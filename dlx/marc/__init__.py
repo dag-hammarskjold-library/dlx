@@ -843,16 +843,22 @@ class Bib(Marc):
 
 class Auth(Marc):
     _cache = {}
+    _langcache = {}
 
     @classmethod
     def lookup(cls, xref, code, language=None):
         DB.check_connection()
         
+        if xref in cls._langcache:
+            if code in cls._langcache[xref]:
+                if language in cls._langcache[xref][code]:
+                    return cls._langcache[xref][code][language]
+        else:
+            cls._langcache[xref] = {}
+        
         if xref in cls._cache:
             if code in cls._cache[xref]:
-                if language:
-                    if language in cls._cache[xref][code]:
-                        return cls._cache[xref][code][language]
+                return  cls._cache[xref][code]
         else:
             cls._cache[xref] = {}
             
@@ -865,9 +871,11 @@ class Auth(Marc):
         auth = Auth.find_one({'_id': xref}, projection)
         value = auth.heading_value(code, language) if auth else '**Linked Auth Not Found**'
         
-        if language:
-            cls._cache[xref][code] = {}
-            cls._cache[xref][code][language] = value
+        if language is not None:
+            if code not in cls._langcache[xref]:
+                cls._langcache[xref][code] = {}
+                
+            cls._langcache[xref][code][language] = value
         else:
             cls._cache[xref][code] = value
 
