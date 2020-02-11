@@ -349,11 +349,7 @@ class Marc(object):
         self.controlfields = []
         self.datafields = []
 
-        if doc is None:
-            doc = {}
-
-        if '_id' in doc:
-            self.id = int(doc['_id'])
+        self.id = int(doc['_id']) if '_id' in doc else None
 
         self.parse(doc)
         
@@ -626,7 +622,7 @@ class Marc(object):
         try:
             jsonschema.validate(instance=self.to_dict(), schema=Config.jmarc_schema)
         except jsonschema.exceptions.ValidationError as e:
-            msg = '{} in {} : {}'.format(e.message, str(list(e.path)), json.dumps(doc, indent=4))
+            msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
 
     def commit(self):
