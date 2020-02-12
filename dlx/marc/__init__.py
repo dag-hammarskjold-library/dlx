@@ -398,17 +398,10 @@ class Marc(object):
 
         return next(fields, None)
 
-    def get_dict(self, tag, *kwargs):
-        if 'place' in kwargs:
-            place = kwargs['place']
-            return list(self.get_fields(tag))[place]
-        else:
-            return next(self.get_fields(tag), None)
-
     def get_values(self, tag, *codes, **kwargs):
         if 'place' in kwargs:
-            val = self.get_field(tag, **kwargs)
-            fields = [val] if val else []
+            field = self.get_field(tag, **kwargs)
+            fields = [field] if field else []
         else:
             fields = self.get_fields(tag)
 
@@ -431,11 +424,11 @@ class Marc(object):
     def gets(self, tag, *codes, **kwargs):
         return self.get_values(tag, *codes, **kwargs)
 
-    def get_value(self, tag, code=None, address=None, **kwargs):
+    def get_value(self, tag, code=None, address=None, language=None):
         if address:
             if len(address) != 2:
-                raise Exdception('Invalid address')
-                
+                raise Exception('Invalid address')
+
             try:
                 return self.get_values(tag, code, place=address[0])[address[1] or 0]
             except IndexError:
@@ -451,9 +444,8 @@ class Marc(object):
 
         sub = next(filter(lambda sub: sub.code == code, field.subfields), None)
         
-        if 'language' in kwargs:
-            #val = sub.value # force the lookup ??
-            return sub.translated(kwargs['language'])
+        if language is not None:
+            return sub.translated(language)
         
         return sub.value if sub else ''
 
@@ -470,6 +462,27 @@ class Marc(object):
             xrefs = xrefs + field.get_xrefs()
 
         return xrefs
+        
+    def get_xref(self, tag, code, address=[0, 0]):
+        f = 0
+        for field in self.get_fields(tag):
+            if f < address[0]:
+                continue
+        
+            if isinstance(field, Datafield):
+                s = 0    
+                for subfield in field.subfields:   
+                    if s < address[1]:
+                        continue
+                    
+                    if subfield.code == code and isinstance(subfield, Linked):
+                        return subfield.xref
+                        
+                    s += 1
+                    
+            f += 1
+            
+        return ''
 
     def get_text(self, tag):
         pass
@@ -953,8 +966,8 @@ class Datafield(Field):
         return [sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]
 
     def to_bson(self):
-        return SON (
-            data = {
+        return SON(
+            {
                 'indicators' : [self.ind1, self.ind2],
                 'subfields' : [sub.to_bson() for sub in self.subfields]
             }
