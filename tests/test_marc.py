@@ -152,7 +152,12 @@ def test_init_auth(db, auths):
             assert subfield.code and subfield.value
 
 def test_commit(db, bibs, auths):
+    from dlx import DB
     from dlx.marc import Bib, Auth
+    from datetime import datetime
+    
+    with pytest.raises(Exception):
+        Bib({'_id': 'I am invalid'}).commit()
     
     for bib in [Bib(x) for x in bibs]:
         assert bib.commit().acknowledged
@@ -160,8 +165,9 @@ def test_commit(db, bibs, auths):
     for auth in [Auth(x) for x in auths]:
         assert auth.commit().acknowledged
         
-    with pytest.raises(Exception):
-        Bib({'_id': 'I am invalid'}).commit()
+    bib = Bib({'_id': 3})
+    assert bib.commit().acknowledged
+    assert isinstance(bib.updated, datetime)
 
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth
