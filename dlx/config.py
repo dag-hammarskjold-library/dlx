@@ -15,6 +15,8 @@ class Config():
 
     #with open(schema_dir + '/jfile.schema.json') as f:
     #   jfile_schema = json.loads(f.read())
+    
+    date_field = ['269', 'a']
 
     # this is used by dlx.query to locate the linked value
     bib_authority_controlled = {

@@ -1,7 +1,7 @@
 '''
 '''
 
-import re, json
+import re, json, time
 from warnings import warn
 from xml.etree import ElementTree as XML
 
@@ -91,7 +91,7 @@ class MarcSet():
                         record.set(tag, code, value, address=['+'], auth_control=auth_control, auth_flag=auth_flag)
                     except Exception as e:
                         exceptions.append(str(e))
-                        
+            
             self.records.append(record)
 
         if exceptions:
@@ -603,7 +603,7 @@ class Marc(object):
                     raise Exception('"matcher" must be a list or tuple of xrefs for a linked value')
 
         return self
-
+        
     def set_values(self, *tuples):
         for t in tuples:
             tag, sub, val = t[0], t[1], t[2]
@@ -611,7 +611,24 @@ class Marc(object):
             self.set(tag, sub, val, **kwargs)
 
         return self
+    
+    def set_008(self):
+        # sets position 0-5 and 7-10
+        text = self.get_value('008')
+        text = text.ljust(40, '|')
+        
+        if not re.match(r'^[ \|]+$', text[0:6]):
+            raise Exception('008 pos. 0-5 is already set')
+        elif not re.match(r'^[ \|]+$', text[7:11]):
+            raise Exception('008 pos. 7-10 is already set')
 
+        date_tag, date_code = Config.date_field
+        pub_date = self.get_value(date_tag, date_code)
+        pub_year = pub_date[0:4].ljust(4, '|')
+        cat_date = time.strftime('%y%m%d')
+        
+        self.set('008', None, cat_date + text[6] + pub_year + text[11:])
+        
     def set_indicators(self, tag, place, ind1, ind2):
         field = list(self.get_fields(tag))[place]
 
