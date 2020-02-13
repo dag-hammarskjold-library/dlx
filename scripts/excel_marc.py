@@ -34,6 +34,18 @@ def main():
         
         for record in data.records:
             record.merge(defaults)
+            
+            _008 = record.get_value('008').ljust(40, '|')
+            _008 = \
+            _008[0:15] + \
+            record.get('049', 'a').ljust(3, '|') + \
+            _008[18:35] + \
+            record.get_value('041', 'a')[0:3].ljust(3, '|') + \
+            _008[38:40]
+            
+            record.set('008', None, _008)
+            
+            record.set_008()
     
     convert_method = 'to_' + args.format
     fh = open(args.out, 'w', encoding='utf-8') if args.out else sys.stdout

@@ -96,6 +96,7 @@ def db(bibs, auths) -> MockClient:
 ### Tests
 
 # Tests run in order.
+# Remember to prefix test function names with "test_".
 # Database state is maintained globally. Use the `db` fixture to reset the test database.
 
 def test_init_marc():
@@ -306,7 +307,26 @@ def test_set():
     
     assert bib.get_values('245', 'a', 'b') == ['yet another', 'title']
     assert bib.get_values('500', 'a') == ['desc', 'desc']
+
+def test_set_008(bibs):
+    from dlx.marc import Bib
+    from dlx.config import Config
+    import time
     
+    bib = Bib(bibs[0])
+    date_tag, date_code = Config.date_field
+    bib.set(date_tag, date_code, '19991231')
+    
+    with pytest.raises(Exception):
+        bib.set('008', None, 'already set')
+        bib.set_008()
+    
+    bib.set('008', None, '')
+    bib.set_008();
+
+    assert bib.get_value('008')[0:6] == time.strftime('%y%m%d')
+    assert bib.get_value('008')[7:11] == '1999'
+
 def test_auth_lookup(db):
     from dlx.marc import Bib, Auth
     
