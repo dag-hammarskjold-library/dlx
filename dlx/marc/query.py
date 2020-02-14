@@ -5,6 +5,10 @@ from dlx.db import DB
 from dlx.config import Config
 
 class QueryDocument():
+    @classmethod
+    def from_string(cls, string):
+        raise NotImplementedError
+        
     def __init__(self, *conditions):
         self.conditions = conditions
 
