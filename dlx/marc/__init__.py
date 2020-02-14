@@ -2,6 +2,7 @@
 '''
 
 import re, json, time
+from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree as XML
 
@@ -348,8 +349,9 @@ class Marc(object):
     def __init__(self, doc={}):
         self.controlfields = []
         self.datafields = []
-
+        
         self.id = int(doc['_id']) if '_id' in doc else None
+        self.updated = doc['updated'] if 'updated' in doc else None
 
         self.parse(doc)
         
@@ -358,7 +360,7 @@ class Marc(object):
         return self.controlfields + self.datafields
 
     def parse(self, doc):
-        for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
+        for tag in filter(lambda x: False if x == '_id' or x == 'updated' else True, doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
 
@@ -650,7 +652,7 @@ class Marc(object):
 
     def validate(self):
         try:
-            jsonschema.validate(instance=self.to_dict(), schema=Config.jmarc_schema)
+            jsonschema.validate(instance=self.to_dict(), schema=Config.jmarc_schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as e:
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
@@ -658,11 +660,14 @@ class Marc(object):
     def commit(self):
         # clear the cache so the new value is available
         if isinstance(self, Auth): Auth._cache = {}
-
+        
         self.validate()
-
+        data = self.to_bson()
+        data['updated'] = datetime.utcnow()
+        self.updated = data['updated']
+        
         # upsert (replace if exists, else new)
-        return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), upsert=True)
+        return self.collection().replace_one({'_id' : int(self.id)}, data, upsert=True)
 
     #### utlities
     
