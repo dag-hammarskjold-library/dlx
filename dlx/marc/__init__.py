@@ -676,14 +676,22 @@ class Marc(object):
         # does not overwrite any values
         
         for field in to_merge.fields:
+            
             if isinstance(field, Controlfield):
-                if not self.get_value(field.tag):
+                val = self.get_value(field.tag)
+                if val:
+                    for pos in range(len(val)):
+                        if val[pos] in [' ', '|']:
+                            val[pos] = field.value[pos]       
+                        self.set(field.tag, None, val)
+                else:
+                    
                     self.set(field.tag, None, field.value)
             else:
                 for sub in field.subfields:
                     if not self.get_value(field.tag, sub.code):
                         self.set(field.tag, sub.code, sub.value)
-                
+        
         return self
         
     def collection(self):
@@ -717,7 +725,7 @@ class Marc(object):
 
     def to_mij(self):
         mij = {}
-        mij['leader'] = self.leader
+        mij['leader'] = self.get_value('000')
         mij['fields'] = [field.to_mij() for field in self.get_fields()]
 
         return json.dumps(mij)
@@ -741,19 +749,21 @@ class Marc(object):
         leader_dir_len = len(directory.encode('utf-8')) + 24
         base_address = str(leader_dir_len).zfill(5)
         total_len = str(leader_dir_len + len(data.encode('utf-8'))).zfill(5)
-
-        if not hasattr(self, 'leader'):
-            self.leader = '|' * 24
-        elif len(self.leader) < 24:
-            self.leader = self.leader.ljust(24, '|')
+        
+        leader = self.get_value('000')
+               
+        if not leader:
+            leader = '|' * 24
+        elif len(leader) < 24:
+            leader = self.leader.ljust(24, '|')
 
         new_leader = total_len \
-            + self.leader[5:9] \
+            + leader[5:9] \
             + 'a' \
             + '22' \
             + base_address \
-            + self.leader[17:20] \
-            + '4500'
+            + leader[17:20] \
+            + '4500'        
         
         return new_leader + directory + data
 

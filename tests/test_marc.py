@@ -314,6 +314,15 @@ def test_set():
     assert bib.get_values('245', 'a', 'b') == ['yet another', 'title']
     assert bib.get_values('500', 'a') == ['desc', 'desc']
 
+def test_merge():
+    from dlx.marc import Bib
+    
+    bib1 = Bib().set('000', None, 'leader').set('245', 'a', 'Title')
+    bib2 = Bib().set('000', None, '|eade|').set('269', 'a', 'Date')
+    bib1.merge(bib2)
+    assert bib1.get_value('269', 'a') == 'Date'
+    assert bib1.get_value('000') ==  'leader'
+       
 def test_set_008(bibs):
     from dlx.marc import Bib
     from dlx.config import Config
