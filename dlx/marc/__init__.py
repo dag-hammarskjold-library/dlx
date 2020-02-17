@@ -17,22 +17,24 @@ from dlx.util import Table
 
 ### Set classes
 
-class MarcSet():
+class MarcSet(): 
     # constructors
 
     @classmethod
     def from_query(cls, *args, **kwargs):
+        self = cls()
+        
         if isinstance(args[0], QueryDocument) or isinstance(args[0], Condition):
             query = args[0].compile()
             args = [query, *args[1:]]
         elif isinstance(args[0], (list, tuple)):
-            for cond in arg[0]:
+            conditions = args[0]
+            for cond in conditions:
                 cond.record_type = self.record_class.record_type
 
             query = QueryDocument(*conditions).compile()
             args = [query, *args[1:]]
 
-        self = cls()
         self.query_params = [args, kwargs]
         Marc = self.record_class
         self.records = map(lambda r: Marc(r), self.handle.find(*args, **kwargs))
@@ -107,22 +109,25 @@ class MarcSet():
         table = Table.from_excel(path, date_format=date_format)
 
         return cls.from_table(table, auth_control=auth_control, auth_flag=auth_flag, field_check=field_check)
-
-    def __init__(self, *records):
-        self.records = records or None # can be any type of iterable
+    
+    # instance
+    
+    def __iter__(self): return self
+    def __next__(self): return next(self.records)
+    
+    def __init__(self, records=[]):
+        self.records = records # can be any type of iterable
 
     @property
     def count(self):
-        if hasattr(self, '_count'):
-            return self._count
-
-        if hasattr(self, 'query_params') and isinstance(self.records, map):
+        if isinstance(self.records, map):
             args, kwargs = self.query_params
-            self._count = self.handle.count_documents(*args)
+            self._count = self.handle.count_documents(*args, **kwargs)
             return self._count
         else:
             return len(self.records)
-
+        
+        
     @count.setter
     def count(self, val):
         self._count = val
@@ -158,16 +163,16 @@ class MarcSet():
         pass
 
 class BibSet(MarcSet):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.handle = DB.bibs
         self.record_class = Bib
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
 class AuthSet(MarcSet):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.handle = DB.auths
         self.record_class = Auth
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
 ### Record classes
      
@@ -838,6 +843,8 @@ class Marc(object):
         pass
 
 class Bib(Marc):
+    record_type = 'bib'
+    
     def __init__(self, doc={}):
         self.record_type = 'bib'
         super().__init__(doc)
@@ -877,6 +884,7 @@ class Bib(Marc):
         return DB.files.find_one(FQ.latest_by_id_lang('symbol', symbol, lang))['uri']
 
 class Auth(Marc):
+    record_type = 'auth'
     _cache = {}
     _langcache = {}
 

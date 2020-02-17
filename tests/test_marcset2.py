@@ -49,7 +49,6 @@ def test_from_query(db):
     assert bibset.count == 1
     for bib in bibset:
         assert bib.id == 1
-    assert len(list(bibset.records)) == 0
     assert bibset.count == 1
     
     conditions = [
@@ -71,29 +70,22 @@ def test_from_query(db):
     assert isinstance(bibset, BibSet)
     assert bibset.count == 2
         
-def test_from_table(db):
+def test_from_table():
     from dlx.marc import BibSet
     from dlx.util import Table
     
-    t = Table([
-        ['246a',  '1.246$b',  '1.269c',    '2.269c'],
-        ['title', 'subtitle', '1999-12-31','repeated'],
-        ['title2','subtitle2','2000-01-01','repeated'],
-    ])
+    t = Table(
+        [
+            ['246a','1.246$b','1.269c','2.269c'],
+            ['title','subtitle','1999-12-31','repeated'],
+            ['title2','subtitle2','2000-01-01','repeated'],
+        ]
+    )
     
     bibset = BibSet.from_table(t)
     for bib in bibset.records:
         assert bib.get_value('246','b')[:8] == 'subtitle'
         assert bib.get_values('269','c')[1] == 'repeated'
-        
-    with pytest.raises(Exception):
-        bibset = BibSet.from_table(Table([['245a'], ['This']]), field_check='245a')
-        
-    with pytest.raises(Exception):
-        bibset = BibSet.from_table(Table([['650a'], ['Should an int']]), auth_control=True)
-        
-    with pytest.raises(Exception):
-        bibset = BibSet.from_table(Table([['650a'], ['Invalid']]), auth_control=False, auth_flag=True)
         
 def test_from_excel():
     from dlx.marc import BibSet
@@ -104,18 +96,3 @@ def test_from_excel():
     for bib in bibset.records:
         assert bib.get_value('246','b')[:8] == 'subtitle'
         assert bib.get_values('269','c')[1] == 'repeated'
-        
-def test_to_mrc(db):
-    from dlx.marc import BibSet
-    
-    control = '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header00088r|||a2200049|||4500245002700000650001100027  aAnotherbis thectitle  aHeader'
-    
-    assert BibSet.from_query({}).to_mrc() == control
-    
-def test_to_xml(db):
-    from dlx.marc import BibSet
-    
-    control = '<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield></datafield></record></collection>'
-    
-    assert BibSet.from_query({}).to_xml() == control
-    
