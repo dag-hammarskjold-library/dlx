@@ -17,6 +17,22 @@ class Config():
     #   jfile_schema = json.loads(f.read())
     
     date_field = ['269', 'a']
+    
+    bib_index_fields = {
+        '191': 'hybrid',
+        '269': 'literal',
+        '791': 'hybrid', 
+        '930': 'literal', 
+        '998': 'literal'
+    }
+    
+    auth_index_fields = {
+        '100': 'literal',
+        '110': 'literal',
+        '111': 'literal',
+        '150': 'literal',
+        '190': 'literal'
+    }
 
     # this is used by dlx.query to locate the linked value
     bib_authority_controlled = {
