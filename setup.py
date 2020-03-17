@@ -41,6 +41,9 @@ setup(
     classifiers = list(filter(None, classifiers.split('\n'))),
     python_requires = '>=3.3',
     entry_points = {
-        'console_scripts': ['excel_marc=scripts.excel_marc:main'],
+        'console_scripts': [
+            'excel_marc=scripts.excel_marc:main',
+            'init_dlx=scripts.init_dlx:main'
+        ]
     }
 )

@@ -4,12 +4,6 @@ import pytest, inspect
 # Tests run in order.
 # Remember to prefix test function names with "test_".
 # Database state is maintained globally. Use the `db` fixture to reset the test database.
-
-def test_mocked():
-    from dlx import DB
-    from mongomock import MongoClient as Mocked
-    
-    assert isinstance(DB.client, Mocked)
     
 def test_init_marc():
     with pytest.raises(Exception):
