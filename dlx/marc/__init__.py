@@ -8,6 +8,7 @@ from xml.etree import ElementTree as XML
 
 import jsonschema
 from bson import SON
+from pymongo import ReturnDocument
 
 from dlx.config import Config
 from dlx.db import DB
@@ -191,6 +192,10 @@ class Marc(object):
     # Class methods
 
     #### database query handlers
+    
+    @classmethod
+    def max_id(cls):
+        return(next(cls.handle().aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}])))['_id']
 
     @classmethod
     @_Decorators.check_connection
@@ -357,6 +362,7 @@ class Marc(object):
         
         self.id = int(doc['_id']) if '_id' in doc else None
         self.updated = doc['updated'] if 'updated' in doc else None
+        self.user = doc['user'] if 'user' in doc else None
 
         self.parse(doc)
         
@@ -365,7 +371,7 @@ class Marc(object):
         return self.controlfields + self.datafields
 
     def parse(self, doc):
-        for tag in filter(lambda x: False if x == '_id' or x == 'updated' else True, doc.keys()):
+        for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
 
@@ -373,7 +379,7 @@ class Marc(object):
                 for value in doc[tag]:
                     self.controlfields.append(Controlfield(tag, value, record_type=self.record_type))
             else:
-                for field in doc[tag]:
+                for field in doc[tag]:                
                     ind1 = field['indicators'][0]
                     ind2 = field['indicators'][1]
                     subfields = []
@@ -659,23 +665,61 @@ class Marc(object):
     ### store
 
     def validate(self):
-        try:
+        try:   
             jsonschema.validate(instance=self.to_dict(), schema=Config.jmarc_schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as e:
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
 
-    def commit(self):
+    def commit(self, user='admin'):
         # clear the cache so the new value is available
-        if isinstance(self, Auth): Auth._cache = {}
-        
+        if isinstance(self, Auth):
+            Auth._cache = {}
+            
+        if self.id is None:
+            # this is a new record
+            col = DB.handle[self.record_type + '_id_counter']
+            result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
+            
+            if result:
+                self.id = result['count']
+            else:
+                # this should only happen once
+                i = type(self).max_id() + 1
+                col.insert_one({'_id': 1, 'count': i})
+                self.id = i
+            
         self.validate()
         data = self.to_bson()
         data['updated'] = datetime.utcnow()
+        data['user'] = user
         self.updated = data['updated']
+        self.user = data['user']
         
-        # upsert (replace if exists, else new)
+        # save a copy of self in history
+        
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+        
+        if record_history:
+            record_history['history'].append(data)
+        else:
+            record_history = {}
+            record_history['_id'] = self.id    
+            record_history['history'] = [data]
+                
+        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
+
         return self.collection().replace_one({'_id' : int(self.id)}, data, upsert=True)
+        
+    def history(self):
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+        
+        if record_history:
+            return [type(self)(x) for x in record_history['history']]
+        else:
+            return []
 
     #### utlities
     
@@ -718,7 +762,7 @@ class Marc(object):
 
     def to_bson(self):
         bson = SON()
-        bson['_id'] = int(self.id)
+        bson['_id'] = self.id
 
         for tag in self.get_tags():
             bson[tag] = [field.to_bson() for field in self.get_fields(tag)]
@@ -728,7 +772,7 @@ class Marc(object):
     def to_dict(self):
         return self.to_bson().to_dict()
 
-    def to_json(self, to_indent=None):
+    def to_json(self, to_indent=None):    
         return json.dumps(self.to_dict(), indent=to_indent)
 
     def to_mij(self):

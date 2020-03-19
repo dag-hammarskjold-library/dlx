@@ -61,6 +61,8 @@ def test_commit(db, bibs, auths):
     from dlx import DB
     from dlx.marc import Bib, Auth
     from datetime import datetime
+    from bson import ObjectId
+    from jsonschema.exceptions import ValidationError
     
     with pytest.raises(Exception):
         Bib({'_id': 'I am invalid'}).commit()
@@ -74,6 +76,14 @@ def test_commit(db, bibs, auths):
     bib = Bib({'_id': 3})
     assert bib.commit().acknowledged
     assert isinstance(bib.updated, datetime)
+    assert bib.user == 'admin'
+    assert bib.history()[0].to_dict() == bib.to_dict()
+    assert bib.history()[0].user == 'admin'
+    assert Bib.max_id() == 3
+    
+    Bib().commit()
+    Bib().commit()
+    assert Bib.max_id() == 5
 
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth
