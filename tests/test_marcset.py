@@ -114,8 +114,9 @@ def test_to_mrc(db):
     
 def test_to_xml(db):
     from dlx.marc import BibSet
+    from xmldiff import main
     
     control = '<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield></datafield></record></collection>'
     
-    assert BibSet.from_query({}).to_xml() == control
+    assert main.diff_texts(BibSet.from_query({}).to_xml(), control) == []
     
