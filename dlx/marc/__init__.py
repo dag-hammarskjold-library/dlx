@@ -2,6 +2,7 @@
 '''
 
 import re, json, time
+from re import Pattern
 from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree as XML
@@ -568,7 +569,7 @@ class Marc(object):
             raise Exception('There is no field at {}/{}'.format(tag, fplace))
 
         if tag[:2] == '00':
-            if isinstance(matcher, re.Pattern):
+            if isinstance(matcher, Pattern):
                 if matcher.search(field.value): field.value = new_val
             else:
                 field.value = new_val
@@ -594,12 +595,12 @@ class Marc(object):
 
         for sub in subs:
             if isinstance(sub, Literal):
-                if isinstance(matcher, re.Pattern):
+                if isinstance(matcher, Pattern):
                     if matcher.search(sub.value): sub.value = new_val
                 elif matcher == None:
                     sub.value = new_val
                 else:
-                    raise Exception('"matcher" must be a `re.Pattern` for a literal value')
+                    raise Exception('"matcher" must be a `Pattern` for a literal value')
 
             elif isinstance(sub, Linked):
                 if isinstance(matcher, (tuple, list)):
