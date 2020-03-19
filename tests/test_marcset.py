@@ -109,8 +109,13 @@ def test_to_mrc(db):
     from dlx.marc import BibSet
     
     control = '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header00088r|||a2200049|||4500245002700000650001100027  aAnotherbis thectitle  aHeader'
-    
     assert BibSet.from_query({}).to_mrc() == control
+    
+def test_to_mrk(db):
+    from dlx.marc import BibSet
+    
+    control = '000  leader\n008  controlfield\n245  \\\\$aThis$bis the$ctitle\n520  \\\\$aDescription\n520  \\\\$aAnother description$aRepeated subfield\n650  \\\\$aHeader\n710  \\\\$aAnother header\n\n000  leader\n245  \\\\$aAnother$bis the$ctitle\n650  \\\\$aHeader\n'
+    assert BibSet.from_query({}).to_mrk() == control
     
 def test_to_xml(db):
     from dlx.marc import BibSet
@@ -119,4 +124,12 @@ def test_to_xml(db):
     control = '<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield></datafield></record></collection>'
     
     assert main.diff_texts(BibSet.from_query({}).to_xml(), control) == []
+    
+def test_to_str(db):
+    from dlx.marc import BibSet
+    
+    control = '000\n   leader\n008\n   controlfield\n245\n   a: This\n   b: is the\n   c: title\n520\n   a: Description\n520\n   a: Another description\n   a: Repeated subfield\n650\n   a: Header\n710\n   a: Another header\n\n000\n   leader\n245\n   a: Another\n   b: is the\n   c: title\n650\n   a: Header\n'
+
+    assert BibSet.from_query({}).to_str() == control
+    
     

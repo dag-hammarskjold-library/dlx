@@ -159,7 +159,13 @@ class MarcSet():
             root.append(record.to_xml_raw())
 
         return XML.tostring(root, 'utf-8').decode('utf-8')
-            
+        
+    def to_mrk(self):
+        return '\n'.join([r.to_mrk() for r in self.records])
+        
+    def to_str(self):
+        return '\n'.join([r.to_str() for r in self.records])
+
     def to_excel(self, path):
         pass
 
