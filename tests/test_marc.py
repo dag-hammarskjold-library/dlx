@@ -84,6 +84,21 @@ def test_commit(db, bibs, auths):
     Bib().commit()
     Bib().commit()
     assert Bib.max_id() == 5
+    
+def test_delete(db):
+    from dlx import DB
+    from dlx.marc import Bib
+    from datetime import datetime
+    
+    bib = Bib()
+    bib.commit()    
+    bib.delete()
+    
+    assert Bib.match_id(bib.id) == None
+    
+    history = DB.handle['bib_history'].find_one({'_id': bib.id})
+    assert history['deleted']['user'] == 'admin'
+    assert isinstance(history['deleted']['time'], datetime)
 
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth

@@ -712,6 +712,17 @@ class Marc(object):
 
         return self.collection().replace_one({'_id' : int(self.id)}, data, upsert=True)
         
+    def delete(self, user='admin'):
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+        
+        if record_history:
+            record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
+         
+        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
+            
+        return type(self).handle().delete_one({'_id': self.id})
+        
     def history(self):
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})

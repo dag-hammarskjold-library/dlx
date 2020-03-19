@@ -86,8 +86,10 @@ def db(bibs, auths) -> MockClient:
     DB.connect('mongomock://localhost')
     
     DB.bibs.drop
+    DB.handle['bib_history'].drop
     DB.bibs.insert_many(bibs)
     DB.auths.drop
+    DB.handle['auth_history'].drop
     DB.auths.insert_many(auths)
     
     return DB.client
