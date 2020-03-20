@@ -175,11 +175,13 @@ def test_querydocument(db):
 def test_querystring(db):
     from dlx.marc import Bib, Auth, QueryDocument
     
-    query = QueryDocument.from_string('245: {a: /(This|Another)/, b: "is the", c: "title"}, 650: 1, OR(710: 1, 520: 0')
+    query = QueryDocument.from_string('{"245": {"a": "/^(This|Another)/", "b": "is the", "c": "title"}}')
     assert len(list(Bib.find(query.compile()))) == 2
     
-    query = QueryDocument.from_string('110:{a:"Another header"}')
+    query = QueryDocument.from_string('{"OR": {"650": 0, "710": 0}}')
     assert len(list(Bib.find(query.compile()))) == 1
+    
+    query = QueryDocument.from_string('{"110": {"a": "Another header"}}')
     assert Auth.find_one(query.compile()).id == 2
     
 def test_get_field(bibs):
