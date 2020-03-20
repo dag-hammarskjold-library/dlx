@@ -4,7 +4,6 @@ Tests for dlx.file
 
 import os, time, re
 from unittest import TestCase
-from collections import Generator
 from jsonschema import exceptions as X
 from dlx import DB, file
 

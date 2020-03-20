@@ -2,11 +2,13 @@
 '''
 
 import re, json, time
+from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree as XML
 
 import jsonschema
 from bson import SON
+from pymongo import ReturnDocument
 
 from dlx.config import Config
 from dlx.db import DB
@@ -16,22 +18,24 @@ from dlx.util import Table
 
 ### Set classes
 
-class MarcSet():
+class MarcSet(): 
     # constructors
 
     @classmethod
     def from_query(cls, *args, **kwargs):
+        self = cls()
+        
         if isinstance(args[0], QueryDocument) or isinstance(args[0], Condition):
             query = args[0].compile()
             args = [query, *args[1:]]
         elif isinstance(args[0], (list, tuple)):
-            for cond in arg[0]:
+            conditions = args[0]
+            for cond in conditions:
                 cond.record_type = self.record_class.record_type
 
             query = QueryDocument(*conditions).compile()
             args = [query, *args[1:]]
 
-        self = cls()
         self.query_params = [args, kwargs]
         Marc = self.record_class
         self.records = map(lambda r: Marc(r), self.handle.find(*args, **kwargs))
@@ -106,22 +110,25 @@ class MarcSet():
         table = Table.from_excel(path, date_format=date_format)
 
         return cls.from_table(table, auth_control=auth_control, auth_flag=auth_flag, field_check=field_check)
-
-    def __init__(self, *records):
-        self.records = records or None # can be any type of iterable
+    
+    # instance
+    
+    def __iter__(self): return self
+    def __next__(self): return next(self.records)
+    
+    def __init__(self, records=[]):
+        self.records = records # can be any type of iterable
 
     @property
     def count(self):
-        if hasattr(self, '_count'):
-            return self._count
-
-        if hasattr(self, 'query_params') and isinstance(self.records, map):
+        if isinstance(self.records, map):
             args, kwargs = self.query_params
-            self._count = self.handle.count_documents(*args)
+            self._count = self.handle.count_documents(*args, **kwargs)
             return self._count
         else:
             return len(self.records)
-
+        
+        
     @count.setter
     def count(self, val):
         self._count = val
@@ -152,21 +159,27 @@ class MarcSet():
             root.append(record.to_xml_raw())
 
         return XML.tostring(root, 'utf-8').decode('utf-8')
-            
+        
+    def to_mrk(self):
+        return '\n'.join([r.to_mrk() for r in self.records])
+        
+    def to_str(self):
+        return '\n'.join([r.to_str() for r in self.records])
+
     def to_excel(self, path):
         pass
 
 class BibSet(MarcSet):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.handle = DB.bibs
         self.record_class = Bib
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
 class AuthSet(MarcSet):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.handle = DB.auths
         self.record_class = Auth
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
 ### Record classes
      
@@ -185,6 +198,10 @@ class Marc(object):
     # Class methods
 
     #### database query handlers
+    
+    @classmethod
+    def max_id(cls):
+        return(next(cls.handle().aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}])))['_id']
 
     @classmethod
     @_Decorators.check_connection
@@ -348,8 +365,10 @@ class Marc(object):
     def __init__(self, doc={}):
         self.controlfields = []
         self.datafields = []
-
+        
         self.id = int(doc['_id']) if '_id' in doc else None
+        self.updated = doc['updated'] if 'updated' in doc else None
+        self.user = doc['user'] if 'user' in doc else None
 
         self.parse(doc)
         
@@ -358,7 +377,7 @@ class Marc(object):
         return self.controlfields + self.datafields
 
     def parse(self, doc):
-        for tag in filter(lambda x: False if x == '_id' else True, doc.keys()):
+        for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
 
@@ -366,7 +385,7 @@ class Marc(object):
                 for value in doc[tag]:
                     self.controlfields.append(Controlfield(tag, value, record_type=self.record_type))
             else:
-                for field in doc[tag]:
+                for field in doc[tag]:                
                     ind1 = field['indicators'][0]
                     ind2 = field['indicators'][1]
                     subfields = []
@@ -561,10 +580,11 @@ class Marc(object):
             raise Exception('There is no field at {}/{}'.format(tag, fplace))
 
         if tag[:2] == '00':
-            if isinstance(matcher, re.Pattern):
-                if matcher.search(field.value): field.value = new_val
-            else:
-                field.value = new_val
+            #if isinstance(matcher, Pattern):
+            #    if matcher.search(field.value): field.value = new_val
+            #else:
+                
+            field.value = new_val
 
             return self
 
@@ -587,20 +607,22 @@ class Marc(object):
 
         for sub in subs:
             if isinstance(sub, Literal):
-                if isinstance(matcher, re.Pattern):
-                    if matcher.search(sub.value): sub.value = new_val
-                elif matcher == None:
-                    sub.value = new_val
-                else:
-                    raise Exception('"matcher" must be a `re.Pattern` for a literal value')
-
+        #        if isinstance(matcher, Pattern):
+        #            if matcher.search(sub.value): sub.value = new_val
+        #        elif matcher == None:
+        #            sub.value = new_val
+        #        else:
+        #            raise Exception('"matcher" must be a `Pattern` for a literal value')
+                sub.value = new_val
+        #
             elif isinstance(sub, Linked):
-                if isinstance(matcher, (tuple, list)):
-                    if sub.xref in matcher: sub.xref = new_val
-                elif matcher == None:
-                    sub.xref = new_val
-                else:
-                    raise Exception('"matcher" must be a list or tuple of xrefs for a linked value')
+        #        if isinstance(matcher, (tuple, list)):
+        #            if sub.xref in matcher: sub.xref = new_val
+        #        elif matcher == None:
+        #            sub.xref = new_val
+        #        else:
+        #            raise Exception('"matcher" must be a list or tuple of xrefs for a linked value')
+                sub.xref = new_val
 
         return self
         
@@ -649,20 +671,72 @@ class Marc(object):
     ### store
 
     def validate(self):
-        try:
-            jsonschema.validate(instance=self.to_dict(), schema=Config.jmarc_schema)
+        try:   
+            jsonschema.validate(instance=self.to_dict(), schema=Config.jmarc_schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as e:
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
 
-    def commit(self):
+    def commit(self, user='admin'):
         # clear the cache so the new value is available
-        if isinstance(self, Auth): Auth._cache = {}
-
+        if isinstance(self, Auth):
+            Auth._cache = {}
+            
+        if self.id is None:
+            # this is a new record
+            col = DB.handle[self.record_type + '_id_counter']
+            result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
+            
+            if result:
+                self.id = result['count']
+            else:
+                # this should only happen once
+                i = type(self).max_id() + 1
+                col.insert_one({'_id': 1, 'count': i})
+                self.id = i
+            
         self.validate()
+        data = self.to_bson()
+        data['updated'] = datetime.utcnow()
+        data['user'] = user
+        self.updated = data['updated']
+        self.user = data['user']
+        
+        # save a copy of self in history
+        
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+        
+        if record_history:
+            record_history['history'].append(data)
+        else:
+            record_history = {}
+            record_history['_id'] = self.id    
+            record_history['history'] = [data]
+                
+        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
 
-        # upsert (replace if exists, else new)
-        return self.collection().replace_one({'_id' : int(self.id)}, self.to_bson(), upsert=True)
+        return self.collection().replace_one({'_id' : int(self.id)}, data, upsert=True)
+        
+    def delete(self, user='admin'):
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+        
+        if record_history:
+            record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
+         
+        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
+            
+        return type(self).handle().delete_one({'_id': self.id})
+        
+    def history(self):
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+        
+        if record_history:
+            return [type(self)(x) for x in record_history['history']]
+        else:
+            return []
 
     #### utlities
     
@@ -671,14 +745,22 @@ class Marc(object):
         # does not overwrite any values
         
         for field in to_merge.fields:
+            
             if isinstance(field, Controlfield):
-                if not self.get_value(field.tag):
+                val = self.get_value(field.tag)
+                if val:
+                    for pos in range(len(val)):
+                        if val[pos] in [' ', '|']:
+                            val[pos] = field.value[pos]       
+                        self.set(field.tag, None, val)
+                else:
+                    
                     self.set(field.tag, None, field.value)
             else:
                 for sub in field.subfields:
                     if not self.get_value(field.tag, sub.code):
                         self.set(field.tag, sub.code, sub.value)
-                
+        
         return self
         
     def collection(self):
@@ -697,7 +779,7 @@ class Marc(object):
 
     def to_bson(self):
         bson = SON()
-        bson['_id'] = int(self.id)
+        bson['_id'] = self.id
 
         for tag in self.get_tags():
             bson[tag] = [field.to_bson() for field in self.get_fields(tag)]
@@ -707,12 +789,12 @@ class Marc(object):
     def to_dict(self):
         return self.to_bson().to_dict()
 
-    def to_json(self, to_indent=None):
+    def to_json(self, to_indent=None):    
         return json.dumps(self.to_dict(), indent=to_indent)
 
     def to_mij(self):
         mij = {}
-        mij['leader'] = self.leader
+        mij['leader'] = self.get_value('000')
         mij['fields'] = [field.to_mij() for field in self.get_fields()]
 
         return json.dumps(mij)
@@ -736,19 +818,21 @@ class Marc(object):
         leader_dir_len = len(directory.encode('utf-8')) + 24
         base_address = str(leader_dir_len).zfill(5)
         total_len = str(leader_dir_len + len(data.encode('utf-8'))).zfill(5)
-
-        if not hasattr(self, 'leader'):
-            self.leader = '|' * 24
-        elif len(self.leader) < 24:
-            self.leader = self.leader.ljust(24, '|')
+        
+        leader = self.get_value('000')
+               
+        if not leader:
+            leader = '|' * 24
+        elif len(leader) < 24:
+            leader = self.leader.ljust(24, '|')
 
         new_leader = total_len \
-            + self.leader[5:9] \
+            + leader[5:9] \
             + 'a' \
             + '22' \
             + base_address \
-            + self.leader[17:20] \
-            + '4500'
+            + leader[17:20] \
+            + '4500'        
         
         return new_leader + directory + data
 
@@ -833,6 +917,8 @@ class Marc(object):
         pass
 
 class Bib(Marc):
+    record_type = 'bib'
+    
     def __init__(self, doc={}):
         self.record_type = 'bib'
         super().__init__(doc)
@@ -872,6 +958,7 @@ class Bib(Marc):
         return DB.files.find_one(FQ.latest_by_id_lang('symbol', symbol, lang))['uri']
 
 class Auth(Marc):
+    record_type = 'auth'
     _cache = {}
     _langcache = {}
 

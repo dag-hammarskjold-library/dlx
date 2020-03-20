@@ -7,7 +7,7 @@ class Table(object):
     def from_excel(cls, path, sheet_number=0, date_format='%Y%m%d'):
         wkbook = open_workbook(path)
         sheet = wkbook.sheet_by_index(sheet_number)
-        
+
         def clean(cell):
             if cell.ctype == 3:
                 # todo: get feedback on date formatting
@@ -23,7 +23,7 @@ class Table(object):
         lol = []        
         for row in sheet.get_rows():
             cells = []
-            for cell in row:              
+            for cell in row:
                 cells.append(str(clean(cell)).rstrip())
             lol.append(cells)
             

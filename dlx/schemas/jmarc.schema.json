@@ -8,7 +8,11 @@
     "properties" : {
         "_id" : {
             "type" : "integer"
-        }
+        },
+		"updated" : {
+			"type" : "string",
+			"format" : "date-time"
+		}
     },
     "patternProperties" : {
         "^00" :  {

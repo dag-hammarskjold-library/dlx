@@ -1,104 +1,10 @@
-import pytest
-import inspect
-from mongomock import MongoClient as MockClient
+import pytest, inspect
 
-@pytest.fixture
-def bibs():
-    return [
-        {
-            '_id': 1,
-            '000': ['leader'],
-            '008': ['controlfield'],
-            '245': [
-                {
-                    'indicators' : [' ',' '],
-                    'subfields' : [{'code': 'a', 'value': 'This'}, {'code': 'b', 'value': 'is the'}, {'code': 'c', 'value': 'title'}]
-                }
-            ],
-            '520': [
-                {
-                    'indicators' : [' ' ,' '],
-                    'subfields' : [
-                        {'code': 'a', 'value': 'Description'}]
-                },
-                {
-                    'indicators': [' ' ,' '],
-                    'subfields': [{'code': 'a', 'value': 'Another description'}, {'code' : 'a','value': 'Repeated subfield'}]
-                }
-            ],
-            '650': [
-                {
-                    'indicators': [' ', ' '],
-                    'subfields': [{'code' : 'a', 'xref' : 1}],
-                }
-            ],
-            '710': [
-                {
-                    'indicators' : [' ',' '],
-                    'subfields' : [{'code' : 'a', 'xref' : 2}]
-                }
-            ]
-        },
-        {
-            '_id': 2,
-            '000': ['leader'],
-            '245': [
-                {
-                    'indicators' : [' ',' '],
-                    'subfields':[{'code': 'a', 'value': 'Another'}, {'code': 'b', 'value': 'is the'}, {'code': 'c', 'value': 'title'}]
-                }
-            ],
-            '650': [
-                {
-                    'indicators' : [' ' ,' '],
-                    'subfields' : [{'code' : 'a', 'xref' : 1}]
-                }
-            ]
-        }
-    ]
-
-@pytest.fixture
-def auths():
-    return [
-        {
-            '_id': 1,
-            '150': [
-                {
-                    'indicators': [' ', ' '],
-                    'subfields':[{'code': 'a', 'value': 'Header'}]
-                }
-            ]
-        },
-        {
-            '_id': 2,
-            '110': [
-                {
-                    'indicators' : [' ', ' '],
-                    'subfields' : [{'code' : 'a', 'value' : 'Another header'}]
-                }
-            ]
-        }
-    ]
-
-@pytest.fixture
-def db(bibs, auths) -> MockClient: 
-    from dlx import DB
-    # Connects to and resets the database
-    DB.connect('mongomock://localhost')
-    
-    DB.bibs.drop
-    DB.bibs.insert_many(bibs)
-    DB.auths.drop
-    DB.auths.insert_many(auths)
-    
-    return DB.client
-
-### Tests
-
+# Fixtures are loaded automatically by pytest from ./conftest.py
 # Tests run in order.
 # Remember to prefix test function names with "test_".
 # Database state is maintained globally. Use the `db` fixture to reset the test database.
-
+    
 def test_init_marc():
     with pytest.raises(Exception):
         Marc()
@@ -152,7 +58,14 @@ def test_init_auth(db, auths):
             assert subfield.code and subfield.value
 
 def test_commit(db, bibs, auths):
+    from dlx import DB
     from dlx.marc import Bib, Auth
+    from datetime import datetime
+    from bson import ObjectId
+    from jsonschema.exceptions import ValidationError
+    
+    with pytest.raises(Exception):
+        Bib({'_id': 'I am invalid'}).commit()
     
     for bib in [Bib(x) for x in bibs]:
         assert bib.commit().acknowledged
@@ -160,8 +73,32 @@ def test_commit(db, bibs, auths):
     for auth in [Auth(x) for x in auths]:
         assert auth.commit().acknowledged
         
-    with pytest.raises(Exception):
-        Bib({'_id': 'I am invalid'}).commit()
+    bib = Bib({'_id': 3})
+    assert bib.commit().acknowledged
+    assert isinstance(bib.updated, datetime)
+    assert bib.user == 'admin'
+    assert bib.history()[0].to_dict() == bib.to_dict()
+    assert bib.history()[0].user == 'admin'
+    assert Bib.max_id() == 3
+    
+    Bib().commit()
+    Bib().commit()
+    assert Bib.max_id() == 5
+    
+def test_delete(db):
+    from dlx import DB
+    from dlx.marc import Bib
+    from datetime import datetime
+    
+    bib = Bib()
+    bib.commit()    
+    bib.delete()
+    
+    assert Bib.match_id(bib.id) == None
+    
+    history = DB.handle['bib_history'].find_one({'_id': bib.id})
+    assert history['deleted']['user'] == 'admin'
+    assert isinstance(history['deleted']['time'], datetime)
 
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth
@@ -324,6 +261,15 @@ def test_set():
     assert bib.get_values('245', 'a', 'b') == ['yet another', 'title']
     assert bib.get_values('500', 'a') == ['desc', 'desc']
 
+def test_merge():
+    from dlx.marc import Bib
+    
+    bib1 = Bib().set('000', None, 'leader').set('245', 'a', 'Title')
+    bib2 = Bib().set('000', None, '|eade|').set('269', 'a', 'Date')
+    bib1.merge(bib2)
+    assert bib1.get_value('269', 'a') == 'Date'
+    assert bib1.get_value('000') ==  'leader'
+       
 def test_set_008(bibs):
     from dlx.marc import Bib
     from dlx.config import Config
@@ -363,12 +309,14 @@ def test_language(db):
     
 def test_to_xml(db):
     from dlx.marc import Bib
+    from xmldiff import main
     
     control = '<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield></datafield></record>'
     
     bib = Bib.find_one({'_id': 1})
-    assert bib.to_xml() == control
-    
+    #assert bib.to_xml() == control
+    assert main.diff_texts(bib.to_xml(), control) == []
+
 def test_to_mrc(db):
     from dlx.marc import Bib, Auth
     
