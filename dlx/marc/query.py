@@ -1,10 +1,40 @@
-
-from bson import SON
+import json, re
+from bson import SON, Regex
 from bson.json_util import dumps
 from dlx.db import DB
 from dlx.config import Config
 
 class QueryDocument():
+    @classmethod
+    def from_string(cls, string):
+        qdict = json.loads(string)
+        self = cls()
+        
+        def extract_condition(val):
+            if isinstance(val, dict):
+                for code, sval in val.items():
+                    if sval[0] == '/':
+                        val[code] = Regex(sval[1:-1]) 
+                return Condition(key, val)
+            elif val == 1:
+                return Condition(key, modifier='exists')
+            elif val == 0:
+                return Condition(key, modifier='not_exists')
+            
+        for key, val in qdict.items():
+            if re.match(r'^\d{3}$', key):
+                self.add_condition(extract_condition(val))
+            elif key == 'OR':
+                ors = []
+                
+                for key, val in qdict['OR'].items():
+                    if re.match(r'^\d{3}$', key):
+                        ors.append(extract_condition(val))
+                
+                self.add_condition(Or(*ors))
+
+        return self
+        
     def __init__(self, *conditions):
         self.conditions = conditions
 

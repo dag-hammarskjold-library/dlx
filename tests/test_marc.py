@@ -143,9 +143,10 @@ def test_find_id():
     pass
     
 def test_querydocument(db):
-    from dlx.marc import Bib, QueryDocument, Condition, Or
+    from dlx.marc import Bib, Auth, QueryDocument, Condition, Or
     from bson import SON
     from json import loads
+    import re
     
     query = QueryDocument(Condition(tag='245', subfields={'a': 'This'}))
     assert isinstance(query.compile(), SON)
@@ -156,15 +157,32 @@ def test_querydocument(db):
     assert qdict['245']['$elemMatch']['subfields']['$elemMatch']['value'] == 'This'
     
     query = QueryDocument(
-        Condition(tag='245', subfields={'b': 'is the', 'c': 'title'}),
+        Condition(tag='245', subfields={'a': re.compile(r'(This|Another)'), 'b': 'is the', 'c': 'title'}),
         Condition(tag='650', modifier='exists'),
         Or(
             Condition(tag='710', modifier='exists'),
             Condition(tag='520', modifier='not_exists')
         )
     )
-    
     assert len(list(Bib.find(query.compile()))) == 2
+    
+    query = QueryDocument(
+        Condition(tag='110', subfields={'a': 'Another header'}),
+    )
+    assert len(list(Auth.find(query.compile()))) == 1
+    assert Auth.find_one(query.compile()).id == 2
+    
+def test_querystring(db):
+    from dlx.marc import Bib, Auth, QueryDocument
+    
+    query = QueryDocument.from_string('{"245": {"a": "/^(This|Another)/", "b": "is the", "c": "title"}}')
+    assert len(list(Bib.find(query.compile()))) == 2
+    
+    query = QueryDocument.from_string('{"OR": {"650": 0, "710": 0}}')
+    assert len(list(Bib.find(query.compile()))) == 1
+    
+    query = QueryDocument.from_string('{"110": {"a": "Another header"}}')
+    assert Auth.find_one(query.compile()).id == 2
     
 def test_get_field(bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield
