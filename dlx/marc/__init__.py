@@ -665,8 +665,15 @@ class Marc(object):
     def change_tag(self, old_tag, new_tag):
         pass
 
-    def delete_tag(self, tag, place=0):
-        pass
+    def delete_field(self, tag):
+        index = 0
+        
+        if tag[:2] == '00': 
+            self.controlfields = list(filter(lambda x: x.tag != tag, self.controlfields))
+        else:
+            self.datafields = list(filter(lambda x: x.tag != tag, self.datafields))
+
+        return
 
     ### store
 
