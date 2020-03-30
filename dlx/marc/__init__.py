@@ -151,12 +151,12 @@ class MarcSet():
 
         return mrc
 
-    def to_xml(self):
+    def to_xml(self, xref_prefix=''):
         # todo: stream instead of queue in memory
         root = XML.Element('collection')
 
         for record in self.records:
-            root.append(record.to_xml_raw())
+            root.append(record.to_xml_raw(xref_prefix=xref_prefix))
 
         return XML.tostring(root, 'utf-8').decode('utf-8')
         
@@ -871,7 +871,7 @@ class Marc(object):
 
         return string
 
-    def to_xml_raw(self, *tags, language=None):
+    def to_xml_raw(self, *tags, language=None, xref_prefix=''):
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = XML.Element('record')
 
@@ -904,12 +904,12 @@ class Marc(object):
                 if xref:
                     subnode = XML.SubElement(node, 'subfield')
                     subnode.set('code', '0')
-                    subnode.text = str(xref)
+                    subnode.text = xref_prefix + str(xref)
                     
         return root
 
-    def to_xml(self, *tags, language=None):
-        return XML.tostring(self.to_xml_raw(language=language)).decode('utf-8')
+    def to_xml(self, *tags, language=None, xref_prefix=''):
+        return XML.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix)).decode('utf-8')
 
     #### de-serializations
     # these formats don't fully support linked values.
