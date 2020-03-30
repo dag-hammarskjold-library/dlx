@@ -878,8 +878,13 @@ class Marc(object):
                 node.set('tag', field.tag)
                 node.set('ind1', field.ind1)
                 node.set('ind2', field.ind2)
-
+                
+                xref = None
+                
                 for sub in field.subfields:
+                    if hasattr(sub, 'xref'):
+                        xref = sub.xref
+                    
                     subnode = XML.SubElement(node, 'subfield')
                     subnode.set('code', sub.code)
                     
@@ -888,6 +893,11 @@ class Marc(object):
                         continue   
                         
                     subnode.text = sub.value
+                    
+                if xref:
+                    subnode = XML.SubElement(node, 'subfield')
+                    subnode.set('code', '0')
+                    subnode.text = str(xref)
                     
         return root
 
