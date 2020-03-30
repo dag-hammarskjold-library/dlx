@@ -290,6 +290,15 @@ def test_set_008(bibs):
 
     assert bib.get_value('008')[0:6] == time.strftime('%y%m%d')
     assert bib.get_value('008')[7:11] == '1999'
+    
+def test_delete_field(bibs):
+    from dlx.marc import Bib
+    
+    bib = Bib.find_one({'_id': 1})
+    bib.delete_field('008')
+    assert list(bib.get_fields('008')) == []
+    bib.delete_field('520')
+    assert list(bib.get_fields('520')) == []
 
 def test_auth_lookup(db):
     from dlx.marc import Bib, Auth
