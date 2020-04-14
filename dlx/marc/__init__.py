@@ -717,21 +717,18 @@ class Marc(object):
         if record_history:
             record_history['history'].append(data)
         else:
-            record_history = {}
+            record_history = SON()
             record_history['_id'] = self.id    
             record_history['history'] = [data]
-                
+
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
 
         return self.collection().replace_one({'_id' : int(self.id)}, data, upsert=True)
         
     def delete(self, user='admin'):
         history_collection = DB.handle[self.record_type + '_history']
-        record_history = history_collection.find_one({'_id': self.id})
-        
-        if record_history:
-            record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
-         
+        record_history = history_collection.find_one({'_id': self.id}) or SON()
+        record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
             
         return type(self).handle().delete_one({'_id': self.id})

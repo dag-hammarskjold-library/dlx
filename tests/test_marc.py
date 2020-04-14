@@ -90,7 +90,7 @@ def test_delete(db):
     from dlx.marc import Bib
     from datetime import datetime
     
-    bib = Bib()
+    bib = Bib().set('245', 'a', 'This record will self-destruct')
     bib.commit()    
     bib.delete()
     
