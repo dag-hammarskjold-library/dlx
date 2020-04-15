@@ -158,7 +158,7 @@ class MarcSet():
         for record in self.records:
             root.append(record.to_xml_raw(xref_prefix=xref_prefix))
 
-        return XML.tostring(root, 'utf-8').decode('utf-8')
+        return XML.tostring(root, encoding='utf-8').decode('utf-8')
         
     def to_mrk(self):
         return '\n'.join([r.to_mrk() for r in self.records])
@@ -906,7 +906,7 @@ class Marc(object):
         return root
 
     def to_xml(self, *tags, language=None, xref_prefix=''):
-        return XML.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix)).decode('utf-8')
+        return XML.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix), encoding='utf-8').decode('utf-8')
 
     #### de-serializations
     # these formats don't fully support linked values.
