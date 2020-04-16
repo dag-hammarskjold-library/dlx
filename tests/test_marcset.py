@@ -126,10 +126,12 @@ def test_to_xml(db):
     
 def test_xml_encoding():
     from dlx.marc import BibSet, Bib
+    from xmldiff import main
     
+    control = '<collection><record><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record></collection>'
     bibset = BibSet([Bib().set('245', 'a', 'Title with an é')])
-    assert bibset.to_xml() == '<collection><record><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record></collection>'
-    
+    assert main.diff_texts(bibset.to_xml(), control) == []
+     
 def test_to_str(db):
     from dlx.marc import BibSet
     

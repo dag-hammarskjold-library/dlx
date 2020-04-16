@@ -328,9 +328,11 @@ def test_to_xml(db):
     
 def test_xml_encoding():
     from dlx.marc import Bib
+    from xmldiff import main
     
+    control = '<record><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record>'
     bib = Bib().set('245', 'a', 'Title with an é')
-    assert bib.to_xml() == '<record><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record>'
+    assert main.diff_texts(bib.to_xml(), control) == []
     
 def test_to_mrc(db):
     from dlx.marc import Bib, Auth
