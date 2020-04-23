@@ -1,5 +1,6 @@
 import pytest
 from mongomock import MongoClient as MockClient
+from moto import mock_s3
 
 @pytest.fixture
 def bibs():
@@ -85,6 +86,7 @@ def db(bibs, auths) -> MockClient:
     # Connects to and resets the database
     DB.connect('mongomock://localhost')
     
+    DB.files.drop
     DB.bibs.drop
     DB.handle['bib_history'].drop
     DB.bibs.insert_many(bibs)
@@ -93,3 +95,5 @@ def db(bibs, auths) -> MockClient:
     DB.auths.insert_many(auths)
     
     return DB.client
+
+
