@@ -363,18 +363,20 @@ class Marc(object):
     # Instance methods
 
     def __init__(self, doc={}):
-        self.controlfields = []
-        self.datafields = []
-        
         self.id = int(doc['_id']) if '_id' in doc else None
         self.updated = doc['updated'] if 'updated' in doc else None
         self.user = doc['user'] if 'user' in doc else None
-
+        
+        self.fields = []
         self.parse(doc)
         
     @property
-    def fields(self):
-        return self.controlfields + self.datafields
+    def controlfields(self):
+        return list(filter(lambda x: x.tag[:2] == '00', self.fields))
+        
+    @property
+    def datafields(self):
+        return list(filter(lambda x: x.tag[:2] != '00', self.fields))    
 
     def parse(self, doc):
         for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
@@ -383,7 +385,7 @@ class Marc(object):
 
             if tag[:2] == '00':
                 for value in doc[tag]:
-                    self.controlfields.append(Controlfield(tag, value, record_type=self.record_type))
+                    self.fields.append(Controlfield(tag, value, record_type=self.record_type))
             else:
                 for field in doc[tag]:                
                     ind1 = field['indicators'][0]
@@ -396,15 +398,15 @@ class Marc(object):
                         elif 'xref' in sub:
                             subfields.append(Linked(sub['code'], sub['xref']))
 
-                    self.datafields.append(Datafield(tag, ind1, ind2, subfields, record_type=self.record_type))
+                    self.fields.append(Datafield(tag, ind1, ind2, subfields, record_type=self.record_type))
 
     #### "get"-type methods
 
     def get_fields(self, *tags):
         if len(tags) == 0:
-            return sorted(self.controlfields + self.datafields, key=lambda x: x.tag)
+            return sorted(self.fields, key=lambda x: x.tag)
 
-        return filter(lambda x: True if x.tag in tags else False, sorted(self.controlfields + self.datafields, key=lambda x: x.tag))
+        return filter(lambda x: True if x.tag in tags else False, sorted(self.fields, key=lambda x: x.tag))
 
         #todo: return sorted by tag
 
@@ -665,14 +667,20 @@ class Marc(object):
     def change_tag(self, old_tag, new_tag):
         pass
 
-    def delete_field(self, tag):
-        index = 0
-        
-        if tag[:2] == '00': 
-            self.controlfields = list(filter(lambda x: x.tag != tag, self.controlfields))
+    def delete_field(self, tag, place=None):
+        if place:
+            fields = filter(lambda x: x.tag == tag, self.fields)
+            i = 0
+            
+            for field in fields:
+                if i == place:
+                    self.fields.remove(field)
+                
+                i += 1    
+                
         else:
-            self.datafields = list(filter(lambda x: x.tag != tag, self.datafields))
-
+            self.fields = list(filter(lambda x: x.tag != tag, self.datafields))
+        
         return
 
     ### store
