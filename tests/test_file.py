@@ -11,9 +11,8 @@ def s3():
     from dlx import Config
     from dlx.file import S3
        
-    Config.files_bucket = 'test_bucket'
-    S3.connect('mock_key', 'mock_key_id')
-    #S3.client.create_bucket(Bucket=Config.files_bucket) # has no effect outside this function?
+    S3.connect('mock_key', 'mock_key_id', 'mock_bucket')
+    S3.client.create_bucket(Bucket=S3.bucket) # has no effect outside this function?
     
     return S3.client
 
@@ -23,7 +22,7 @@ def test_import_from_handle(db, s3):
     from dlx import Config, DB
     from dlx.file import S3, File, Identifier, FileExists, FileExistsIdentifierConflict, FileExistsLanguageConflict
     
-    S3.client.create_bucket(Bucket=Config.files_bucket) # this should be only necessary for testing
+    S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
     handle = TemporaryFile()
     handle.write(b'some data')
     handle.seek(0)
@@ -36,10 +35,10 @@ def test_import_from_handle(db, s3):
     assert results[0]['languages'] == ['EN']
     assert results[0]['mimetype'] == 'application/dlx'
     assert results[0]['source'] == 'test'
-    assert results[0]['uri'] == '{}.s3.amazonaws.com/{}'.format(Config.files_bucket, results[0]['_id'])
+    assert results[0]['uri'] == '{}.s3.amazonaws.com/{}'.format(S3.bucket, results[0]['_id'])
     
     with TemporaryFile() as fh:
-        S3.client.download_fileobj(Config.files_bucket, results[0]['_id'], fh)
+        S3.client.download_fileobj(S3.bucket, results[0]['_id'], fh)
         fh.seek(0)
         assert fh.read() == b'some data'
     
@@ -62,7 +61,7 @@ def test_import_from_path(db, s3):
     from dlx import Config, DB
     from dlx.file import S3, File, Identifier
     
-    S3.client.create_bucket(Bucket=Config.files_bucket) # this should be only necessary for testing
+    S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
     fh = NamedTemporaryFile()
     fh.write(b'test data')
     fh.seek(0)
@@ -79,7 +78,7 @@ def test_import_from_url(db, s3):
     from dlx import Config, DB
     from dlx.file import File, Identifier, S3
     
-    S3.client.create_bucket(Bucket=Config.files_bucket) # this should be only necessary for testing
+    S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
     server = HTTPServer(('127.0.0.1', 9090), None)
     responses.add(responses.GET, 'http://127.0.0.1:9090', body=BytesIO(b'test data').read())
     control = 'eb733a00c0c9d336e65691a37ab54293'
@@ -91,7 +90,7 @@ def test_import_from_binary(db, s3):
     from dlx import Config, DB
     from dlx.file import File, Identifier, S3
     
-    S3.client.create_bucket(Bucket=Config.files_bucket) # this should be only necessary for testing 
+    S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing 
     control = 'eb733a00c0c9d336e65691a37ab54293'
     assert File.import_from_binary(b'test data', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test') == control
    
