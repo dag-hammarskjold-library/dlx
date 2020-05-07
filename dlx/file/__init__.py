@@ -3,10 +3,13 @@
 import os, requests, hashlib
 from datetime import datetime, timezone
 from io import BytesIO
+from json import dumps
 from tempfile import TemporaryFile, SpooledTemporaryFile
 from bson import SON
 from dlx import Config, DB
 from dlx.file.s3 import S3
+
+LANG_ISO_CODES = ("aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az", "ba", "be", "bg", "bh", "bi", "bm", "bn", "bo", "br", "bs", "ca", "ce", "ch", "co", "cr", "cs", "cu", "cv", "cy", "da", "de", "dv", "dz", "ee", "el", "en", "eo", "es", "et", "eu", "fa", "ff", "fi", "fj", "fo", "fr", "fy", "ga", "gd", "gl", "gn", "gu", "gv", "ha", "he", "hi", "ho", "hr", "ht", "hu", "hy", "hz", "ia", "id", "ie", "ig", "ii", "ik", "io", "is", "it", "iu", "ja", "jv", "ka", "kg", "ki", "kj", "kk", "kl", "km", "kn", "ko", "kr", "ks", "ku", "kv", "kw", "ky", "la", "lb", "lg", "li", "ln", "lo", "lt", "lu", "lv", "mg", "mh", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "na", "nb", "nd", "ne", "ng", "nl", "nn", "no", "nr", "nv", "ny", "oc", "oj", "om", "or", "os", "pa", "pi", "pl", "ps", "pt", "qu", "rm", "rn", "ro", "ru", "rw", "sa", "sc", "sd", "se", "sg", "si", "sk", "sl", "sm", "sn", "so", "sq", "sr", "ss", "st", "su", "sv", "sw", "ta", "te", "tg", "th", "ti", "tk", "tl", "tn", "to", "tr", "ts", "tt", "tw", "ty", "ug", "uk", "ur", "uz", "ve", "vi", "vo", "wa", "wo", "xh", "yi", "yo", "za", "zh", "zu")
 
 ###
 
@@ -28,19 +31,27 @@ class FileExistsLanguageConflict(FileExists):
 ###
     
 class Identifier(object):
+    '''Class for standardizing content identifiers'''
+    
     def __init__(self, identifier_type, value):
         self.type = identifier_type
         self.value = value
+        
+    def to_str(self):
+        '''Returns a JSON string for comparing to to other 
+        `Identifier` objects.'''
+        
+        return dumps({'type': self.type, 'value': self.value})
 
 class File(object):    
     @classmethod    
-    def import_from_path(cls, path, identifiers, filename, languages, mimetype, source):
+    def import_from_path(cls, path, filename, identifiers, languages, mimetype, source):
         fh = open(path, 'rb')
         
-        return cls.import_from_handle(fh, identifiers, filename, languages, mimetype, source)
+        return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source)
 
     @classmethod
-    def import_from_url(cls, url, identifiers, filename, languages, mimetype, source):
+    def import_from_url(cls, url, filename, identifiers, languages, mimetype, source):
         hasher = hashlib.md5()
         fh = TemporaryFile('wb+')
         response = requests.get(url, stream=True)
@@ -51,15 +62,68 @@ class File(object):
                 
             fh.seek(0)
             
-            return cls.import_from_handle(fh, identifiers, filename, languages, mimetype, source)
+            return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source)
         
     @classmethod
-    def import_from_binary(cls, data, identifiers, filename, languages, mimetype, source):
-        return cls.import_from_handle(BytesIO(data), identifiers, filename, languages, mimetype, source)
+    def import_from_binary(cls, data, filename, identifiers, languages, mimetype, source):
+        return cls.import_from_handle(BytesIO(data), filename, identifiers, languages, mimetype, source)
         
     @classmethod
-    def import_from_handle(cls, handle, identifiers, filename, languages, mimetype, source):
-        # handle can be any type of file-like object in binary mode
+    def import_from_handle(cls, handle, filename, identifiers, languages, mimetype, source):
+        '''Import a file using a file-like object. The file is 
+        uploaded to the s3 bucket specified in `dlx.Config`. The
+        metadata is stored in the database.
+        
+        All paramaters are required.
+        
+        Parameters
+        ----------
+        handle : Any file-like object
+        filename : str
+            The destination filename. Files with common identifiers, 
+            languages, and filename are considered versions of each 
+            other
+        identifiers : list(dlx.file.Identifier)
+        languages : list(str)
+            The ISO 639-1 codes of the languages of the content.
+            Codes will be stored in uppercase.
+        mimetype : str
+            Must be a value recognized by s3, otherwise the upload
+            will fail
+        source : str
+            Name of the process that called the import for auditing
+        
+        Returns
+        -------
+        If succesful, the md5 checksum as a hex string (also used as
+        the database record ID) of the imported file, otherwise 
+        `False`
+        
+        Raises
+        ------
+        FileExists : The file is already in the system
+        FileExistsIdentifierConflict : The file is already in the
+            system but with different identifiers
+        FileExistsLanguageConflict : The file is already in the 
+            system different languages
+        '''
+        
+        ###
+        
+        if len(identifiers) == 0 or len(languages) == 0:
+            raise ValueError('Params `identifiers` and `languages` cannot be an empty list')
+        
+        for idx in identifiers:
+            if not isinstance(idx, Identifier):
+                raise TypeError('Identifier must be of type `dlx.file.Identifier`')
+                
+        for lang in languages:
+            lang = lang.upper()
+            
+            if lang.lower() not in LANG_ISO_CODES:
+                raise ValueError('Invalid ISO 639-1 language code')
+        
+        ###
         
         hasher = hashlib.md5()
         
@@ -80,11 +144,13 @@ class File(object):
         File._check_file_exists(checksum, identifiers, languages)
         handle.seek(0)
         
+        ###
+        
         if S3.upload(handle, Config.files_bucket, checksum, mimetype):
             db_result = DB.files.insert_one(SON({
                 '_id': checksum,
-                'identifiers': [SON({'type': idx.type, 'value': idx.value}) for idx in identifiers],
                 'filename': filename,
+                'identifiers': [SON({'type': idx.type, 'value': idx.value}) for idx in identifiers],
                 'languages': languages,
                 'mimetype': mimetype,
                 'size': size,

@@ -47,14 +47,14 @@ def test_import_from_handle(db, s3):
         handle = TemporaryFile()
         handle.write(b'some data')
         handle.seek(0)
-        File.import_from_handle(handle, identifiers=[Identifier('isbn', '2')], filename='test', languages=None, mimetype='test', source=None
+        File.import_from_handle(handle, identifiers=[Identifier('isbn', '2')], filename='test', languages=['FR'], mimetype='test', source=None
     )
     
     with pytest.raises(FileExistsLanguageConflict):
         handle = TemporaryFile()
         handle.write(b'some data')
         handle.seek(0)
-        File.import_from_handle(handle, identifiers=[Identifier('isbn', '1')], filename='test', languages='FR', mimetype='test', source=None)
+        File.import_from_handle(handle, identifiers=[Identifier('isbn', '1')], filename='test', languages=['FR'], mimetype='test', source=None)
 
 @mock_s3   
 def test_import_from_path(db, s3):
@@ -83,7 +83,7 @@ def test_import_from_url(db, s3):
     server = HTTPServer(('127.0.0.1', 9090), None)
     responses.add(responses.GET, 'http://127.0.0.1:9090', body=BytesIO(b'test data').read())
     control = 'eb733a00c0c9d336e65691a37ab54293'
-    assert File.import_from_url(url='http://127.0.0.1:9090', identifiers=[Identifier('isbn', '3')], filename='test', languages=None, mimetype='test', source=None) == control
+    assert File.import_from_url(url='http://127.0.0.1:9090', identifiers=[Identifier('isbn', '3')], filename='test', languages=['EN'], mimetype='test', source=None) == control
 
 @mock_s3   
 def test_import_from_binary(db, s3):
@@ -91,8 +91,7 @@ def test_import_from_binary(db, s3):
     from dlx import Config, DB
     from dlx.file import File, Identifier, S3
     
-    S3.client.create_bucket(Bucket=Config.files_bucket) # this should be only necessary for testing
-    binary = b'test data'
+    S3.client.create_bucket(Bucket=Config.files_bucket) # this should be only necessary for testing 
     control = 'eb733a00c0c9d336e65691a37ab54293'
-    assert File.import_from_binary(binary, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test') == control
+    assert File.import_from_binary(b'test data', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test') == control
    
