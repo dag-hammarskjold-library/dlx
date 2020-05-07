@@ -16,6 +16,8 @@ class Config():
     #with open(schema_dir + '/jfile.schema.json') as f:
     #   jfile_schema = json.loads(f.read())
     
+    #files_bucket = 'temp'
+    
     date_field = ['269', 'a']
     
     bib_index_fields = {
