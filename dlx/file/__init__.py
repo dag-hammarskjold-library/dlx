@@ -146,7 +146,7 @@ class File(object):
         
         ###
         
-        if S3.upload(handle, Config.files_bucket, checksum, mimetype):
+        if S3.upload(handle, checksum, mimetype):
             db_result = DB.files.insert_one(SON({
                 '_id': checksum,
                 'filename': filename,
@@ -156,7 +156,7 @@ class File(object):
                 'size': size,
                 'source': source,
                 'timestamp': datetime.now(timezone.utc),
-                'uri': '{}.s3.amazonaws.com/{}'.format(Config.files_bucket, checksum),
+                'uri': '{}.s3.amazonaws.com/{}'.format(S3.bucket, checksum),
             }))
                 
             if db_result.acknowledged:

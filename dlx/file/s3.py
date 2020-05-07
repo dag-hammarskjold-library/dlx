@@ -8,7 +8,8 @@ class S3(object):
     connected = False
     
     @classmethod
-    def connect(cls, access_key_id, access_key):
+    def connect(cls, access_key_id, access_key, bucket):
+        '''Start a global "connection" to a specific s3 bucket'''
         
         cls.client = boto3.client(
             "s3",
@@ -17,10 +18,11 @@ class S3(object):
             aws_secret_access_key = access_key,
         )
         
+        cls.bucket = bucket
         cls.connected = True
     
     @classmethod
-    def upload(cls, handle, bucket_name, file_key, mimetype):
+    def upload(cls, handle, file_key, mimetype):
         '''Uploads a file using a file-like object
         
         Raises
@@ -33,7 +35,7 @@ class S3(object):
         
         cls.client.upload_fileobj(
             handle,
-            bucket_name,
+            cls.bucket,
             file_key,
             ExtraArgs = {
                 'ContentType': mimetype, 
