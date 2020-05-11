@@ -2,7 +2,7 @@ import sys, os, pytest
 
 def test_init_db(db):
     from dlx import DB
-    from scripts import init_dlx
+    from dlx.scripts import init_dlx
     
     sys.argv[1:] = ['--connect=mongomock://localhost']
     
@@ -151,7 +151,7 @@ def test_init_db(db):
     ]
     
 def test_excel_marc():
-    from scripts import excel_marc
+    from dlx.scripts import excel_marc
     
     excel = os.path.dirname(__file__) + '/marc.xlsx'
     out = os.path.dirname(__file__) + '/out.mrc'
