@@ -372,11 +372,11 @@ class Marc(object):
         
     @property
     def controlfields(self):
-        return list(filter(lambda x: x.tag[:2] == '00', self.fields))
+        return list(filter(lambda x: x.tag[:2] == '00', sorted(self.fields, key=lambda x: x.tag)))
         
     @property
     def datafields(self):
-        return list(filter(lambda x: x.tag[:2] != '00', self.fields))    
+        return list(filter(lambda x: x.tag[:2] != '00', sorted(self.fields, key=lambda x: x.tag)))
 
     def parse(self, doc):
         for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
@@ -406,18 +406,15 @@ class Marc(object):
         if len(tags) == 0:
             return sorted(self.fields, key=lambda x: x.tag)
 
-        return filter(lambda x: True if x.tag in tags else False, sorted(self.fields, key=lambda x: x.tag))
+        return list(filter(lambda x: True if x.tag in tags else False, sorted(self.fields, key=lambda x: x.tag)))
 
-        #todo: return sorted by tag
-
-    def get_field(self, tag, **kwargs):
+    def get_field(self, tag, place=0):
         fields = self.get_fields(tag)
-
-        if 'place' in kwargs:
-            for skip in range(0, kwargs['place']):
-                next(fields, None)
-
-        return next(fields, None)
+        
+        try:
+            return fields[place]
+        except IndexError:
+            return None
 
     def get_values(self, tag, *codes, **kwargs):
         if 'place' in kwargs:
@@ -510,122 +507,55 @@ class Marc(object):
 
     #### "set"-type methods
 
-    def set(self, tag, code, new_val, auth_control=True, auth_flag=False, **kwargs):
-        ### WIP
+    def set(self, tag, code, new_val, auth_control=True, auth_flag=False, address=[], **kwargs):
         # kwargs: address [pair], matcher [Pattern/list]
+
+        field_place, subfield_place = 0, 0
         
-        if auth_control == True and Config.is_authority_controlled(self.record_type, tag, code):
-            try:
-                new_val + int(new_val)
-            except ValueError:
-                raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(tag, code))
+        if len(address) > 0:
+            field_place = address[0]
+            
+            if not isinstance(field_place, int) and field_place != '+':
+                raise Exception('Invalid address')
+            
+            if len(address) > 1:
+                subfield_place = address[1]
                 
-            auth_controlled = True
-        elif auth_flag == True and Config.is_authority_controlled(self.record_type, tag, code):
-            auth_tag = Config.authority_source_tag(self.record_type, tag, code)
-            query = QueryDocument(Condition(tag=auth_tag, subfields={code: new_val}))
-            authset = AuthSet.from_query(query)
-            
-            if authset.count == 0:
-                raise Exception('Authority-controlled field {}${} value "{}" is invalid'.format(tag, code, new_val))
-            
-            auth_controlled = False
-        else:
-            new_val = str(new_val)
-            auth_controlled = False
+                if not isinstance(subfield_place, int) and subfield_place != '+':
+                    raise Exception('Invalid address')
+                    
+        fields = self.get_fields(tag)
 
-        try:
-            fplace = kwargs['address'][0]
-        except KeyError:
-            fplace = 0
+        ### new field
 
-        try:
-            splace = kwargs['address'][1]
-        except:
-            splace = 0
-
-        try:
-            matcher = kwargs['matcher']
-        except KeyError:
-            matcher = None
-
-        ###
-
-        fields = list(self.get_fields(tag))
-
-        if fplace == '*':
-            for i in range(0, len(fields)):
-                kwargs['address'] = [i, splace]
-                self.set(tag, code, new_val, **kwargs)
-
-            return self
-        elif isinstance(fplace, int):
-            pass
-        elif fplace == '+':
-            pass
-        else:
-            raise Exception('Invalid address')
-
-        if len(fields) == 0 or fplace == '+':
-            valtype = 'value' if auth_controlled == False else 'xref'
-
+        if len(fields) == 0 or field_place == '+':
             if tag[:2] == '00':
-                self.parse({tag : [new_val]})
+                field = Controlfield(tag, new_val)
+                self.fields.append(field)
             else:
-                self.parse({tag : [{'indicators' : [' ', ' '], 'subfields' : [{'code' : code, valtype : new_val}]}]})
-
+                field = Datafield(record_type=self.record_type)
+                field.tag = tag
+                field.ind1 = ' '
+                field.ind2 = ' '
+                field.set(code, new_val)
+                self.fields.append(field)
+            
             return self
 
-        try:
-            field = fields[fplace]
-        except IndexError:
-            raise Exception('There is no field at {}/{}'.format(tag, fplace))
+        ### existing field
 
-        if tag[:2] == '00':
-            #if isinstance(matcher, Pattern):
-            #    if matcher.search(field.value): field.value = new_val
-            #else:
-                
+        if len(fields) < field_place:
+            raise Exception('There is no field at {}/{}'.format(tag, field_place))
+            
+        field = fields[field_place]
+            
+        if isinstance(field, Controlfield):
             field.value = new_val
 
             return self
 
-        subs = list(filter(lambda sub: sub.code == code, field.subfields))
-
-        if len(subs) == 0 or splace == '+':
-            if auth_controlled == True:
-                field.subfields.append(Linked(code, new_val))
-            else:
-                field.subfields.append(Literal(code, new_val))
-
-            return self
-
-        elif isinstance(splace, int):
-            subs = [subs[splace]]
-        elif splace == '*':
-            pass
-        else:
-            raise Exception('Invalid address')
-
-        for sub in subs:
-            if isinstance(sub, Literal):
-        #        if isinstance(matcher, Pattern):
-        #            if matcher.search(sub.value): sub.value = new_val
-        #        elif matcher == None:
-        #            sub.value = new_val
-        #        else:
-        #            raise Exception('"matcher" must be a `Pattern` for a literal value')
-                sub.value = new_val
-        #
-            elif isinstance(sub, Linked):
-        #        if isinstance(matcher, (tuple, list)):
-        #            if sub.xref in matcher: sub.xref = new_val
-        #        elif matcher == None:
-        #            sub.xref = new_val
-        #        else:
-        #            raise Exception('"matcher" must be a list or tuple of xrefs for a linked value')
-                sub.xref = new_val
-
+        field.set(code, new_val, subfield_place, auth_control)
+        
         return self
         
     def set_values(self, *tuples):
@@ -652,17 +582,6 @@ class Marc(object):
         cat_date = time.strftime('%y%m%d')
         
         self.set('008', None, cat_date + text[6] + pub_year + text[11:])
-        
-    def set_indicators(self, tag, place, ind1, ind2):
-        field = list(self.get_fields(tag))[place]
-
-        if ind1 is not None:
-            field.indicators[0] = ind1
-
-        if ind2 is not None:
-            field.indicators[1] = ind2
-
-        return self
 
     def change_tag(self, old_tag, new_tag):
         pass
@@ -1071,12 +990,16 @@ class Controlfield(Field):
         return '{}  {}'.format(self.tag, self.value)
 
 class Datafield(Field):
-    def __init__(self, tag, ind1, ind2, subfields, record_type=None):
+    def __init__(self, tag=None, ind1=None, ind2=None, subfields=None, record_type=None):
         self.record_type = record_type
         self.tag = tag
         self.ind1 = ind1
         self.ind2 = ind2
-        self.subfields = subfields
+        self.subfields = subfields or []
+        
+    @property
+    def indicators(self):
+        return [self.ind1, self.ind2]
     
     def get_value(self, code):
         sub = next(filter(lambda sub: sub.code == code, self.subfields), None)
@@ -1091,6 +1014,55 @@ class Datafield(Field):
     def get_xrefs(self):
         return [sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]
 
+    def set(self, code, new_val, subfield_place=0, auth_control=True, auth_flag=False):
+        subs = list(filter(lambda sub: sub.code == code, self.subfields))
+        
+        if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
+            try:
+                new_val + int(new_val)
+            except ValueError:
+                raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(self.tag, code))
+                
+            auth_controlled = True
+        elif auth_flag == True and Config.is_authority_controlled(self.record_type, self.tag, code):
+            auth_tag = Config.authority_source_tag(self.record_type, self.tag, code)
+            query = QueryDocument(Condition(tag=auth_tag, subfields={code: new_val}))
+            authset = AuthSet.from_query(query)
+            
+            if authset.count == 0:
+                raise Exception('Authority-controlled field {}${} value "{}" is invalid'.format(self.tag, code, new_val))
+            
+            auth_controlled = False
+        else:
+            new_val = str(new_val)
+            auth_controlled = False
+            
+        ###
+
+        if len(subs) == 0 or subfield_place == '+':
+            # new subfield
+            
+            if Config.is_authority_controlled(self.record_type, self.tag, code) == True:
+                self.subfields.append(Linked(code, new_val))
+            else:
+                self.subfields.append(Literal(code, new_val))
+
+            return self
+    
+        elif isinstance(subfield_place, int):
+            # replace exisiting subfield
+            
+            subs = [subs[subfield_place]]
+
+        for sub in subs:
+            if isinstance(sub, Literal):
+                sub.value = new_val
+
+            elif isinstance(sub, Linked):
+                sub.xref = new_val
+
+        return self
+    
     def to_bson(self):
         return SON(
             {
