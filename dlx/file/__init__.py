@@ -13,15 +13,17 @@ class FileExists(Exception):
     pass
     
 class FileExistsIdentifierConflict(FileExists):
-    def __init__(self, existing_identifiers):
-        super().__init__('File already exists but with different identifiers: {}'.format(existing_identifiers))
+    def __init__(self, existing_identifiers, existing_languages):
+        super().__init__('File already exists but with different identifiers: {} - {}'.format(existing_identifiers, existing_languages))
         
         self.existing_identifiers = existing_identifiers
-    
+        self.existing_languages = existing_languages
+
 class FileExistsLanguageConflict(FileExists):
-    def __init__(self, existing_languages):
-        super().__init__('File already exists but with different languages: {}'.format(existing_languages))
+    def __init__(self, existing_identifiers, existing_languages):
+        super().__init__('File already exists but with different languages: {} - {}'.format(existing_identifiers, existing_languages))
         
+        self.existing_identifiers = existing_identifiers
         self.existing_languages = existing_languages
         
 ###
@@ -169,14 +171,14 @@ class File(object):
                 raw_idx = {'type': idx.type, 'value': str(idx.value)}
                 
                 if raw_idx not in existing_record['identifiers']:
-                    raise FileExistsIdentifierConflict(existing_record['identifiers'])
+                    raise FileExistsIdentifierConflict(existing_record['identifiers'], existing_record['languages'])
                     
             for raw_idx in existing_record['identifiers']:
                 if {'type': raw_idx['type'], 'value': raw_idx['value']} not in [{'type': x.type, 'value': x.value} for x in identifiers]:
-                    raise FileExistsIdentifierConflict(existing_record['identifiers'])
+                    raise FileExistsIdentifierConflict(existing_record['identifiers'], existing_record['languages'])
   
             for lang in languages:
                 if sorted(languages) != existing_record['languages']:
-                    raise FileExistsLanguageConflict(existing_record['languages'])
+                    raise FileExistsLanguageConflict(existing_record['identifiers'], existing_record['languages'])
                     
             raise FileExists()

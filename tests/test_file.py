@@ -42,18 +42,23 @@ def test_import_from_handle(db, s3):
         fh.seek(0)
         assert fh.read() == b'some data'
     
-    with pytest.raises(FileExistsIdentifierConflict):
+    with pytest.raises(FileExistsIdentifierConflict) as xe:
         handle = TemporaryFile()
         handle.write(b'some data')
         handle.seek(0)
-        File.import_from_handle(handle, identifiers=[Identifier('isbn', '2')], filename='test', languages=['FR'], mimetype='test', source=None
-    )
+        File.import_from_handle(handle, identifiers=[Identifier('isbn', '2')], filename='test', languages=['FR'], mimetype='test', source=None)
     
-    with pytest.raises(FileExistsLanguageConflict):
+    assert xe.value.existing_identifiers == [{'type': 'isbn', 'value': '1'}]
+    assert xe.value.existing_languages == ['EN']
+    
+    with pytest.raises(FileExistsLanguageConflict) as xe:
         handle = TemporaryFile()
         handle.write(b'some data')
         handle.seek(0)
         File.import_from_handle(handle, identifiers=[Identifier('isbn', '1')], filename='test', languages=['FR'], mimetype='test', source=None)
+        
+    assert xe.value.existing_identifiers == [{'type': 'isbn', 'value': '1'}]
+    assert xe.value.existing_languages == ['EN']
 
 @mock_s3   
 def test_import_from_path(db, s3):
