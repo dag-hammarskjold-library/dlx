@@ -1012,7 +1012,7 @@ class Datafield(Field):
         return [sub.value for sub in subs]
         
     def get_xrefs(self):
-        return [sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]
+        return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
 
     def set(self, code, new_val, subfield_place=0, auth_control=True, auth_flag=False):
         subs = list(filter(lambda sub: sub.code == code, self.subfields))
