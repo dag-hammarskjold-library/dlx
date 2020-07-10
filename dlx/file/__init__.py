@@ -201,13 +201,17 @@ class File(object):
     @classmethod
     def find_one(cls, query, *args, **kwargs):
         return cls(DB.files.find_one(query, *args, **kwargs))
+        
+    @classmethod
+    def from_id(cls, idx):
+        return cls.find_one('_id': idx)
 
     ###
     
     def __init__(self, doc={}):
         if doc:
             self.id = doc['_id']
-            self.identifiers = doc['identifiers']
+            self.identifiers = [Identifier(i['type'], i['value']) for i in doc['identifiers']]
             self.languages = doc['languages']
             self.mimetype = doc['mimetype']
             self.size = doc['size']
@@ -218,4 +222,6 @@ class File(object):
     @property
     def checksum(self):
         return self.id
+        
+        
                 
