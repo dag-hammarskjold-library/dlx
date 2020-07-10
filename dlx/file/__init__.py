@@ -43,13 +43,13 @@ class Identifier(object):
 
 class File(object):    
     @classmethod    
-    def import_from_path(cls, path, filename, identifiers, languages, mimetype, source):
+    def import_from_path(cls, path, filename, identifiers, languages, mimetype, source, overwrite=False):
         fh = open(path, 'rb')
         
         return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source)
 
     @classmethod
-    def import_from_url(cls, url, filename, identifiers, languages, mimetype, source):
+    def import_from_url(cls, url, filename, identifiers, languages, mimetype, source, overwrite=False):
         hasher = hashlib.md5()
         fh = TemporaryFile('wb+')
         response = requests.get(url, stream=True)
@@ -60,14 +60,14 @@ class File(object):
                 
             fh.seek(0)
             
-            return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source)
+            return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source, overwrite=False)
         
     @classmethod
-    def import_from_binary(cls, data, filename, identifiers, languages, mimetype, source):
+    def import_from_binary(cls, data, filename, identifiers, languages, mimetype, source, overwrite=False):
         return cls.import_from_handle(BytesIO(data), filename, identifiers, languages, mimetype, source)
         
     @classmethod
-    def import_from_handle(cls, handle, filename, identifiers, languages, mimetype, source):
+    def import_from_handle(cls, handle, filename, identifiers, languages, mimetype, source, overwrite=False):
         '''Import a file using a file-like object. The file is 
         uploaded to the s3 bucket specified in `dlx.Config`. The
         metadata is stored in the database.
@@ -90,6 +90,8 @@ class File(object):
             will fail
         source : str
             Name of the process that called the import for auditing
+        overwrite : bool
+            Ignore exisiting file exceptions and overwrite the data and file
         
         Returns
         -------
@@ -139,13 +141,14 @@ class File(object):
             raise Exception('File-like object "{}" has no content'.format(handle))
         
         checksum = hasher.hexdigest()    
-        File._check_file_exists(checksum, identifiers, languages)
+        
+        if overwrite == False:
+            File._check_file_exists(checksum, identifiers, languages)
+
         handle.seek(0)
         
-        ###
-        
         if S3.upload(handle, checksum, mimetype):
-            db_result = DB.files.insert_one(SON({
+            data = SON({
                 '_id': checksum,
                 'filename': filename,
                 'identifiers': [SON({'type': idx.type, 'value': idx.value}) for idx in identifiers],
@@ -155,8 +158,13 @@ class File(object):
                 'source': source,
                 'timestamp': datetime.now(timezone.utc),
                 'uri': '{}.s3.amazonaws.com/{}'.format(S3.bucket, checksum),
-            }))
+            })
                 
+            if overwrite == True:
+                db_result = DB.files.replace_one({'_id': checksum}, data, upsert=True)
+            else:
+                db_result = DB.files.insert_one(data)
+                    
             if db_result.acknowledged:
                 return checksum
         
@@ -182,3 +190,32 @@ class File(object):
                     raise FileExistsLanguageConflict(existing_record['identifiers'], existing_record['languages'])
                     
             raise FileExists()
+            
+    ###
+    
+    @classmethod
+    def find(cls, query, *args, **kwargs):
+        for doc in DB.files.find(query, *args, **kwargs):
+            yield(File(doc))
+            
+    @classmethod
+    def find_one(cls, query, *args, **kwargs):
+        return cls(DB.files.find_one(query, *args, **kwargs))
+
+    ###
+    
+    def __init__(self, doc={}):
+        if doc:
+            self.id = doc['_id']
+            self.identifiers = doc['identifiers']
+            self.languages = doc['languages']
+            self.mimetype = doc['mimetype']
+            self.size = doc['size']
+            self.source = doc['source']
+            self.timestamp = doc['timestamp']
+            self.uri = doc['uri']
+        
+    @property
+    def checksum(self):
+        return self.id
+                
