@@ -86,16 +86,16 @@ def db(bibs, auths) -> MockClient:
     # Connects to and resets the database
     DB.connect('mongomock://localhost')
     
-    DB.files.drop
-    DB.bibs.drop
+    DB.bibs.drop()
     DB.handle['bib_history'].drop()
     DB.handle['bib_id_counter'].drop()
     DB.bibs.insert_many(bibs)
+    
     DB.auths.drop()
     DB.handle['auth_history'].drop()
     DB.handle['auth_id_counter'].drop()
     DB.auths.insert_many(auths)
     
+    DB.files.drop()
+    
     return DB.client
-
-

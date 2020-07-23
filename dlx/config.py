@@ -13,8 +13,8 @@ class Config():
     with open(schema_dir + 'jmarc.schema.json') as f:
         jmarc_schema = json.loads(f.read())
 
-    #with open(schema_dir + '/jfile.schema.json') as f:
-    #   jfile_schema = json.loads(f.read())
+    with open(schema_dir + '/jfile.schema.json') as f:
+        jfile_schema = json.loads(f.read())
     
     #files_bucket = 'temp'
     
