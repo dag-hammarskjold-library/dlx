@@ -85,6 +85,11 @@ def test_commit(db, bibs, auths):
     Bib().commit()
     assert Bib.max_id() == 5
     
+    DB.bibs.drop()
+    DB.handle['bib_id_counter'].drop()
+    Bib().commit()
+    assert Bib.max_id() == 1
+
 def test_delete(db):
     from dlx import DB
     from dlx.marc import Bib
