@@ -127,8 +127,7 @@ class MarcSet():
             return self._count
         else:
             return len(self.records)
-        
-        
+
     @count.setter
     def count(self, val):
         self._count = val
@@ -200,8 +199,24 @@ class Marc(object):
     #### database query handlers
     
     @classmethod
+    def _increment_id(cls):
+        col = DB.handle[cls.record_type + '_id_counter']
+        result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
+        
+        if result:
+            return result['count']
+        else:
+            # this should only happen once
+            i = cls.max_id() + 1
+            col.insert_one({'_id': 1, 'count': i})
+            
+            return i
+        
+    @classmethod
     def max_id(cls):
-        return(next(cls.handle().aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}])))['_id']
+        max_dict = next(cls.handle().aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}]), {})
+        
+        return max_dict.get('_id') or 0
 
     @classmethod
     @_Decorators.check_connection
@@ -618,17 +633,9 @@ class Marc(object):
             
         if self.id is None:
             # this is a new record
-            col = DB.handle[self.record_type + '_id_counter']
-            result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
-            
-            if result:
-                self.id = result['count']
-            else:
-                # this should only happen once
-                i = type(self).max_id() + 1
-                col.insert_one({'_id': 1, 'count': i})
-                self.id = i
-            
+            cls = type(self)
+            self.id = cls._increment_id()
+
         self.validate()
         data = self.to_bson()
         data['updated'] = datetime.utcnow()
