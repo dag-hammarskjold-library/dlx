@@ -15,10 +15,20 @@ def s3():
     S3.client.create_bucket(Bucket=S3.bucket) # has no effect outside this function?
     
     return S3.client
+    
+@pytest.fixture
+def tempfile():
+    from tempfile import TemporaryFile
+    
+    handle = TemporaryFile()
+    handle.write(b'test data')
+    handle.seek(0)
+    
+    return handle
 
 @mock_s3
-def test_import_from_handle(db, s3):    
-    from tempfile import TemporaryFile
+def test_import_from_handle(db, s3, tempfile):   
+    from tempfile import TemporaryFile 
     from dlx import Config, DB
     from dlx.file import S3, File, Identifier, FileExists, FileExistsIdentifierConflict, FileExistsLanguageConflict
     
@@ -26,7 +36,6 @@ def test_import_from_handle(db, s3):
     handle = TemporaryFile()
     handle.write(b'some data')
     handle.seek(0)
-    
     File.import_from_handle(handle, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
     
     results = list(DB.files.find({'identifiers': {'type': 'isbn', 'value': '1'}}))
@@ -94,7 +103,7 @@ def test_import_from_url(db, s3):
     server = HTTPServer(('127.0.0.1', 9090), None)
     responses.add(responses.GET, 'http://127.0.0.1:9090', body=BytesIO(b'test data').read())
     control = 'eb733a00c0c9d336e65691a37ab54293'
-    assert File.import_from_url(url='http://127.0.0.1:9090', identifiers=[Identifier('isbn', '3')], filename='test', languages=['EN'], mimetype='test', source=None) == control
+    assert File.import_from_url(url='http://127.0.0.1:9090', identifiers=[Identifier('isbn', '3')], filename='test', languages=['EN'], mimetype='test', source='test') == control
 
 @mock_s3   
 def test_import_from_binary(db, s3):
@@ -104,25 +113,14 @@ def test_import_from_binary(db, s3):
     S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing 
     control = 'eb733a00c0c9d336e65691a37ab54293'
     assert File.import_from_binary(b'test data', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test') == control
-   
-def test_init_file(db):
-    from datetime import datetime
-    from dlx.file import File
-    
-    f = File({'_id': 'x', 'identifiers': [], 'languages': [], 'timestamp': datetime(1999, 12, 31), 'mimetype': '', 'size': 0, 'source': '', 'uri': ''})
-    assert isinstance(f, File)
 
 @mock_s3    
-def test_find(db, s3):
-    from tempfile import TemporaryFile
+def test_find(db, s3, tempfile):
     from dlx import Config, DB
     from dlx.file import S3, File, Identifier
     
     S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
-    handle = TemporaryFile()
-    handle.write(b'test data')
-    handle.seek(0)
-    File.import_from_handle(handle, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
+    File.import_from_handle(tempfile, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
     
     for f in File.find({}):
         assert isinstance(f, File)
@@ -134,3 +132,43 @@ def test_find(db, s3):
     f = File.find_one({'_id': 'eb733a00c0c9d336e65691a37ab54293'})
     assert f.id == 'eb733a00c0c9d336e65691a37ab54293'
 
+@mock_s3
+def test_find_special(db, s3, tempfile):
+    from datetime import datetime
+    from dlx import Config, DB
+    from dlx.file import S3, File, Identifier as ID
+    
+    S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
+    File.import_from_handle(tempfile, identifiers=[ID('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
+    
+    results = list(File.find_by_identifier(ID('isbn', '1')))
+    assert len(results) == 1
+    
+    for f in results:    
+        assert isinstance(f, File)
+        
+    results = list(File.find_by_date(datetime.strptime('1900-01-01', '%Y-%m-%d')))
+    assert len(results) == 1
+    
+    for f in results:    
+        assert isinstance(f, File)
+
+@mock_s3    
+def test_commit(db, s3, tempfile):
+    from pymongo.results import UpdateResult
+    from dlx import Config, DB
+    from dlx.file import S3, File, Identifier as ID
+    
+    S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
+    File.import_from_handle(tempfile, identifiers=[ID('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
+    
+    f = list(File.find_by_identifier(ID('isbn', '1')))[0]
+    f.identifiers = [ID('issn', '2')]
+    result = f.commit()
+    assert isinstance(result, UpdateResult)
+    f = list(File.find_by_identifier(ID('issn', '2')))[0]
+    assert f.identifiers[0].type == 'issn'
+    assert f.identifiers[0].value == '2'
+    assert f.updated
+    
+    

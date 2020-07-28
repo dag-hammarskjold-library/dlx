@@ -10,16 +10,16 @@ class Config():
     # schemas
     schema_dir = os.path.dirname(__file__) + '/schemas/'
 
-    with open(schema_dir + 'jmarc.schema.json') as f:
-        jmarc_schema = json.loads(f.read())
+    with open(schema_dir + 'jmarc.schema.json') as ms:
+        jmarc_schema = json.loads(ms.read())
 
-    #with open(schema_dir + '/jfile.schema.json') as f:
-    #   jfile_schema = json.loads(f.read())
+    with open(schema_dir + 'jfile.schema.json') as fs:
+        jfile_schema = json.loads(fs.read())
     
     #files_bucket = 'temp'
     
     date_field = ['269', 'a']
-    
+        
     bib_index_fields = {
         '191': 'hybrid',
         '269': 'literal',

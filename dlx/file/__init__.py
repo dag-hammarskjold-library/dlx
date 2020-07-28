@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from json import dumps
 from tempfile import TemporaryFile, SpooledTemporaryFile
+import jsonschema
 from bson import SON
 from dlx import Config, DB
 from dlx.util import ISO6391
@@ -33,13 +34,13 @@ class Identifier(object):
     
     def __init__(self, identifier_type, value):
         self.type = identifier_type
-        self.value = value
+        self.value = str(value)
         
-    def to_str(self):
-        '''Returns a JSON string for comparing to to other 
+    def to_dict(self):
+        '''Returns a Python dict for comparing to to other 
         `Identifier` objects.'''
         
-        return dumps({'type': self.type, 'value': self.value})
+        return {'type': self.type, 'value': self.value}
 
 class File(object):    
     @classmethod    
@@ -148,18 +149,23 @@ class File(object):
         handle.seek(0)
         
         if S3.upload(handle, checksum, mimetype):
-            data = SON({
-                '_id': checksum,
-                'filename': filename,
-                'identifiers': [SON({'type': idx.type, 'value': idx.value}) for idx in identifiers],
-                'languages': languages,
-                'mimetype': mimetype,
-                'size': size,
-                'source': source,
-                'timestamp': datetime.now(timezone.utc),
-                'uri': '{}.s3.amazonaws.com/{}'.format(S3.bucket, checksum),
-            })
-                
+            f = File(
+                {
+                    '_id': checksum,
+                    'filename': filename,
+                    'identifiers': [SON([('type', idx.type), ('value', idx.value)]) for idx in identifiers],
+                    'languages': languages,
+                    'mimetype': mimetype,
+                    'size': size,
+                    'source': source,
+                    'timestamp': datetime.now(timezone.utc),
+                    'uri': '{}.s3.amazonaws.com/{}'.format(S3.bucket, checksum),
+                }
+            )
+            
+            f.validate()
+            data = f.to_bson()
+             
             if overwrite == True:
                 db_result = DB.files.replace_one({'_id': checksum}, data, upsert=True)
             else:
@@ -201,21 +207,95 @@ class File(object):
     @classmethod
     def find_one(cls, query, *args, **kwargs):
         return cls(DB.files.find_one(query, *args, **kwargs))
-
+        
+    @classmethod
+    def from_id(cls, idx):
+        return cls.find_one({'_id': idx})
+    
+    @classmethod
+    def find_by_identifier(cls, identifier):
+        assert isinstance(identifier, Identifier)
+        
+        return cls.find({'identifiers': {'type': identifier.type, 'value': identifier.value}})
+        
+    @classmethod
+    def find_by_date(cls, date_from, date_to=None):
+        assert isinstance(date_from, datetime)
+        
+        if date_to:
+            assert isinstance(date_to, datetime)
+        else:
+            date_to = datetime.now(timezone.utc)    
+        
+        query = {
+            '$or': [
+                {
+                    '$and': [
+                        {'timestamp': {'$gte': date_from}},
+                        {'timestamp': {'$lt': date_to}}
+                    ]
+                },
+                {
+                    '$and': [
+                        {'updated': {'$gte': date_from}},
+                        {'updated': {'$lt': date_to}}
+                    ]
+                },
+            ]
+        }
+        
+        return cls.find(query)
+        
     ###
     
-    def __init__(self, doc={}):
-        if doc:
-            self.id = doc['_id']
-            self.identifiers = doc['identifiers']
-            self.languages = doc['languages']
-            self.mimetype = doc['mimetype']
-            self.size = doc['size']
-            self.source = doc['source']
-            self.timestamp = doc['timestamp']
-            self.uri = doc['uri']
+    def __init__(self, doc):
+        for lang in doc['languages']:
+            if lang.lower() not in ISO6391.codes:
+                raise Exception('Invalid language code: {}'.format(lang))
+        
+        self.id = doc['_id']
+        self.filename = doc['filename']
+        self.identifiers = [Identifier(i['type'], i['value']) for i in doc['identifiers']]
+        self.languages = doc['languages']
+        self.mimetype = doc['mimetype']
+        self.size = doc['size']
+        self.source = doc['source']
+        self.timestamp = doc['timestamp']
+        self.uri = doc['uri']
+        self.updated = doc.get('updated')
         
     @property
     def checksum(self):
         return self.id
-                
+        
+    def validate(self):
+        jsonschema.validate(instance=self.to_dict(), schema=Config.jfile_schema, format_checker=jsonschema.FormatChecker())
+        
+    def commit(self):
+        self.updated = datetime.now(timezone.utc)
+        self.validate()
+
+        return DB.files.replace_one({'_id': self.id}, self.to_bson(), upsert=True)
+        
+    def to_bson(self):
+        data = SON(
+            [
+                ('_id', self.id),
+                ('filename', self.filename),
+                ('identifiers', [SON([('type', idx.type), ('value', idx.value)]) for idx in self.identifiers]),
+                ('languages', self.languages),
+                ('mimetype', self.mimetype),
+                ('size', self.size),
+                ('source', self.source),
+                ('timestamp', self.timestamp),
+                ('uri', self.uri)
+            ]
+        )
+        
+        if self.updated:
+            data['updated'] = self.updated
+            
+        return data 
+    
+    def to_dict(self):
+        return self.to_bson().to_dict()
