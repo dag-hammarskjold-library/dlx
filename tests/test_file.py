@@ -147,7 +147,7 @@ def test_find_special(db, s3, tempfile):
     for f in results:    
         assert isinstance(f, File)
         
-    results = list(File.find_by_date(datetime.fromisoformat('1900-01-01')))
+    results = list(File.find_by_date(datetime.strptime('1900-01-01', '%Y-%m-%d')))
     assert len(results) == 1
     
     for f in results:    
