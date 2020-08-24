@@ -152,6 +152,9 @@ def test_find_special(db, s3, tempfile):
     
     for f in results:    
         assert isinstance(f, File)
+        
+    result = File.latest_by_identifier_language(ID('isbn', '1'), 'EN')
+    assert isinstance(result, File)
 
 @mock_s3    
 def test_commit(db, s3, tempfile):

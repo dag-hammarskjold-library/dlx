@@ -5,6 +5,7 @@ from json import dumps
 from tempfile import TemporaryFile, SpooledTemporaryFile
 import jsonschema
 from bson import SON
+from pymongo import ASCENDING as ASC, DESCENDING as DESC
 from dlx import Config, DB
 from dlx.util import ISO6391
 from dlx.file.s3 import S3
@@ -70,7 +71,7 @@ class Identifier(object):
     def to_str(self):
         return str({'type': self.type, 'value': self.value})
 
-class File(object):    
+class File(object):
     @classmethod    
     def import_from_path(cls, path, filename, identifiers, languages, mimetype, source, overwrite=False):
         fh = open(path, 'rb')
@@ -243,6 +244,22 @@ class File(object):
         return cls.find({'identifiers': {'type': identifier.type, 'value': identifier.value}})
         
     @classmethod
+    def find_by_identifier_language(cls, identifier, language):
+        assert isinstance(identifier, Identifier)
+        
+        return cls.find(
+            {
+                'identifiers': {'type': identifier.type, 'value': identifier.value},
+                'languages': language
+            },
+            sort=[('timestamp', DESC)]
+        )
+        
+    @classmethod
+    def latest_by_identifier_language(cls, identifier, language):
+         return next(cls.find_by_identifier_language(identifier, language), None)
+        
+    @classmethod
     def find_by_date(cls, date_from, date_to=None):
         assert isinstance(date_from, datetime)
         
@@ -269,7 +286,7 @@ class File(object):
         }
         
         return cls.find(query)
-        
+  
     ###
     
     def __init__(self, doc):
