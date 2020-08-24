@@ -9,23 +9,45 @@ from dlx import Config, DB
 from dlx.util import ISO6391
 from dlx.file.s3 import S3
 
-
 class FileExists(Exception):
-    pass
-    
-class FileExistsIdentifierConflict(FileExists):
-    def __init__(self, existing_identifiers, existing_languages):
-        super().__init__('File already exists but with different identifiers: {} - {}'.format(existing_identifiers, existing_languages))
+    def __init__(self, checksum, identifiers, languages, existing_record, message=None):
+        self.checksum = checksum
+        self.identifiers = identifiers
+        self.languages = languages
+        self.message = message or 'File {} - {} - {} already exists'.format(checksum, [x.to_str() for x in identifiers], languages)
         
-        self.existing_identifiers = existing_identifiers
-        self.existing_languages = existing_languages
+        super().__init__(self, self.message)
+        
+class FileExistsConflict(FileExists):
+    def __init__(self, checksum, identifiers, languages, existing_record):
+        self.existing_identifiers = existing_record.identifiers
+        self.existing_languages = existing_record.languages
 
-class FileExistsLanguageConflict(FileExists):
-    def __init__(self, existing_identifiers, existing_languages):
-        super().__init__('File already exists but with different languages: {} - {}'.format(existing_identifiers, existing_languages))
+        super().__init__(
+            checksum,
+            identifiers,
+            languages,
+            existing_record,
+            'File {} - {} - {} already exists but with different {}: {}'.format(
+                checksum,
+                [x.to_str() for x in identifiers],
+                languages,
+                self.descriptor,
+                [x.to_str() for x in existing_record.identifiers] if self.descriptor == 'identifiers' else existing_record.languages
+            )
+        )
+    
+class FileExistsIdentifierConflict(FileExistsConflict):
+    def __init__(self, checksum, identifiers, languages, existing_record):
+        self.descriptor = 'identifiers'
         
-        self.existing_identifiers = existing_identifiers
-        self.existing_languages = existing_languages
+        super().__init__(checksum, identifiers, languages, existing_record)
+
+class FileExistsLanguageConflict(FileExistsConflict):
+    def __init__(self, checksum, identifiers, languages, existing_record):
+        self.descriptor = 'languages'
+        
+        super().__init__(checksum, identifiers, languages, existing_record)
         
 ###
     
@@ -36,11 +58,17 @@ class Identifier(object):
         self.type = identifier_type
         self.value = str(value)
         
-    def to_dict(self):
-        '''Returns a Python dict for comparing to to other 
-        `Identifier` objects.'''
+    def __eq__(self, other):
+        if self.type == other.type and self.value == other.value:
+            return True
+        else:
+            return False
         
+    def to_dict(self):
         return {'type': self.type, 'value': self.value}
+        
+    def to_str(self):
+        return str({'type': self.type, 'value': self.value})
 
 class File(object):    
     @classmethod    
@@ -178,24 +206,17 @@ class File(object):
 
     @staticmethod
     def _check_file_exists(checksum, identifiers, languages):
-        existing_record = DB.files.find_one({'_id': checksum})
+        existing_record = File.find_one({'_id': checksum})
         
         if existing_record:
             for idx in identifiers:
-                raw_idx = {'type': idx.type, 'value': str(idx.value)}
-                
-                if raw_idx not in existing_record['identifiers']:
-                    raise FileExistsIdentifierConflict(existing_record['identifiers'], existing_record['languages'])
+                if not list(filter(lambda x: x == idx, existing_record.identifiers)):
+                    raise FileExistsIdentifierConflict(checksum, identifiers, languages, existing_record)
+            
+            if sorted(languages) != sorted(existing_record.languages):
+                raise FileExistsLanguageConflict(checksum, identifiers, languages, existing_record)
                     
-            for raw_idx in existing_record['identifiers']:
-                if {'type': raw_idx['type'], 'value': raw_idx['value']} not in [{'type': x.type, 'value': x.value} for x in identifiers]:
-                    raise FileExistsIdentifierConflict(existing_record['identifiers'], existing_record['languages'])
-  
-            for lang in languages:
-                if sorted(languages) != existing_record['languages']:
-                    raise FileExistsLanguageConflict(existing_record['identifiers'], existing_record['languages'])
-                    
-            raise FileExists()
+            raise FileExists(checksum, identifiers, languages, existing_record)
             
     ###
     
@@ -206,7 +227,10 @@ class File(object):
             
     @classmethod
     def find_one(cls, query, *args, **kwargs):
-        return cls(DB.files.find_one(query, *args, **kwargs))
+        doc = DB.files.find_one(query, *args, **kwargs)
+        
+        if doc:
+            return File(doc)
         
     @classmethod
     def from_id(cls, idx):
