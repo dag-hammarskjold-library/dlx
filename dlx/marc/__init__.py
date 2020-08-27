@@ -994,7 +994,7 @@ class Controlfield(Field):
         return self.value + term
 
     def to_mrk(self, language=None):
-        return '{}  {}'.format(self.tag, self.value)
+        return '={}  {}'.format(self.tag, self.value)
 
 class Datafield(Field):
     def __init__(self, tag=None, ind1=None, ind2=None, subfields=None, record_type=None):
@@ -1113,7 +1113,7 @@ class Datafield(Field):
         inds = self.ind1 + self.ind2
         inds = inds.replace(' ', '\\')
 
-        string = '{}  {}'.format(self.tag, inds)
+        string = '={}  {}'.format(self.tag, inds)
         
         for sub in self.subfields:
             if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
