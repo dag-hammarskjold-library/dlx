@@ -362,7 +362,7 @@ def test_to_mrc(db):
 def test_to_mrk(bibs):
     from dlx.marc import Bib
     
-    control = '000  leader\n008  controlfield\n245  \\\\$aThis$bis the$ctitle\n520  \\\\$aDescription\n520  \\\\$aAnother description$aRepeated subfield\n650  \\\\$aHeader\n710  \\\\$aAnother header\n'
+    control = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n'
 
     bib = Bib.find_one({'_id': 1})
     assert bib.to_mrk() == control

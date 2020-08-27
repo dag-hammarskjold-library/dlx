@@ -114,7 +114,7 @@ def test_to_mrc(db):
 def test_to_mrk(db):
     from dlx.marc import BibSet
     
-    control = '000  leader\n008  controlfield\n245  \\\\$aThis$bis the$ctitle\n520  \\\\$aDescription\n520  \\\\$aAnother description$aRepeated subfield\n650  \\\\$aHeader\n710  \\\\$aAnother header\n\n000  leader\n245  \\\\$aAnother$bis the$ctitle\n650  \\\\$aHeader\n'
+    control = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n\n=000  leader\n=245  \\\\$aAnother$bis the$ctitle\n=650  \\\\$aHeader\n'
     assert BibSet.from_query({}).to_mrk() == control
     
 def test_to_xml(db):
