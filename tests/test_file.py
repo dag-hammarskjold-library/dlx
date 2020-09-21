@@ -57,7 +57,7 @@ def test_import_from_handle(db, s3, tempfile):
         handle.seek(0)
         File.import_from_handle(handle, identifiers=[Identifier('isbn', '2')], filename='test', languages=['FR'], mimetype='test', source=None)
     
-    assert xe.value.existing_identifiers == [{'type': 'isbn', 'value': '1'}]
+    assert xe.value.existing_identifiers == [Identifier('isbn', '1')]
     assert xe.value.existing_languages == ['EN']
     
     with pytest.raises(FileExistsLanguageConflict) as xe:
@@ -66,7 +66,7 @@ def test_import_from_handle(db, s3, tempfile):
         handle.seek(0)
         File.import_from_handle(handle, identifiers=[Identifier('isbn', '1')], filename='test', languages=['FR'], mimetype='test', source=None)
         
-    assert xe.value.existing_identifiers == [{'type': 'isbn', 'value': '1'}]
+    assert xe.value.existing_identifiers == [Identifier('isbn', '1')]
     assert xe.value.existing_languages == ['EN']
 
     handle.seek(0)
@@ -161,11 +161,12 @@ def test_find_special(db, s3, tempfile):
     
     for f in results:    
         assert isinstance(f, File)
-        
+
     f = File.latest_by_identifier_language(ID('isbn', '1'), 'EN')
     assert isinstance(f, File)
     
     assert File.latest_by_identifier_language(ID('isbn', '1'), 'FR') is None
+
 
 @mock_s3    
 def test_commit(db, s3, tempfile):

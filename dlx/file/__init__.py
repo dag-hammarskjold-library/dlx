@@ -5,6 +5,7 @@ from json import dumps
 from tempfile import TemporaryFile, SpooledTemporaryFile
 import jsonschema
 from bson import SON
+from pymongo import ASCENDING as ASC, DESCENDING as DESC
 from dlx import Config, DB
 from dlx.util import ISO6391
 from dlx.file.s3 import S3
@@ -50,13 +51,19 @@ class Identifier(object):
         self.type = identifier_type
         self.value = str(value)
         
-    def to_dict(self):
-        '''Returns a Python dict for comparing to to other 
-        `Identifier` objects.'''
+    def __eq__(self, other):
+        if self.type == other.type and self.value == other.value:
+            return True
+        else:
+            return False
         
+    def to_dict(self):
         return {'type': self.type, 'value': self.value}
+        
+    def to_str(self):
+        return str({'type': self.type, 'value': self.value})
 
-class File(object):    
+class File(object):
     @classmethod    
     def import_from_path(cls, path, filename, identifiers, languages, mimetype, source, overwrite=False):
         fh = open(path, 'rb')
@@ -216,24 +223,17 @@ class File(object):
 
     @staticmethod
     def _check_file_exists(checksum, identifiers, languages):
-        existing_record = DB.files.find_one({'_id': checksum})
+        existing_record = File.find_one({'_id': checksum})
         
         if existing_record:
             for idx in identifiers:
-                raw_idx = {'type': idx.type, 'value': str(idx.value)}
-                
-                if raw_idx not in existing_record['identifiers']:
-                    raise FileExistsIdentifierConflict(existing_record['identifiers'], existing_record['languages'])
+                if not list(filter(lambda x: x == idx, existing_record.identifiers)):
+                    raise FileExistsIdentifierConflict(checksum, identifiers, languages, existing_record)
+            
+            if sorted(languages) != sorted(existing_record.languages):
+                raise FileExistsLanguageConflict(checksum, identifiers, languages, existing_record)
                     
-            for raw_idx in existing_record['identifiers']:
-                if {'type': raw_idx['type'], 'value': raw_idx['value']} not in [{'type': x.type, 'value': x.value} for x in identifiers]:
-                    raise FileExistsIdentifierConflict(existing_record['identifiers'], existing_record['languages'])
-  
-            for lang in languages:
-                if sorted(languages) != existing_record['languages']:
-                    raise FileExistsLanguageConflict(existing_record['identifiers'], existing_record['languages'])
-                    
-            raise FileExists()
+            raise FileExists(checksum, identifiers, languages, existing_record)
             
     @staticmethod
     def encode_fn(identifiers, languages, extension):
@@ -258,7 +258,10 @@ class File(object):
             
     @classmethod
     def find_one(cls, query, *args, **kwargs):
-        return cls(DB.files.find_one(query, *args, **kwargs))
+        doc = DB.files.find_one(query, *args, **kwargs)
+        
+        if doc:
+            return File(doc)
         
     @classmethod
     def from_checksum(cls, checksum):
@@ -280,6 +283,22 @@ class File(object):
     def latest_by_identifier_language(cls, identifier, language):
         return next(cls.find_by_identifier(identifier, language), None)
     
+    @classmethod
+    def find_by_identifier_language(cls, identifier, language):
+        assert isinstance(identifier, Identifier)
+        
+        return cls.find(
+            {
+                'identifiers': {'type': identifier.type, 'value': identifier.value},
+                'languages': language
+            },
+            sort=[('timestamp', DESC)]
+        )
+        
+    @classmethod
+    def latest_by_identifier_language(cls, identifier, language):
+         return next(cls.find_by_identifier_language(identifier, language), None)
+        
     @classmethod
     def find_by_date(cls, date_from, date_to=None):
         assert isinstance(date_from, datetime)
@@ -307,7 +326,7 @@ class File(object):
         }
         
         return cls.find(query)
-    
+
     ###
     
     def __init__(self, doc):
