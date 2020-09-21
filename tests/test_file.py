@@ -89,8 +89,9 @@ def test_import_from_path(db, s3):
     fh.seek(0)
     path = fh.name
     control = 'eb733a00c0c9d336e65691a37ab54293'
-    assert File.import_from_path(path, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test') == control
-
+    f = File.import_from_path(path, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
+    assert f.id == control
+    
 @mock_s3
 @responses.activate
 def test_import_from_url(db, s3):
@@ -103,8 +104,9 @@ def test_import_from_url(db, s3):
     server = HTTPServer(('127.0.0.1', 9090), None)
     responses.add(responses.GET, 'http://127.0.0.1:9090', body=BytesIO(b'test data').read())
     control = 'eb733a00c0c9d336e65691a37ab54293'
-    assert File.import_from_url(url='http://127.0.0.1:9090', identifiers=[Identifier('isbn', '3')], filename='test', languages=['EN'], mimetype='test', source='test') == control
-
+    f = File.import_from_url(url='http://127.0.0.1:9090', identifiers=[Identifier('isbn', '3')], filename='test', languages=['EN'], mimetype='test', source='test')
+    assert f.id == control
+    
 @mock_s3   
 def test_import_from_binary(db, s3):
     from io import BytesIO
@@ -112,7 +114,8 @@ def test_import_from_binary(db, s3):
     
     S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing 
     control = 'eb733a00c0c9d336e65691a37ab54293'
-    assert File.import_from_binary(b'test data', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test') == control
+    f = File.import_from_binary(b'test data', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
+    assert f.id == control
 
 @mock_s3    
 def test_find(db, s3, tempfile):
@@ -147,11 +150,22 @@ def test_find_special(db, s3, tempfile):
     for f in results:    
         assert isinstance(f, File)
         
+    results = File.find_by_identifier(ID('isbn', '1'), 'EN')
+    assert len(list(results)) == 1
+    
+    results = File.find_by_identifier(ID('isbn', '1'), 'FR')
+    assert len(list(results)) == 0
+    
     results = list(File.find_by_date(datetime.strptime('1900-01-01', '%Y-%m-%d')))
     assert len(results) == 1
     
     for f in results:    
         assert isinstance(f, File)
+        
+    f = File.latest_by_identifier_language(ID('isbn', '1'), 'EN')
+    assert isinstance(f, File)
+    
+    assert File.latest_by_identifier_language(ID('isbn', '1'), 'FR') is None
 
 @mock_s3    
 def test_commit(db, s3, tempfile):
@@ -170,5 +184,3 @@ def test_commit(db, s3, tempfile):
     assert f.identifiers[0].type == 'issn'
     assert f.identifiers[0].value == '2'
     assert f.updated
-    
-    

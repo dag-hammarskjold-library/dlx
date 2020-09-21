@@ -55,5 +55,5 @@
 		}
     },
     "additionalProperties": true,
-    "required": ["_id", "filename", "identifiers", "languages", "mimetype", "size", "source", "timestamp", "uri"]
+    "required": ["_id", "identifiers", "languages", "mimetype", "size", "source", "timestamp", "uri"]
 }

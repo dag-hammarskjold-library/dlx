@@ -9,24 +9,38 @@ from dlx import Config, DB
 from dlx.util import ISO6391
 from dlx.file.s3 import S3
 
+###
 
 class FileExists(Exception):
-    pass
+    def __init__(self, message=None):
+        super().__init__(message or 'File already exists')
     
-class FileExistsIdentifierConflict(FileExists):
-    def __init__(self, existing_identifiers, existing_languages):
-        super().__init__('File already exists but with different identifiers: {} - {}'.format(existing_identifiers, existing_languages))
+class FileExistsConflict(FileExists):
+    def __init__(self):
+        self.message = 'File already exists but with different {}: {} - {}'.format(
+            self.desc,
+            self.existing_identifiers,
+            self.existing_languages
+        )
         
+        super().__init__(self.message)
+    
+class FileExistsIdentifierConflict(FileExistsConflict):    
+    def __init__(self, existing_identifiers, existing_languages):
+        self.desc = 'identifiers'
         self.existing_identifiers = existing_identifiers
         self.existing_languages = existing_languages
+        
+        super().__init__()
 
-class FileExistsLanguageConflict(FileExists):
+class FileExistsLanguageConflict(FileExists):    
     def __init__(self, existing_identifiers, existing_languages):
-        super().__init__('File already exists but with different languages: {} - {}'.format(existing_identifiers, existing_languages))
-        
+        self.desc = 'languages'
         self.existing_identifiers = existing_identifiers
         self.existing_languages = existing_languages
         
+        super().__init__()
+
 ###
     
 class Identifier(object):
@@ -47,7 +61,14 @@ class File(object):
     def import_from_path(cls, path, filename, identifiers, languages, mimetype, source, overwrite=False):
         fh = open(path, 'rb')
         
-        return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source)
+        return cls.import_from_handle(
+            fh, 
+            filename=filename, 
+            identifiers=identifiers, 
+            languages=languages, 
+            mimetype=mimetype, 
+            source=source
+        )
 
     @classmethod
     def import_from_url(cls, url, filename, identifiers, languages, mimetype, source, overwrite=False):
@@ -61,52 +82,67 @@ class File(object):
                 
             fh.seek(0)
             
-            return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source, overwrite=False)
+        return cls.import_from_handle(
+            fh, 
+            filename=filename, 
+            identifiers=identifiers, 
+            languages=languages, 
+            mimetype=mimetype, 
+            source=source
+        )
         
     @classmethod
     def import_from_binary(cls, data, filename, identifiers, languages, mimetype, source, overwrite=False):
-        return cls.import_from_handle(BytesIO(data), filename, identifiers, languages, mimetype, source)
+        return cls.import_from_handle(
+            BytesIO(data), 
+            filename=filename, 
+            identifiers=identifiers, 
+            languages=languages, 
+            mimetype=mimetype, 
+            source=source
+    )
         
     @classmethod
-    def import_from_handle(cls, handle, filename, identifiers, languages, mimetype, source, overwrite=False):
-        '''Import a file using a file-like object. The file is 
-        uploaded to the s3 bucket specified in `dlx.Config`. The
-        metadata is stored in the database.
+    def import_from_handle(cls, handle, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
+        '''Import a file using a file-like object. The file is uploaded to the
+        s3 bucket specified in `dlx.Config`. The metadata is stored in the
+        database
         
-        All paramaters are required.
         
-        Parameters
-        ----------
-        handle : Any file-like object
-        filename : str
-            The destination filename. Files with common identifiers, 
-            languages, and filename are considered versions of each 
-            other
+        Positional arguments
+        --------------------
+        handle : Any file-like object (required)
+        
+        Keyword arguments
+        ------------------
         identifiers : list(dlx.file.Identifier)
         languages : list(str)
-            The ISO 639-1 codes of the languages of the content.
-            Codes will be stored in uppercase.
+            The ISO 639-1 code(s) of the content language(s)
         mimetype : str
-            Must be a value recognized by s3, otherwise the upload
-            will fail
+            Must be a value recognized by s3, otherwise the upload will fail
         source : str
-            Name of the process that called the import for auditing
+            Name of the process that called the import
+        filename : str
+            Filename recomended for use on download (optional)
         overwrite : bool
             Ignore exisiting file exceptions and overwrite the data and file
         
         Returns
         -------
-        If succesful, the md5 checksum as a hex string (also used as
-        the database record ID) of the imported file, otherwise 
-        `False`
+        If succesful, the md5 checksum as a hex string, which is also used as
+        the database record ID of the imported file. If unsuccesful, an
+        exception is thrown
         
         Raises
         ------
+        Imports are subject to all relevant Pymongo and Boto3 exeptions, as
+        well as
+        
         FileExists : The file is already in the system
         FileExistsIdentifierConflict : The file is already in the
             system but with different identifiers
         FileExistsLanguageConflict : The file is already in the 
-            system different languages
+            system but with different languages
         '''
         
         ###
@@ -172,7 +208,9 @@ class File(object):
                 db_result = DB.files.insert_one(data)
                     
             if db_result.acknowledged:
-                return checksum
+                return f
+            else:
+                raise Exception('This should be impossible')
         
         return False
 
@@ -197,6 +235,20 @@ class File(object):
                     
             raise FileExists()
             
+    @staticmethod
+    def encode_fn(identifiers, languages, extension):
+        ids = [identifiers] if isinstance(identifiers, str) else identifiers
+        langs = [languages] if isinstance(languages, str) else languages
+        
+        for lang in langs:
+            assert ISO6391.codes[lang.lower()]
+        
+        return '{}-{}.{}'.format(
+            '&'.join([idx.translate(str.maketrans(' /[]*:;', '__^^!#%')) for idx in ids]),
+            '-'.join([x.upper() for x in langs]),
+            extension
+        )
+
     ###
     
     @classmethod
@@ -209,15 +261,25 @@ class File(object):
         return cls(DB.files.find_one(query, *args, **kwargs))
         
     @classmethod
-    def from_id(cls, idx):
-        return cls.find_one({'_id': idx})
+    def from_checksum(cls, checksum):
+        return cls.find_one({'_id': checksum})
     
     @classmethod
-    def find_by_identifier(cls, identifier):
+    def find_by_identifier(cls, identifier, language=None):
         assert isinstance(identifier, Identifier)
         
-        return cls.find({'identifiers': {'type': identifier.type, 'value': identifier.value}})
+        query = {'identifiers': {'type': identifier.type, 'value': identifier.value}}
         
+        if language:
+            assert ISO6391.codes[language.lower()]
+            query['languages'] = language.upper()
+            
+        return cls.find(query)
+        
+    @classmethod
+    def latest_by_identifier_language(cls, identifier, language):
+        return next(cls.find_by_identifier(identifier, language), None)
+    
     @classmethod
     def find_by_date(cls, date_from, date_to=None):
         assert isinstance(date_from, datetime)
@@ -245,7 +307,7 @@ class File(object):
         }
         
         return cls.find(query)
-        
+    
     ###
     
     def __init__(self, doc):
@@ -254,7 +316,7 @@ class File(object):
                 raise Exception('Invalid language code: {}'.format(lang))
         
         self.id = doc['_id']
-        self.filename = doc['filename']
+        self.filename = doc.get('filename')
         self.identifiers = [Identifier(i['type'], i['value']) for i in doc['identifiers']]
         self.languages = doc['languages']
         self.mimetype = doc['mimetype']
@@ -281,7 +343,7 @@ class File(object):
         data = SON(
             [
                 ('_id', self.id),
-                ('filename', self.filename),
+                ('filename', self.filename or ''),
                 ('identifiers', [SON([('type', idx.type), ('value', idx.value)]) for idx in self.identifiers]),
                 ('languages', self.languages),
                 ('mimetype', self.mimetype),
