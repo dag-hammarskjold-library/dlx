@@ -10,46 +10,38 @@ from dlx import Config, DB
 from dlx.util import ISO6391
 from dlx.file.s3 import S3
 
+###
+
 class FileExists(Exception):
-    def __init__(self, checksum, identifiers, languages, existing_record, message=None):
-        self.checksum = checksum
-        self.identifiers = identifiers
-        self.languages = languages
-        self.message = message or 'File {} - {} - {} already exists'.format(checksum, [x.to_str() for x in identifiers], languages)
-        
-        super().__init__(self, self.message)
-        
-class FileExistsConflict(FileExists):
-    def __init__(self, checksum, identifiers, languages, existing_record):
-        self.existing_identifiers = existing_record.identifiers
-        self.existing_languages = existing_record.languages
-
-        super().__init__(
-            checksum,
-            identifiers,
-            languages,
-            existing_record,
-            'File {} - {} - {} already exists but with different {}: {}'.format(
-                checksum,
-                [x.to_str() for x in identifiers],
-                languages,
-                self.descriptor,
-                [x.to_str() for x in existing_record.identifiers] if self.descriptor == 'identifiers' else existing_record.languages
-            )
-        )
+    def __init__(self, message=None):
+        super().__init__(message or 'File already exists')
     
-class FileExistsIdentifierConflict(FileExistsConflict):
-    def __init__(self, checksum, identifiers, languages, existing_record):
-        self.descriptor = 'identifiers'
+class FileExistsConflict(FileExists):
+    def __init__(self):
+        self.message = 'File already exists but with different {}: {} - {}'.format(
+            self.desc,
+            self.existing_identifiers,
+            self.existing_languages
+        )
         
-        super().__init__(checksum, identifiers, languages, existing_record)
+        super().__init__(self.message)
+    
+class FileExistsIdentifierConflict(FileExistsConflict):    
+    def __init__(self, existing_identifiers, existing_languages):
+        self.desc = 'identifiers'
+        self.existing_identifiers = existing_identifiers
+        self.existing_languages = existing_languages
+        
+        super().__init__()
 
-class FileExistsLanguageConflict(FileExistsConflict):
-    def __init__(self, checksum, identifiers, languages, existing_record):
-        self.descriptor = 'languages'
+class FileExistsLanguageConflict(FileExists):    
+    def __init__(self, existing_identifiers, existing_languages):
+        self.desc = 'languages'
+        self.existing_identifiers = existing_identifiers
+        self.existing_languages = existing_languages
         
-        super().__init__(checksum, identifiers, languages, existing_record)
-        
+        super().__init__()
+
 ###
     
 class Identifier(object):
@@ -73,13 +65,20 @@ class Identifier(object):
 
 class File(object):
     @classmethod    
-    def import_from_path(cls, path, filename, identifiers, languages, mimetype, source, overwrite=False):
+    def import_from_path(cls, path, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
         fh = open(path, 'rb')
         
-        return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source)
+        return cls.import_from_handle(
+            fh, 
+            filename=filename, 
+            identifiers=identifiers, 
+            languages=languages, 
+            mimetype=mimetype, 
+            source=source
+        )
 
     @classmethod
-    def import_from_url(cls, url, filename, identifiers, languages, mimetype, source, overwrite=False):
+    def import_from_url(cls, url, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
         hasher = hashlib.md5()
         fh = TemporaryFile('wb+')
         response = requests.get(url, stream=True)
@@ -90,52 +89,67 @@ class File(object):
                 
             fh.seek(0)
             
-            return cls.import_from_handle(fh, filename, identifiers, languages, mimetype, source, overwrite=False)
+        return cls.import_from_handle(
+            fh, 
+            filename=filename, 
+            identifiers=identifiers, 
+            languages=languages, 
+            mimetype=mimetype, 
+            source=source
+        )
         
     @classmethod
-    def import_from_binary(cls, data, filename, identifiers, languages, mimetype, source, overwrite=False):
-        return cls.import_from_handle(BytesIO(data), filename, identifiers, languages, mimetype, source)
+    def import_from_binary(cls, data, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
+        return cls.import_from_handle(
+            BytesIO(data), 
+            filename=filename, 
+            identifiers=identifiers, 
+            languages=languages, 
+            mimetype=mimetype, 
+            source=source
+    )
         
     @classmethod
-    def import_from_handle(cls, handle, filename, identifiers, languages, mimetype, source, overwrite=False):
-        '''Import a file using a file-like object. The file is 
-        uploaded to the s3 bucket specified in `dlx.Config`. The
-        metadata is stored in the database.
+    def import_from_handle(cls, handle, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
+        '''Import a file using a file-like object. The file is uploaded to the
+        s3 bucket specified in `dlx.Config`. The metadata is stored in the
+        database
         
-        All paramaters are required.
         
-        Parameters
-        ----------
-        handle : Any file-like object
-        filename : str
-            The destination filename. Files with common identifiers, 
-            languages, and filename are considered versions of each 
-            other
+        Positional arguments
+        --------------------
+        handle : Any file-like object (required)
+        
+        Keyword arguments
+        ------------------
         identifiers : list(dlx.file.Identifier)
         languages : list(str)
-            The ISO 639-1 codes of the languages of the content.
-            Codes will be stored in uppercase.
+            The ISO 639-1 code(s) of the content language(s)
         mimetype : str
-            Must be a value recognized by s3, otherwise the upload
-            will fail
+            Must be a value recognized by s3, otherwise the upload will fail
         source : str
-            Name of the process that called the import for auditing
+            Name of the process that called the import
+        filename : str
+            Filename recomended for use on download (optional)
         overwrite : bool
             Ignore exisiting file exceptions and overwrite the data and file
         
         Returns
         -------
-        If succesful, the md5 checksum as a hex string (also used as
-        the database record ID) of the imported file, otherwise 
-        `False`
+        If succesful, the md5 checksum as a hex string, which is also used as
+        the database record ID of the imported file. If unsuccesful, an
+        exception is thrown
         
         Raises
         ------
+        Imports are subject to all relevant Pymongo and Boto3 exeptions, as
+        well as
+        
         FileExists : The file is already in the system
         FileExistsIdentifierConflict : The file is already in the
             system but with different identifiers
         FileExistsLanguageConflict : The file is already in the 
-            system different languages
+            system but with different languages
         '''
         
         ###
@@ -201,7 +215,9 @@ class File(object):
                 db_result = DB.files.insert_one(data)
                     
             if db_result.acknowledged:
-                return checksum
+                return f
+            else:
+                raise Exception('This should be impossible')
         
         return False
 
@@ -212,12 +228,26 @@ class File(object):
         if existing_record:
             for idx in identifiers:
                 if not list(filter(lambda x: x == idx, existing_record.identifiers)):
-                    raise FileExistsIdentifierConflict(checksum, identifiers, languages, existing_record)
+                    raise FileExistsIdentifierConflict(existing_record.identifiers, existing_record.languages)
             
             if sorted(languages) != sorted(existing_record.languages):
-                raise FileExistsLanguageConflict(checksum, identifiers, languages, existing_record)
+                raise FileExistsLanguageConflict(existing_record.identifiers, existing_record.languages)
                     
             raise FileExists(checksum, identifiers, languages, existing_record)
+            
+    @staticmethod
+    def encode_fn(identifiers, languages, extension):
+        ids = [identifiers] if isinstance(identifiers, str) else identifiers
+        langs = [languages] if isinstance(languages, str) else languages
+        
+        for lang in langs:
+            assert ISO6391.codes[lang.lower()]
+        
+        return '{}-{}.{}'.format(
+            '&'.join([idx.translate(str.maketrans(' /[]*:;', '__^^!#%')) for idx in ids]),
+            '-'.join([x.upper() for x in langs]),
+            extension
+        )
             
     ###
     
@@ -238,10 +268,15 @@ class File(object):
         return cls.find_one({'_id': idx})
     
     @classmethod
-    def find_by_identifier(cls, identifier):
+    def find_by_identifier(cls, identifier, language=None):
         assert isinstance(identifier, Identifier)
         
-        return cls.find({'identifiers': {'type': identifier.type, 'value': identifier.value}})
+        query = {'identifiers': {'type': identifier.type, 'value': identifier.value}}
+        
+        if language:
+            query['languages'] = [language]
+        
+        return cls.find(query)
         
     @classmethod
     def find_by_identifier_language(cls, identifier, language):
