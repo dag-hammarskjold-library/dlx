@@ -17,11 +17,11 @@ parser.add_argument('--defaults')
 ###
 
 if __name__ == '__main__':
-    main()
+    run()
     
 ###
 
-def main():
+def run():
     args = parser.parse_args()
 
     DB.connect(args.connect)
