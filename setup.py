@@ -47,8 +47,8 @@ setup(
     python_requires = '>=3.3',
     entry_points = {
         'console_scripts': [
-            'excel_marc=scripts.excel_marc:main',
-            'init_dlx=scripts.init_dlx:main'
+            'excel-marc=dlx.scripts.excel_marc:run',
+            'init-indexes=dlx.scripts.init_indexes:run'
         ]
     }
 )

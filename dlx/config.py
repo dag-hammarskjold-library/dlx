@@ -20,22 +20,12 @@ class Config():
     
     date_field = ['269', 'a']
         
-    bib_index_fields = {
-        '191': 'hybrid',
-        '269': 'literal',
-        '791': 'hybrid', 
-        '930': 'literal', 
-        '998': 'literal'
-    }
+    bib_index = ['191', '791', '930', '998']
+    bib_index_case_insensitive = ['191']  
     
-    auth_index_fields = {
-        '100': 'literal',
-        '110': 'literal',
-        '111': 'literal',
-        '150': 'literal',
-        '190': 'literal'
-    }
-
+    auth_index = ['100', '110', '111', '150', '190']
+    auth_index_case_insensitive = [] 
+    
     # this is used by dlx.query to locate the linked value
     bib_authority_controlled = {
         '191': {'b': '190', 'c': '190'},

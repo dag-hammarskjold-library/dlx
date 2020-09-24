@@ -6,6 +6,7 @@ from tempfile import TemporaryFile, SpooledTemporaryFile
 import jsonschema
 from bson import SON
 from pymongo import ASCENDING as ASC, DESCENDING as DESC
+from pymongo.collation import Collation
 from dlx import Config, DB
 from dlx.util import ISO6391
 from dlx.file.s3 import S3
@@ -18,7 +19,8 @@ class FileExists(Exception):
     
 class FileExistsConflict(FileExists):
     def __init__(self):
-        self.message = 'File already exists but with different {}: {} - {}'.format(
+        self.message = 'File {} already exists but with different {}: {} - {}'.format(
+            self.checksum,
             self.desc,
             [x.to_str() for x in self.existing_identifiers],
             self.existing_languages
@@ -27,15 +29,17 @@ class FileExistsConflict(FileExists):
         super().__init__(self.message)
     
 class FileExistsIdentifierConflict(FileExistsConflict):    
-    def __init__(self, existing_identifiers, existing_languages):
+    def __init__(self, checksum, existing_identifiers, existing_languages):
+        self.checksum = checksum
         self.desc = 'identifiers'
         self.existing_identifiers = existing_identifiers
         self.existing_languages = existing_languages
         
         super().__init__()
 
-class FileExistsLanguageConflict(FileExists):    
-    def __init__(self, existing_identifiers, existing_languages):
+class FileExistsLanguageConflict(FileExistsConflict):    
+    def __init__(self, checksum, existing_identifiers, existing_languages):
+        self.checksum = checksum
         self.desc = 'languages'
         self.existing_identifiers = existing_identifiers
         self.existing_languages = existing_languages
@@ -52,7 +56,7 @@ class Identifier(object):
         self.value = str(value)
         
     def __eq__(self, other):
-        if self.type == other.type and self.value == other.value:
+        if self.type == other.type and self.value.lower() == other.value.lower():
             return True
         else:
             return False
@@ -228,10 +232,10 @@ class File(object):
         if existing_record:
             for idx in identifiers:
                 if not list(filter(lambda x: x == idx, existing_record.identifiers)):
-                    raise FileExistsIdentifierConflict(existing_record.identifiers, existing_record.languages)
+                    raise FileExistsIdentifierConflict(checksum, existing_record.identifiers, existing_record.languages)
             
             if sorted(languages) != sorted(existing_record.languages):
-                raise FileExistsLanguageConflict(existing_record.identifiers, existing_record.languages)
+                raise FileExistsLanguageConflict(checksum, existing_record.identifiers, existing_record.languages)
                     
             raise FileExists()
             
@@ -268,31 +272,26 @@ class File(object):
         return cls.find_one({'_id': idx})
     
     @classmethod
-    def find_by_identifier(cls, identifier, language=None):
+    def find_by_identifier(cls, identifier, language=None, *, case_insensitive=True):
         assert isinstance(identifier, Identifier)
         
-        query = {'identifiers': {'type': identifier.type, 'value': identifier.value}}
+        query = {'identifiers': {'$elemMatch': {'type': identifier.type, 'value': identifier.value}}}
         
         if language:
-            query['languages'] = [language]
+            query['languages'] = language
         
-        return cls.find(query)
+        cln = Collation(locale='en', strength=2) if case_insensitive else None
+        
+        for f in DB.files.find(query, collation=cln, sort=[('timestamp', DESC)]):
+            yield File(f)
         
     @classmethod
     def find_by_identifier_language(cls, identifier, language):
-        assert isinstance(identifier, Identifier)
-        
-        return cls.find(
-            {
-                'identifiers': {'type': identifier.type, 'value': identifier.value},
-                'languages': language
-            },
-            sort=[('timestamp', DESC)]
-        )
+        return cls.find_by_identifier(identifier, language)
         
     @classmethod
     def latest_by_identifier_language(cls, identifier, language):
-         return next(cls.find_by_identifier_language(identifier, language), None)
+        return next(cls.find_by_identifier(identifier, language), None)
         
     @classmethod
     def find_by_date(cls, date_from, date_to=None):
