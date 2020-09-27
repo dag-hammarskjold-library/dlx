@@ -858,8 +858,27 @@ class Marc(object):
     def from_mrc(self, string):
         pass
 
-    def from_mrk(self, string):
-        pass
+    @classmethod
+    def from_mrk(cls, string):
+        record = cls()
+        
+        for line in filter(None, string.split('\n')):
+            match = re.match(r'=(\d{3})  (.*)', line)
+            tag, rest = match.group(1), match.group(2)
+            
+            if tag[:2] == '00':
+                field = Controlfield(tag, rest)
+            else:
+                ind1, ind2 = rest[:2]
+                field = Datafield(tag=tag, ind1=ind1, ind2=ind2, record_type=cls.record_type)
+                
+                for chunk in filter(None, rest[2:].split('$')):
+                    code, value = chunk[0], chunk[1:]
+                    field.set(code, value, auth_control=False, auth_flag=True, subfield_place='+')
+                
+            record.fields.append(field)
+            
+        return record 
 
     def from_xml(self, string):
         pass
@@ -1030,19 +1049,22 @@ class Datafield(Field):
             except ValueError:
                 raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(self.tag, code))
                 
-            auth_controlled = True
         elif auth_flag == True and Config.is_authority_controlled(self.record_type, self.tag, code):
             auth_tag = Config.authority_source_tag(self.record_type, self.tag, code)
+            
             query = QueryDocument(Condition(tag=auth_tag, subfields={code: new_val}))
-            authset = AuthSet.from_query(query)
+            auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
+            auth = next(auths, None)
+
+            if auth is None:
+                raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is invalid')
             
-            if authset.count == 0:
-                raise Exception('Authority-controlled field {}${} value "{}" is invalid'.format(self.tag, code, new_val))
+            if next(auths, None):
+                raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is ambiguous')
             
-            auth_controlled = False
+            new_val = auth.id
         else:
             new_val = str(new_val)
-            auth_controlled = False
             
         ###
 

@@ -366,3 +366,13 @@ def test_to_mrk(bibs):
 
     bib = Bib.find_one({'_id': 1})
     assert bib.to_mrk() == control
+
+def test_from_mrk(db):
+    from dlx.marc import Bib
+    
+    mrk = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n'
+
+    bib = Bib.from_mrk(mrk)
+    assert bib.to_mrk() == mrk
+    assert bib.commit()
+    
