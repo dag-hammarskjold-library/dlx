@@ -818,25 +818,7 @@ class Marc(object):
 
     @classmethod
     def from_mrk(cls, string):
-        record = cls()
-        
-        for line in filter(None, string.split('\n')):
-            match = re.match(r'=(\d{3})  (.*)', line)
-            tag, rest = match.group(1), match.group(2)
-            
-            if tag[:2] == '00':
-                field = Controlfield(tag, rest)
-            else:
-                ind1, ind2 = rest[:2]
-                field = Datafield(tag=tag, ind1=ind1, ind2=ind2, record_type=cls.record_type)
-                
-                for chunk in filter(None, rest[2:].split('$')):
-                    code, value = chunk[0], chunk[1:]
-                    field.set(code, value, auth_control=False, auth_flag=True, subfield_place='+')
-                
-            record.fields.append(field)
-            
-        return record 
+        pass
 
     def from_xml(self, string):
         pass
