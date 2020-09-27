@@ -869,7 +869,7 @@ class Marc(object):
             if tag[:2] == '00':
                 field = Controlfield(tag, rest)
             else:
-                ind1, ind2 = rest[:2]
+                ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
                 field = Datafield(tag=tag, ind1=ind1, ind2=ind2, record_type=cls.record_type)
                 
                 for chunk in filter(None, rest[2:].split('$')):
@@ -927,19 +927,20 @@ class Bib(Marc):
 class Auth(Marc):
     record_type = 'auth'
     _cache = {}
+    _xcache = {}
     _langcache = {}
 
     @classmethod
     def lookup(cls, xref, code, language=None):
         DB.check_connection()
         
-        if xref in cls._langcache:
+        if language and xref in cls._langcache:
             if code in cls._langcache[xref]:
                 if language in cls._langcache[xref][code]:
                     return cls._langcache[xref][code][language]
         else:
             cls._langcache[xref] = {}
-        
+            
         if xref in cls._cache:
             if code in cls._cache[xref]:
                 return  cls._cache[xref][code]
@@ -955,7 +956,7 @@ class Auth(Marc):
         auth = Auth.find_one({'_id': xref}, projection)
         value = auth.heading_value(code, language) if auth else '**Linked Auth Not Found**'
         
-        if language is not None:
+        if language:
             if code not in cls._langcache[xref]:
                 cls._langcache[xref][code] = {}
                 
@@ -1041,6 +1042,9 @@ class Datafield(Field):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
 
     def set(self, code, new_val, subfield_place=0, auth_control=True, auth_flag=False):
+        if not self.record_type:
+            raise Exception('Datafield attribute "record_type" must be set to determine authority control')
+            
         subs = list(filter(lambda sub: sub.code == code, self.subfields))
         
         if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
@@ -1050,19 +1054,24 @@ class Datafield(Field):
                 raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(self.tag, code))
                 
         elif auth_flag == True and Config.is_authority_controlled(self.record_type, self.tag, code):
-            auth_tag = Config.authority_source_tag(self.record_type, self.tag, code)
+            cached = Auth._xcache.get(new_val)
             
-            query = QueryDocument(Condition(tag=auth_tag, subfields={code: new_val}))
-            auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
-            auth = next(auths, None)
+            if cached:
+                new_val = cached
+            else:
+                auth_tag = Config.authority_source_tag(self.record_type, self.tag, code)
+                query = QueryDocument(Condition(auth_tag, {code: new_val}))
+                auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
+                auth = next(auths, None)
 
-            if auth is None:
-                raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is invalid')
+                if auth is None:
+                    raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is invalid')
             
-            if next(auths, None):
-                raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is ambiguous')
+                    if next(auths, None):
+                        raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is ambiguous')
             
-            new_val = auth.id
+                new_val = auth.id
+                Auth._xcache[new_val] = auth.id
         else:
             new_val = str(new_val)
             
