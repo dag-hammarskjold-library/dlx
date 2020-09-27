@@ -27,7 +27,9 @@ class DB():
     database_name = None
     handle = None
     bibs = None
+    bib_history = None
     auths = None
+    auth_history = None
     files = None
     config = {}
 
@@ -85,9 +87,11 @@ class DB():
         DB.client = client
         DB.handle = client[DB.database_name]
         DB.bibs = DB.handle['bibs']
+        DB.bib_history = DB.handle['bib_history']
         DB.auths = DB.handle['auths']
+        DB.auth_history = DB.handle['auth_history']
         DB.files = DB.handle['files']
-
+        
         return DB.client
 
     @classmethod
@@ -114,7 +118,9 @@ class DB():
             If the database has not been connected to yet.
         """
 
-        if not DB.connected:
-            raise Exception('Not connected to database yet')
+        try:
+            DB.client.admin.command('ismaster')
+        except NotImplementedError:
+            pass
 
         return True

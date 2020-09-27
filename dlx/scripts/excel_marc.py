@@ -38,7 +38,7 @@ def run():
             _008 = record.get_value('008').ljust(40, '|')
             _008 = \
             _008[0:15] + \
-            record.get('049', 'a').ljust(3, '|') + \
+            record.get_value('049', 'a').ljust(3, '|') + \
             _008[18:35] + \
             record.get_value('041', 'a')[0:3].ljust(3, '|') + \
             _008[38:40]
