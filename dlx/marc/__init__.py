@@ -5,27 +5,55 @@ import re, json, time
 from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree as XML
-
 import jsonschema
 from bson import SON
 from pymongo import ReturnDocument
-
 from dlx.config import Config
 from dlx.db import DB
 from dlx.query import jfile as FQ
-from dlx.marc.query import QueryDocument, Condition, Or
+from dlx.marc.query import QueryDocument, Query, Condition, Or
 from dlx.util import Table
+
+class _Decorators():
+    def check_connection(method):
+        def wrapper(*args, **kwargs):
+            DB.check_connection()
+            return method(*args, **kwargs)
+        
+        return wrapper
 
 ### Set classes
 
 class MarcSet(): 
+    """Handles sets of MARC records.
+    
+    Atrributes
+    ----------
+    records : iterable
+    count : int
+    """
     # constructors
-
+        
     @classmethod
+    @_Decorators.check_connection
     def from_query(cls, *args, **kwargs):
+        """Instatiates a MarcSet object from a Pymongo database query.
+
+        Parameters
+        ----------
+        filter : bson.SON, dlx.marc.Query
+            A valid Pymongo query filter against the database or a dlx.marc.Query object
+        *args, **kwargs : 
+            Passes all remaining arguments to `pymongo.collection.Collection.find())
+
+        Returns
+        -------
+        MarcSet
+        """
+        
         self = cls()
         
-        if isinstance(args[0], QueryDocument) or isinstance(args[0], Condition):
+        if isinstance(args[0], Query) or isinstance(args[0], Condition):
             query = args[0].compile()
             args = [query, *args[1:]]
         elif isinstance(args[0], (list, tuple)):
@@ -41,6 +69,10 @@ class MarcSet():
         self.records = map(lambda r: Marc(r), self.handle.find(*args, **kwargs))
 
         return self
+    
+    @classmethod
+    def from_ids(cls, ids):
+        return cls.from_query({'_id' : {'$in': ids}})
 
     @classmethod
     def from_table(cls, table, auth_control=True, auth_flag=False, field_check=None):
@@ -186,20 +218,12 @@ class Marc(object):
     '''
     '''
 
-    class _Decorators():
-        def check_connection(method):
-            def wrapper(*args, **kwargs):
-                DB.check_connection()
-                return method(*args, **kwargs)
-
-            return wrapper
-
     # Class methods
 
     #### database query handlers
     
     @classmethod
-    def _increment_id(cls):
+    def _increment_ids(cls):
         col = DB.handle[cls.record_type + '_id_counter']
         result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
         
@@ -220,61 +244,33 @@ class Marc(object):
 
     @classmethod
     @_Decorators.check_connection
-    def handle(cls):
-        DB.check_connection()
-
-        if cls.__name__ in ('Bib', 'JBIB'):
-            col = 'bibs'
-        elif cls.__name__ in ('Auth', 'JAUTH'):
-            col = 'auths'
-        else:
-            raise Exception('Must call `handle()` from subclass `Bib` or `Auth`, or `JBIB` or `JAUTH` (deprecated)')
-
-        return getattr(DB, col)
+    def handle(cls):       
+        return DB.bibs if cls.__name__ == 'Bib' else DB.auths
 
     @classmethod
     def match_id(cls, id):
-        """Finds the record by ID.
-
-        Parameters
-        ----------
-        id : int
-
-        Returns
-        -------
-        dlx.Bib / dlx.Auth
-            Depending on which subclass it was called on.
-
-        Examples
-        --------
-        >>> bib = dlx.Bib.match_id(100000)
-        >>> print(bib.symbol())
+        """
+        Deprecated
         """
 
+        warn('dlx.marc.Marc.match_id() is deprecated. Use dlx.marc.Marc.from_id() instead')
+        
         return cls.find_one(filter={'_id' : id})
 
     @classmethod
+    def from_id(cls, id):
+        return cls.from_query({'_id' : id})
+    
+    @classmethod
     def match_ids(cls, *ids, **kwargs):
-        """Finds records by a list of IDs.
-
-        Parameters
-        ----------
-        *ids : int
-
-        Returns
-        -------
-        type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth` depending on which subclass it was called on.
-
-        Examples
-        --------
-        >>> bibs = dlx.Bib.match_ids(99999, 100000)
-        >>> for bib in bibs:
-        >>>     print(bib.symbol())
+        """
+        Deprecated
         """
 
-        return cls.find(filter={'_id' : {'$in' : [*ids]}})
+        warn('dlx.marc.Marc.match_ids() is deprecated. Use dlx.marc.MarcSet.from_ids() instead')
 
+        return cls.find(filter={'_id' : {'$in' : [*ids]}})
+        
     @classmethod
     def match(cls, *matchers, **kwargs):
         """
@@ -310,23 +306,11 @@ class Marc(object):
 
     @classmethod
     def find(cls, *args, **kwargs):
-        """Performs a `pymongo` query.
-
-        This method calls `pymongo.collection.Collection.find()` directly on the 'bibs' or `auths` database
-        collection.
-
-        Parameters
-        ----------
-        filter : bson.SON
-            A valid `pymongo` query filter against the raw JMARC data in the database.
-        *kwargs    : ...
-            Passes all remaining arguments to `pymongo.collection.Collection.find())
-
-        Returns
-        -------
-        type.GeneratorType
-            Yields instances of `dlx.Bib` or `dlx.Auth`.
         """
+        Deprecated
+        """
+
+        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.MarcSet.from_query() instead')
 
         cursor = cls.handle().find(*args, **kwargs)
 
@@ -335,45 +319,30 @@ class Marc(object):
 
     @classmethod
     def find_one(cls, *args, **kwargs):
-        """Performs a `Pymongo` query.
-
-        The same as `dlx.Marc.find()` except it returns only the first result as a `dlx.Bib` or `dlx.Auth`
-        instance.
         """
+        Deprecated
+        """
+
+        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.Marc.from_query() instead')
 
         found = cls.handle().find_one(*args, **kwargs)
 
         if found is not None:
             return cls(found)
+    
+    @classmethod
+    def from_query(cls, *args, **kwargs):
+        return next(cls.set_class.from_query(*args, **kwargs), None)
 
     @classmethod
     def count_documents(cls, *args, **kwargs):
+        """
+        Deprecated
+        """
+
+        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.MarcSet.count instead')
+        
         return cls.handle().count_documents(*args, **kwargs)
-
-    #### database index creation
-
-    @classmethod
-    def controlfield_index(cls, tag):
-        cls.handle().create_index(tag)
-
-    @classmethod
-    def literal_index(cls, tag):
-        cls.handle().create_index(tag)
-        cls.handle().create_index(tag + '.subfields.code')
-        cls.handle().create_index(tag + '.subfields.value')
-
-    @classmethod
-    def linked_index(cls, tag):
-        cls.handle().create_index(tag)
-        cls.handle().create_index(tag + '.subfields.code')
-        cls.handle().create_index(tag + '.subfields.xref')
-
-    @classmethod
-    def hybrid_index(cls, tag):
-        cls.handle().create_index(tag)
-        cls.handle().create_index(tag + '.subfields.code')
-        cls.handle().create_index(tag + '.subfields.value')
-        cls.handle().create_index(tag + '.subfields.xref')
 
     # Instance methods
 
@@ -454,9 +423,6 @@ class Marc(object):
 
         return vals
 
-    def gets(self, tag, *codes, **kwargs):
-        return self.get_values(tag, *codes, **kwargs)
-
     def get_value(self, tag, code=None, address=None, language=None):
         if address:
             if len(address) != 2:
@@ -481,9 +447,6 @@ class Marc(object):
             return sub.translated(language)
         
         return sub.value if sub else ''
-
-    def get(self, tag, code=None, **kwargs):
-         return self.get_value(tag, code, **kwargs)
 
     def get_tags(self):
         return sorted([x.tag for x in self.get_fields()])
@@ -626,6 +589,7 @@ class Marc(object):
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
 
+    @_Decorators.check_connection
     def commit(self, user='admin'):
         # clear the cache so the new value is available
         if isinstance(self, Auth):
@@ -634,7 +598,7 @@ class Marc(object):
         if self.id is None:
             # this is a new record
             cls = type(self)
-            self.id = cls._increment_id()
+            self.id = cls._increment_ids()
 
         self.validate()
         data = self.to_bson()
@@ -657,7 +621,7 @@ class Marc(object):
 
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
 
-        return self.collection().replace_one({'_id' : int(self.id)}, data, upsert=True)
+        return type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
         
     def delete(self, user='admin'):
         history_collection = DB.handle[self.record_type + '_history']
@@ -700,12 +664,6 @@ class Marc(object):
                         self.set(field.tag, sub.code, sub.value)
         
         return self
-        
-    def collection(self):
-        if isinstance(self, Bib):
-            return DB.bibs
-        elif isinstance(self, Auth):
-            return DB.auths
 
     def check(self, tag, val):
         pass
@@ -858,14 +816,34 @@ class Marc(object):
     def from_mrc(self, string):
         pass
 
-    def from_mrk(self, string):
-        pass
+    @classmethod
+    def from_mrk(cls, string):
+        record = cls()
+        
+        for line in filter(None, string.split('\n')):
+            match = re.match(r'=(\d{3})  (.*)', line)
+            tag, rest = match.group(1), match.group(2)
+            
+            if tag[:2] == '00':
+                field = Controlfield(tag, rest)
+            else:
+                ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
+                field = Datafield(tag=tag, ind1=ind1, ind2=ind2, record_type=cls.record_type)
+                
+                for chunk in filter(None, rest[2:].split('$')):
+                    code, value = chunk[0], chunk[1:]
+                    field.set(code, value, auth_control=False, auth_flag=True, subfield_place='+')
+                
+            record.fields.append(field)
+            
+        return record
 
     def from_xml(self, string):
         pass
 
 class Bib(Marc):
     record_type = 'bib'
+    set_class = BibSet
     
     def __init__(self, doc={}):
         self.record_type = 'bib'
@@ -907,20 +885,22 @@ class Bib(Marc):
 
 class Auth(Marc):
     record_type = 'auth'
+    set_class= AuthSet
     _cache = {}
+    _xcache = {}
     _langcache = {}
 
     @classmethod
     def lookup(cls, xref, code, language=None):
         DB.check_connection()
         
-        if xref in cls._langcache:
+        if language and xref in cls._langcache:
             if code in cls._langcache[xref]:
                 if language in cls._langcache[xref][code]:
                     return cls._langcache[xref][code][language]
         else:
             cls._langcache[xref] = {}
-        
+            
         if xref in cls._cache:
             if code in cls._cache[xref]:
                 return  cls._cache[xref][code]
@@ -936,7 +916,7 @@ class Auth(Marc):
         auth = Auth.find_one({'_id': xref}, projection)
         value = auth.heading_value(code, language) if auth else '**Linked Auth Not Found**'
         
-        if language is not None:
+        if language:
             if code not in cls._langcache[xref]:
                 cls._langcache[xref][code] = {}
                 
@@ -1022,6 +1002,9 @@ class Datafield(Field):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
 
     def set(self, code, new_val, subfield_place=0, auth_control=True, auth_flag=False):
+        if not self.record_type:
+            raise Exception('Datafield attribute "record_type" must be set to determine authority control')
+            
         subs = list(filter(lambda sub: sub.code == code, self.subfields))
         
         if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
@@ -1030,19 +1013,27 @@ class Datafield(Field):
             except ValueError:
                 raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(self.tag, code))
                 
-            auth_controlled = True
         elif auth_flag == True and Config.is_authority_controlled(self.record_type, self.tag, code):
-            auth_tag = Config.authority_source_tag(self.record_type, self.tag, code)
-            query = QueryDocument(Condition(tag=auth_tag, subfields={code: new_val}))
-            authset = AuthSet.from_query(query)
+            cached = Auth._xcache.get(new_val)
             
-            if authset.count == 0:
-                raise Exception('Authority-controlled field {}${} value "{}" is invalid'.format(self.tag, code, new_val))
+            if cached:
+                new_val = cached
+            else:
+                auth_tag = Config.authority_source_tag(self.record_type, self.tag, code)
+                query = QueryDocument(Condition(auth_tag, {code: new_val}))
+                auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
+                auth = next(auths, None)
+
+                if auth is None:
+                    raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is invalid')
             
-            auth_controlled = False
+                    if next(auths, None):
+                        raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is ambiguous')
+            
+                new_val = auth.id
+                Auth._xcache[new_val] = auth.id
         else:
             new_val = str(new_val)
-            auth_controlled = False
             
         ###
 
