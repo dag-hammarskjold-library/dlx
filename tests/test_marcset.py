@@ -70,6 +70,12 @@ def test_from_query(db):
     bibset = BibSet.from_query(query)
     assert isinstance(bibset, BibSet)
     assert bibset.count == 2
+    
+def test_from_ids(db):
+    from dlx.marc import BibSet
+    
+    bibs = BibSet.from_ids([1, 2])
+    assert [x.id for x in bibs] == [1, 2]
         
 def test_from_table(db):
     from dlx.marc import BibSet

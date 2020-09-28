@@ -142,10 +142,10 @@ def test_find(db):
     auths = Auth.find({}, limit=0, skip=1, projection={})
     assert len(list(auths)) == 1
         
-def test_find_id():
+def test_from_id(db, bibs, auths):
     from dlx.marc import Bib, Auth
-    # candidate to replace .match_id
-    pass
+    
+    assert Bib.from_id(2).id == 2
     
 def test_querydocument(db):
     from dlx.marc import Bib, Auth, QueryDocument, Condition, Or
@@ -188,6 +188,12 @@ def test_querystring(db):
     
     query = QueryDocument.from_string('{"110": {"a": "Another header"}}')
     assert Auth.find_one(query.compile()).id == 2
+
+def test_from_query(db):
+    from dlx.marc import Bib, Auth, Query, Condition
+    
+    bib = Bib.from_query(Query(Condition('245', {'a': 'Another'})))
+    assert bib.id == 2
     
 def test_get_field(bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield
@@ -227,9 +233,6 @@ def test_get_value(bibs):
     assert bib.get_values('520', 'a', place=1) == ['Another description', 'Repeated subfield']
     assert bib.get_value('999', 'a') == ''
     assert bib.get_values('999', 'a') == []
-    
-    assert bib.get_value('245', 'a') == bib.get('245', 'a')
-    assert bib.get_values('520', 'a') == bib.gets('520', 'a')
     
 def test_get_xref(db, bibs):
     from dlx.marc import Bib
@@ -325,7 +328,7 @@ def test_language(db):
     
     Auth({'_id': 3}).set('150', 'a', 'Text').set('994', 'a', 'Texto').commit()
     bib = Bib({'_id': 3}).set('650', 'a', 3)
-    assert bib.get('650', 'a', language='es') == 'Texto'
+    assert bib.get_value('650', 'a', language='es') == 'Texto'
     
 def test_to_xml(db):
     from dlx.marc import Bib

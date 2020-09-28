@@ -1,10 +1,11 @@
 import json, re
+from warnings import warn
 from bson import SON, Regex
 from bson.json_util import dumps
 from dlx.db import DB
 from dlx.config import Config
 
-class QueryDocument():
+class Query():
     @classmethod
     def from_string(cls, string):
         qdict = json.loads(string)
@@ -58,6 +59,12 @@ class QueryDocument():
 
     def to_json(self):
         return dumps(self.compile())
+        
+class QueryDocument(Query):
+    def __init__(self, *args, **kwargs):
+        warn('dlx.marc.QueryDocument is deprecated. Use dlx.marc.Query instead')
+        
+        super().__init__(*args, **kwargs)
 
 class Or(object):
     def __init__(self, *conditions):
