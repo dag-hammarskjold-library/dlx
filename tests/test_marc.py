@@ -379,3 +379,16 @@ def test_from_mrk(db):
     assert bib.to_mrk() == mrk
     assert bib.commit()
     
+def test_to_jmarcnx(bibs):
+    from dlx.marc import Bib
+    import json
+    
+    control = '{"_id": 1, "000": ["leader"], "008": ["controlfield"], "245": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "This"}, {"code": "b", "value": "is the"}, {"code": "c", "value": "title"}]}], "520": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Description"}]}, {"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another description"}, {"code": "a", "value": "Repeated subfield"}]}], "650": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Header"}]}], "710": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another header"}]}]}'
+    
+    jnx = Bib.from_id(1).to_jmarcnx()    
+    assert Bib(json.loads(jnx)).to_dict() == json.loads(control)
+
+def test_from_jmarcnx(bibs):
+    from dlx.marc import Bib
+
+    assert Bib.from_jmarcnx(Bib.from_id(1).to_jmarcnx()).to_dict() == Bib.from_id(1).to_dict()
