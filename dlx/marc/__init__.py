@@ -4,6 +4,7 @@
 import re, json, time
 from datetime import datetime
 from warnings import warn
+from copy import copy
 from xml.etree import ElementTree as XML
 import jsonschema
 from bson import SON
@@ -350,7 +351,6 @@ class Marc(object):
         self.id = int(doc['_id']) if '_id' in doc else None
         self.updated = doc['updated'] if 'updated' in doc else None
         self.user = doc['user'] if 'user' in doc else None
-        
         self.fields = []
         self.parse(doc)
         
@@ -685,7 +685,7 @@ class Marc(object):
     def to_dict(self):
         return self.to_bson().to_dict()
 
-    def to_json(self, to_indent=None):    
+    def to_json(self, to_indent=None):
         return json.dumps(self.to_dict(), indent=to_indent)
 
     def to_mij(self):
@@ -799,7 +799,20 @@ class Marc(object):
 
     def to_xml(self, *tags, language=None, xref_prefix=''):
         return XML.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix), encoding='utf-8').decode('utf-8')
-
+    
+    def to_jmarcnx(self):
+        for field in self.datafields:
+            i = 0
+            
+            for subfield in field.subfields:
+                if isinstance(subfield, Linked):
+                    new_subfield = Literal(subfield.code, subfield.value)
+                    field.subfields[i] = new_subfield
+                
+                i += 1
+                    
+        return self.to_json()
+    
     #### de-serializations
     # these formats don't fully support linked values.
 
@@ -840,6 +853,30 @@ class Marc(object):
 
     def from_xml(self, string):
         pass
+    
+    @classmethod
+    def from_jmarcnx(cls, string):
+        data = json.loads(string)
+        
+        record = cls({'_id': data.pop('_id')})
+        
+        for tag in data.keys():
+            for tag_place in range(0, len(data[tag])):
+                if tag[:2] == '00':
+                    field = Controlfield(tag, data[tag][tag_place])
+                else:
+                    ind1, ind2 = data[tag][tag_place]['indicators']
+                    field = Datafield(tag, ind1, ind2, record_type=cls.record_type)
+                    
+                    for subfield_place in range(0, len(data[tag][tag_place]['subfields'])):
+                        subfield = data[tag][tag_place]['subfields'][subfield_place]
+                        field.set(subfield['code'], subfield['value'], subfield_place='+', auth_control=False, auth_flag=True)
+                
+                record.fields.append(field)
+                
+                print(record.to_mrk())
+
+        return record
 
 class Bib(Marc):
     record_type = 'bib'
