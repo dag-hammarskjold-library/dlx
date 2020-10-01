@@ -800,17 +800,25 @@ class Marc(object):
         return XML.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix), encoding='utf-8').decode('utf-8')
     
     def to_jmarcnx(self):
+        xrec = type(self)()
+        
+        if self.id:
+            xrec.id = self.id
+        
+        xrec.fields += self.controlfields
+        
         for field in self.datafields:
-            i = 0
-            
+            i = 0 
+
             for subfield in field.subfields:
                 if isinstance(subfield, Linked):
                     new_subfield = Literal(subfield.code, subfield.value)
                     field.subfields[i] = new_subfield
-                
-                i += 1
+                    i += 1
                     
-        return self.to_json()
+            xrec.fields.append(field)
+
+        return xrec.to_json()
     
     #### de-serializations
     # these formats don't fully support linked values.
@@ -873,10 +881,11 @@ class Marc(object):
                     
                     for subfield_place in range(0, len(data[tag][tag_place]['subfields'])):
                         subfield = data[tag][tag_place]['subfields'][subfield_place]
+                        
                         field.set(subfield['code'], subfield['value'], subfield_place='+', auth_control=False, auth_flag=True)
                 
                 record.fields.append(field)
-
+                
         return record
 
 class Bib(Marc):
@@ -1080,6 +1089,7 @@ class Datafield(Field):
             
             if Config.is_authority_controlled(self.record_type, self.tag, code) == True:
                 self.subfields.append(Linked(code, new_val))
+                
             else:
                 self.subfields.append(Literal(code, new_val))
 
@@ -1093,7 +1103,6 @@ class Datafield(Field):
         for sub in subs:
             if isinstance(sub, Literal):
                 sub.value = new_val
-
             elif isinstance(sub, Linked):
                 sub.xref = new_val
 
