@@ -420,4 +420,3 @@ def test_field_from_jmarcnx(bibs):
             data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another headerrrr"}]}'
         )
     
-    
