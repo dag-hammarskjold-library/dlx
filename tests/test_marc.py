@@ -413,4 +413,10 @@ def test_field_from_jmarcnx(bibs):
     
     assert field.get_xref('a') == 2
     
+    with pytest.raises(Exception):
+        field = Datafield.from_jmarcnx(
+            record_type='bib',
+            tag='610',
+            data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another headerrrr"}]}'
+        )
     
