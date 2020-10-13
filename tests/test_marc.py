@@ -392,3 +392,25 @@ def test_from_jmarcnx(bibs):
     from dlx.marc import Bib
 
     assert Bib.from_jmarcnx(Bib.from_id(1).to_jmarcnx()).to_dict() == Bib.from_id(1).to_dict()
+    
+def test_field_from_jmarcnx(bibs):
+    from dlx.marc import Datafield
+    
+    field = Datafield.from_jmarcnx(
+        record_type='bib',
+        tag='500',
+        data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "val"}]}'
+    )
+    
+    assert isinstance(field, Datafield)
+    assert field.get_value('a') == 'val'
+    
+    field = Datafield.from_jmarcnx(
+        record_type='bib',
+        tag='610',
+        data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another header"}]}'
+    )
+    
+    assert field.get_xref('a') == 2
+    
+    
