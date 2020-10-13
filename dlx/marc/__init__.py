@@ -1046,12 +1046,17 @@ class Datafield(Field):
         self.ind2 = data['indicators'][1]
             
         for sub in data['subfields']:
+            code, value = sub['code'], sub['value']
+            
             if Config.is_authority_controlled(self.record_type, self.tag, sub['code']):
-                xref = Auth.xlookup(self.record_type, self.tag, sub['code'], sub['value'])
+                xref = Auth.xlookup(self.record_type, self.tag, code, value)
                 
-                self.set(sub['code'], xref, subfield_place='+')
+                if xref:
+                    self.set(code, xref, subfield_place='+')
+                else:
+                    raise Exception(f'Authority-controlled field {tag}${code} value "{value}" is invalid')
             else:
-                self.set(sub['code'], sub['value'], subfield_place='+')
+                self.set(code, value, subfield_place='+')
             
         return self
     
@@ -1093,7 +1098,7 @@ class Datafield(Field):
         if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
             try:
                 new_val + int(new_val)
-            except ValueError:
+            except:
                 raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(self.tag, code))
                 
         elif auth_flag == True and Config.is_authority_controlled(self.record_type, self.tag, code):
