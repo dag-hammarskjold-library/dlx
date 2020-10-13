@@ -972,7 +972,17 @@ class Auth(Marc):
             cls._cache[xref][code] = value
 
         return value
+        
+    @classmethod
+    def xlookup(cls, record_type, tag, code, string):
+        auth_tag = Config.authority_source_tag(record_type, tag, code)
+        query = QueryDocument(Condition(auth_tag, {code: string}))
+        auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
+        auth = next(auths, None)
 
+        if auth:
+            return auth.id
+    
     def __init__(self, doc={}):
         self.record_type = 'auth'
         super().__init__(doc)
@@ -1024,6 +1034,27 @@ class Controlfield(Field):
         return '={}  {}'.format(self.tag, self.value)
 
 class Datafield(Field):
+    @classmethod
+    def from_jmarcnx(cls, *, record_type, tag, data):
+        self = cls()
+        self.record_type = record_type
+        self.tag = tag
+        
+        data = json.loads(data)
+        
+        self.ind1 = data['indicators'][0]
+        self.ind2 = data['indicators'][1]
+            
+        for sub in data['subfields']:
+            if Config.is_authority_controlled(self.record_type, self.tag, sub['code']):
+                xref = Auth.xlookup(self.record_type, self.tag, sub['code'], sub['value'])
+                
+                self.set(sub['code'], xref, subfield_place='+')
+            else:
+                self.set(sub['code'], sub['value'], subfield_place='+')
+            
+        return self
+    
     def __init__(self, tag=None, ind1=None, ind2=None, subfields=None, record_type=None):
         self.record_type = record_type
         self.tag = tag
@@ -1048,6 +1079,11 @@ class Datafield(Field):
     def get_xrefs(self):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
 
+    def get_xref(self, code):
+        for sub in self.subfields:
+            if sub.code == code:
+                return sub.xref
+    
     def set(self, code, new_val, subfield_place=0, auth_control=True, auth_flag=False):
         if not self.record_type:
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
@@ -1066,19 +1102,16 @@ class Datafield(Field):
             if cached:
                 new_val = cached
             else:
-                auth_tag = Config.authority_source_tag(self.record_type, self.tag, code)
-                query = QueryDocument(Condition(auth_tag, {code: new_val}))
-                auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
-                auth = next(auths, None)
+                xref = Auth.xlookup(self.record_type, self.tag, code, new_val)
 
-                if auth is None:
+                if xref is None:
                     raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is invalid')
             
                     if next(auths, None):
                         raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is ambiguous')
             
-                new_val = auth.id
-                Auth._xcache[new_val] = auth.id
+                new_val = xref
+                Auth._xcache[new_val] = xref
         else:
             new_val = str(new_val)
             
