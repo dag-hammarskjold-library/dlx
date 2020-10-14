@@ -385,8 +385,9 @@ def test_to_jmarcnx(bibs):
     
     control = '{"_id": 1, "000": ["leader"], "008": ["controlfield"], "245": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "This"}, {"code": "b", "value": "is the"}, {"code": "c", "value": "title"}]}], "520": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Description"}]}, {"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another description"}, {"code": "a", "value": "Repeated subfield"}]}], "650": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Header"}]}], "710": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another header"}]}]}'
     
-    jnx = Bib.from_id(1).to_jmarcnx()    
-    assert Bib(json.loads(jnx)).to_dict() == json.loads(control)
+    jnx = Bib.from_id(1).to_jmarcnx()
+    bib = Bib(json.loads(jnx))
+    assert bib.to_dict() == json.loads(control)
 
 def test_from_jmarcnx(bibs):
     from dlx.marc import Bib

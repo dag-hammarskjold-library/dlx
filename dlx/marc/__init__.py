@@ -814,7 +814,8 @@ class Marc(object):
                 if isinstance(subfield, Linked):
                     new_subfield = Literal(subfield.code, subfield.value)
                     field.subfields[i] = new_subfield
-                    i += 1
+                
+                i += 1
                     
             xrec.fields.append(field)
 
