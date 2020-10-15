@@ -1108,7 +1108,7 @@ class Datafield(Field):
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
             
         subs = list(filter(lambda sub: sub.code == code, self.subfields))
-        
+
         if Config.is_authority_controlled(self.record_type, self.tag, code):
             if isint(new_val):
                 if DB.auths.count_documents({'_id': new_val}) == 0:
