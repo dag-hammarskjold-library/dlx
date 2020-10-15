@@ -243,7 +243,7 @@ def test_get_xref(db, bibs):
     assert bib.get_xrefs('710') == [2, 2]
     
 def test_set():
-    from dlx.marc import Bib, InvalidAuthXref, InvalidAuthValue
+    from dlx.marc import Bib, Auth, InvalidAuthXref, InvalidAuthValue, AmbiguousAuthValue
     
     bib = Bib()
     bib.set('245', 'a', 'Edited')
@@ -278,6 +278,12 @@ def test_set():
     bib.set('650', 'a', 'Header')
     assert bib.get_xref('650', 'a') == 1
     
+    # ambiguous auth controlled value
+    with pytest.raises(AmbiguousAuthValue):
+        Auth().set('150', 'a', 'Header').commit()
+        bib.set('650', 'a', 'Header')
+    
+    # multi values
     bib = Bib().set_values(
         ('245', 'a', 'yet another'),
         ('245', 'b', 'title'),

@@ -21,6 +21,10 @@ class InvalidAuthXref(Exception):
 class InvalidAuthValue(Exception):
     def __init__(self, tag, code, value):
         super().__init__(f'Invalid authority-controlled value: {tag}, {code}, "{value}"')
+        
+class AmbiguousAuthValue(Exception):
+    def __init__(self, tag, code, value):
+        super().__init__(f'Authority-controlled value: {tag}, {code}, "{value}" is a header for multiple auth records. Use the xref instead')
 
 class _Decorators():
     def check_connection(method):
@@ -602,9 +606,10 @@ class Marc(object):
 
     @_Decorators.check_connection
     def commit(self, user='admin'):
-        # clear the cache so the new value is available
+        # clear the caches in case there is a new auth value
         if isinstance(self, Auth):
             Auth._cache = {}
+            Auth._xcache = {}
             
         if self.id is None:
             # this is a new record
@@ -987,20 +992,25 @@ class Auth(Marc):
         return value
         
     @classmethod
-    def xlookup(cls, record_type, tag, code, string):
+    def xlookup(cls, record_type, tag, code, value):
         auth_tag = Config.authority_source_tag(record_type, tag, code)
-        query = QueryDocument(Condition(auth_tag, {code: string}))
+        
+        if auth_tag is None:
+            raise Exception(f'{record_type} {tag} is not authority-controlled')
+        
+        query = Query(Condition(auth_tag, {code: value}))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
-        auth = next(auths, None)
+        xrefs = [r.id for r in list(auths)]
+        
+        return xrefs
 
-        if auth:
-            return auth.id
-    
     def __init__(self, doc={}):
         self.record_type = 'auth'
         super().__init__(doc)
-
-        self.heading_field = next(filter(lambda field: field.tag[0:1] == '1', self.get_fields()), None)
+    
+    @property    
+    def heading_field(self):
+        return next(filter(lambda field: field.tag[0:1] == '1', self.fields), None)
 
     def heading_value(self, code, language=None):
         if language:
@@ -1060,16 +1070,7 @@ class Datafield(Field):
             
         for sub in data['subfields']:
             code, value = sub['code'], sub['value']
-            
-            if Config.is_authority_controlled(self.record_type, self.tag, sub['code']):
-                xref = Auth.xlookup(self.record_type, self.tag, code, value)
-                
-                if xref:
-                    self.set(code, xref, subfield_place='+')
-                else:
-                    raise InvalidAuthValue(tag, code, value)
-            else:
-                self.set(code, value, subfield_place='+')
+            self.set(code, value, subfield_place='+')
             
         return self
     
@@ -1107,37 +1108,20 @@ class Datafield(Field):
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
             
         subs = list(filter(lambda sub: sub.code == code, self.subfields))
-        
-        if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
+
+        if Config.is_authority_controlled(self.record_type, self.tag, code):
             if isint(new_val):
                 if DB.auths.count_documents({'_id': new_val}) == 0:
                     raise InvalidAuthXref(self.tag, code, new_val)
             else:
-                xref = Auth.xlookup(self.record_type, self.tag, code, new_val)
+                xrefs = Auth.xlookup(self.record_type, self.tag, code, new_val)
                 
-                if xref is None:
+                if len(xrefs) == 0:
                     raise InvalidAuthValue(self.tag, code, new_val)
+                elif len(xrefs) > 1:
+                    raise AmbiguousAuthValue(self.tag, code, new_val)
                     
-                new_val = xref
-    
-        elif auth_flag == True and Config.is_authority_controlled(self.record_type, self.tag, code):
-            cached = Auth._xcache.get(new_val)
-            
-            if cached:
-                new_val = cached
-            else:
-                xref = Auth.xlookup(self.record_type, self.tag, code, new_val)
-
-                if xref is None:
-                    raise InvalidAuthValue(tag, code, new_val)
-            
-                    if next(auths, None):
-                        raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is ambiguous')
-            
-                new_val = xref
-                Auth._xcache[new_val] = xref
-        else:
-            new_val = str(new_val)
+                new_val = xrefs[0]
             
         ###
 
@@ -1162,7 +1146,7 @@ class Datafield(Field):
                 sub.value = new_val
             elif isinstance(sub, Linked):
                 sub.xref = new_val
-
+        
         return self
     
     def to_bson(self):
