@@ -492,9 +492,7 @@ class Marc(object):
 
     #### "set"-type methods
 
-    def set(self, tag, code, new_val, auth_control=True, auth_flag=False, address=[]):
-        # kwargs: address [pair], matcher [Pattern/list]
-
+    def set(self, tag, code, new_val, *, ind1=None, ind2=None, auth_control=True, auth_flag=False, address=[]):
         field_place, subfield_place = 0, 0
         
         if len(address) > 0:
@@ -520,8 +518,8 @@ class Marc(object):
             else:
                 field = Datafield(record_type=self.record_type)
                 field.tag = tag
-                field.ind1 = ' '
-                field.ind2 = ' '
+                field.ind1 = ind1 or ' '
+                field.ind2 = ind2 or ' '
                 field.set(code, new_val)
                 self.fields.append(field)
             
@@ -538,6 +536,12 @@ class Marc(object):
             field.value = new_val
 
             return self
+            
+        if ind1:
+            field.ind1 = ind1
+        
+        if ind2:
+            field.ind2 = ind2
 
         field.set(code, new_val, subfield_place, auth_control)
         

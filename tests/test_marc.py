@@ -258,18 +258,25 @@ def test_set():
     bib.set('245', 'a', 'Repeated subfield', address=[1, '+'])
     assert bib.get_value('245', 'a', address=[1, 1]) == 'Repeated subfield'
     
+    # indicators
+    bib.set('520', 'a', 'Field with inds', ind1='0', ind2='9')
+    field = bib.get_field('520')
+    assert (field.ind1, field.ind2) == ('0', '9')
+    
     # int sets xref
     with pytest.raises(InvalidAuthXref):
         bib.set('650', 'a', 9)
         
     bib.set('650', 'a', 1)
     assert bib.get_xref('650', 'a') == 1
+    assert bib.get_value('650', 'a') == 'Header'
     
     # str is subject to auth control
     with pytest.raises(InvalidAuthValue):
         bib.set('650', 'a', 'invalid auth controlled value')
         
     bib.set('650', 'a', 'Header')
+    assert bib.get_xref('650', 'a') == 1
     
     bib = Bib().set_values(
         ('245', 'a', 'yet another'),
