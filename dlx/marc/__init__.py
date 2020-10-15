@@ -12,7 +12,15 @@ from dlx.config import Config
 from dlx.db import DB
 from dlx.query import jfile as FQ
 from dlx.marc.query import QueryDocument, Query, Condition, Or
-from dlx.util import Table
+from dlx.util import isint, Table
+
+class InvalidAuthXref(Exception):
+    def __init__(self, tag, code, xref):
+        super().__init__(f'xref (auth#) is invalid: {tag}, {code}, {xref}')
+        
+class InvalidAuthValue(Exception):
+    def __init__(self, tag, code, value):
+        super().__init__(f'Invalid authority-controlled value: {tag}, {code}, "{value}"')
 
 class _Decorators():
     def check_connection(method):
@@ -484,7 +492,7 @@ class Marc(object):
 
     #### "set"-type methods
 
-    def set(self, tag, code, new_val, auth_control=True, auth_flag=False, address=[], **kwargs):
+    def set(self, tag, code, new_val, auth_control=True, auth_flag=False, address=[]):
         # kwargs: address [pair], matcher [Pattern/list]
 
         field_place, subfield_place = 0, 0
@@ -1055,7 +1063,7 @@ class Datafield(Field):
                 if xref:
                     self.set(code, xref, subfield_place='+')
                 else:
-                    raise Exception(f'Authority-controlled field {tag}${code} value "{value}" is invalid')
+                    raise InvalidAuthValue(tag, code, value)
             else:
                 self.set(code, value, subfield_place='+')
             
@@ -1097,11 +1105,17 @@ class Datafield(Field):
         subs = list(filter(lambda sub: sub.code == code, self.subfields))
         
         if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
-            try:
-                new_val + int(new_val)
-            except:
-                raise Exception('Authority-controlled field {}${} must be set to an xref (integer)'.format(self.tag, code))
+            if isint(new_val):
+                if DB.auths.count_documents({'_id': new_val}) == 0:
+                    raise InvalidAuthXref(self.tag, code, new_val)
+            else:
+                xref = Auth.xlookup(self.record_type, self.tag, code, new_val)
                 
+                if xref is None:
+                    raise InvalidAuthValue(self.tag, code, new_val)
+                    
+                new_val = xref
+    
         elif auth_flag == True and Config.is_authority_controlled(self.record_type, self.tag, code):
             cached = Auth._xcache.get(new_val)
             
@@ -1111,7 +1125,7 @@ class Datafield(Field):
                 xref = Auth.xlookup(self.record_type, self.tag, code, new_val)
 
                 if xref is None:
-                    raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is invalid')
+                    raise InvalidAuthValue(tag, code, new_val)
             
                     if next(auths, None):
                         raise Exception(f'Authority-controlled field {self.tag}${code} value "{new_val}" is ambiguous')

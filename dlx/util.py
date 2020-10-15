@@ -2,6 +2,13 @@ from datetime import datetime
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_tuple
 
+def isint(x):
+    try:
+        assert x == int(x)
+        return True
+    except:
+        return False
+
 class Table():
     @classmethod
     def from_excel(cls, path, sheet_number=0, date_format='%Y%m%d'):

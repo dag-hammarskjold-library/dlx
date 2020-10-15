@@ -239,11 +239,11 @@ def test_get_xref(db, bibs):
     
     bib = Bib(bibs[0])
     assert bib.get_xref('650', 'a') == 1
-    bib.set('710', 'a', 3, address='+')
-    assert bib.get_xrefs('710') == [2,3]
+    bib.set('710', 'a', 2, address='+')
+    assert bib.get_xrefs('710') == [2, 2]
     
 def test_set():
-    from dlx.marc import Bib
+    from dlx.marc import Bib, InvalidAuthXref, InvalidAuthValue
     
     bib = Bib()
     bib.set('245', 'a', 'Edited')
@@ -258,8 +258,18 @@ def test_set():
     bib.set('245', 'a', 'Repeated subfield', address=[1, '+'])
     assert bib.get_value('245', 'a', address=[1, 1]) == 'Repeated subfield'
     
-    bib.set('651', 'a', 9)
-    assert bib.get_xref('651', 'a') == 9
+    # int sets xref
+    with pytest.raises(InvalidAuthXref):
+        bib.set('650', 'a', 9)
+        
+    bib.set('650', 'a', 1)
+    assert bib.get_xref('650', 'a') == 1
+    
+    # str is subject to auth control
+    with pytest.raises(InvalidAuthValue):
+        bib.set('650', 'a', 'invalid auth controlled value')
+        
+    bib.set('650', 'a', 'Header')
     
     bib = Bib().set_values(
         ('245', 'a', 'yet another'),
