@@ -608,7 +608,7 @@ class Marc(object):
     def commit(self, user='admin'):
         # clear the caches in case there is a new auth value
         if isinstance(self, Auth):
-            Auth._cache.pop(self.id)
+            Auth._cache = {}
             Auth._xcache = {}
             
         if self.id is None:
