@@ -18,7 +18,7 @@ from dlx import DB
 
 DB.connect('<connection string>')
 
-###
+### MARC
 
 from dlx.marc import Bib, BibSet, Query, Condition
 
@@ -33,7 +33,7 @@ for bib in BibSet.from_query(query):
 	bib.set('245', 'a', 'New title')
 	bib.commit(user='you')
 
-###
+### File
 
 from dlx.file import File, Identifier, S3
 
