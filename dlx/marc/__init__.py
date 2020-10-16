@@ -645,7 +645,6 @@ class Marc(object):
         self.user = data['user']
         
         # save a copy of self in history
-        
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
         
@@ -706,20 +705,20 @@ class Marc(object):
         
         return self
 
-    def check(self, tag, val):
-        pass
-
-    def diff(self, marc):
-        pass
-
+    def diff(self, other):
+        return Diff(self, other)
+        
     #### serializations
 
     def to_bson(self):
         bson = SON()
         bson['_id'] = self.id
-
-        for tag in self.get_tags():
-            bson[tag] = [field.to_bson() for field in self.get_fields(tag)]
+        
+        for tag in filter(lambda x: x[0:2] == '00', self.get_tags()):
+            bson[tag] = [f.value for f in self.get_fields(tag)]
+        
+        for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
+            bson[tag] = [f.to_bson() for f in self.get_fields(tag)]
 
         return bson
 
@@ -727,27 +726,11 @@ class Marc(object):
         d = {}
         d['_id'] = self.id
         
-        def dictify(field):
-            f = {}
-            
-            if isinstance(field, Controlfield):
-                return field.value
-            
-            f['indicators'] = [field.ind1, field.ind2]
-            f['subfields'] = []
-            
-            for sub in field.subfields:
-                s = {'code': sub.code, 'value': sub.value}
-                
-                if isinstance(sub, Linked):
-                    s['xref'] = sub.xref
-                
-                f['subfields'].append(s)
-                
-            return f
+        for tag in filter(lambda x: x[0:2] == '00', self.get_tags()):
+            d[tag] = [f.value for f in self.get_fields(tag)]
         
-        for tag in self.get_tags():
-            d[tag] = [dictify(field) for field in self.get_fields(tag)]
+        for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
+            d[tag] = [f.to_dict() for f in self.get_fields(tag)]
             
         return d
         
@@ -1079,6 +1062,37 @@ class Auth(Marc):
         for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
 
+class Diff():
+    """Compare two Marc objects.
+    
+    Atrributes
+    ----------
+    a : list(dlx.marc.Field)
+        The fields unique to record "a"
+    b : list(dlx.marc.Field)
+        The fields unique to record "b"
+    c : list(dlx.marc.Field)
+        The fields common to both records
+    """
+    
+    def __init__(self, a, b):
+        """Initilizes the object. Sets attribute "a" to a list of the fields 
+        unique to record a. Sets attribute "b" to a list of the fields unique 
+        to record b. Sets attribute "c" to a list of the fields common to both 
+        records. 
+        
+        Positional arguments
+        --------------------
+        a : Marc
+        b : Marc
+        """
+        assert isinstance(a, Marc)
+        assert isinstance(b, Marc)
+        
+        self.a = list(filter(lambda x: x not in b.fields, a.fields))
+        self.b = list(filter(lambda x: x not in a.fields, b.fields))
+        self.c = list(filter(lambda x: x in b.fields, a.fields))
+
 ### Field classes
 
 class Field():
@@ -1089,6 +1103,12 @@ class Field():
         raise Exception('This is a stub')
 
 class Controlfield(Field):
+    def __eq__(self, other):
+        if not isinstance(other, Controlfield):
+            return False
+        
+        return self.value == other.value
+        
     def __init__(self, tag, value, record_type=None):
         self.record_type = record_type
         self.tag = tag
@@ -1096,9 +1116,6 @@ class Controlfield(Field):
 
     def set(self, value):
         self.value = value   
-    
-    def to_bson(self):
-        return self.value
 
     def to_mij(self):
         return {self.tag: self.value}
@@ -1110,6 +1127,12 @@ class Controlfield(Field):
         return '={}  {}'.format(self.tag, self.value)
     
 class Datafield(Field):
+    def __eq__(self, other):
+        if not isinstance(other, Datafield):
+            return False
+            
+        return self.to_dict() == other.to_dict()
+        
     @classmethod
     def from_jmarcnx(cls, *, record_type, tag, data):
         self = cls()
@@ -1201,12 +1224,27 @@ class Datafield(Field):
         return self
     
     def to_bson(self):
-        return SON(
-            {
-                'indicators' : [self.ind1, self.ind2],
-                'subfields' : [sub.to_bson() for sub in self.subfields]
-            }
-        )
+        b = SON()
+        b['indicators'] = self.ind1, self.ind2,
+        b['subfields'] = [sub.to_bson() for sub in self.subfields]
+        
+        return b
+        
+    def to_dict(self):
+        d = {}
+        
+        d['indicators'] = [self.ind1, self.ind2]
+        d['subfields'] = []
+        
+        for sub in self.subfields:
+            s = {'code': sub.code, 'value': sub.value}
+            
+            if isinstance(sub, Linked):
+                s['xref'] = sub.xref
+            
+            d['subfields'].append(s)
+            
+        return d
 
     def to_mij(self):
         serialized = {self.tag: {}}
@@ -1277,7 +1315,10 @@ class Literal(Subfield):
         self.value = value
 
     def to_bson(self):
-        return SON(data = {'code' : self.code, 'value' : self.value})
+        b = SON()
+        b['code'], b['value'] = self.code, self.value
+        
+        return b
 
 class Linked(Subfield):
     def __init__(self, code, xref):
@@ -1293,8 +1334,11 @@ class Linked(Subfield):
         return Auth.lookup(self.xref, self.code, language)
 
     def to_bson(self):
-        return SON(data = {'code' : self.code, 'xref' : self.xref})
-    
+        b = SON()
+        b['code'], b['xref'] = self.code, self.xref
+        
+        return b
+        
 ### Matcher classes
 # deprecated
 

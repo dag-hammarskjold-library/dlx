@@ -455,3 +455,16 @@ def test_field_from_jmarcnx(bibs):
             data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another headerrrr"}]}'
         )
     
+def test_diff(db):
+    from dlx.marc import Bib, Field, Diff
+    
+    bib1, bib2 = Bib.from_id(1), Bib.from_id(2)
+    diff = bib1.diff(bib2)
+    assert isinstance(diff, Diff)
+    assert len(diff.a) == 5
+    assert len(diff.b) == 1
+    assert len(diff.c) == 2
+    
+    for field in diff.a + diff.b + diff.c:
+        assert isinstance(field, Field)
+    
