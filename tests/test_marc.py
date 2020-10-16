@@ -452,8 +452,18 @@ def test_field_from_jmarcnx(bibs):
         field = Datafield.from_jmarcnx(
             record_type='bib',
             tag='610',
-            data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another headerrrr"}]}'
+            data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Wrong header"}]}'
         )
+
+def test_partial_lookup(db):
+    from dlx.marc import Auth
+    
+    assert Auth.partial_lookup('650', 'a', 'Head', record_type='bib') == [('Header', 1)]
+    
+    for i in range(0, 100):
+        Auth().set('150', 'a', f'Header{i}').commit()
+        
+    assert len(Auth.partial_lookup('650', 'a', 'eader', record_type='bib')) == 50
     
 def test_diff(db):
     from dlx.marc import Bib, Field, Diff
@@ -467,4 +477,3 @@ def test_diff(db):
     
     for field in diff.a + diff.b + diff.c:
         assert isinstance(field, Field)
-    
