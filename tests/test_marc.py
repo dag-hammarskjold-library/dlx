@@ -57,15 +57,28 @@ def test_init_auth(db, auths):
             assert isinstance(subfield, (Literal, Linked))
             assert subfield.code and subfield.value
 
+def test_init_auth_check(db):
+    from dlx import DB
+    from dlx.marc import Bib, Auth, InvalidAuthXref, InvalidAuthValue, AmbiguousAuthValue
+    
+    with pytest.raises(InvalidAuthXref):
+        Bib({'650': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'xref': 9}]}]})
+        
+    with pytest.raises(InvalidAuthValue):
+        Bib({'650': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'value': 'invalid'}]}]})
+        
+    with pytest.raises(AmbiguousAuthValue):
+        for idx in (98, 99):
+            DB.auths.insert_one({'_id': idx, '150': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'value': 'Ambiguous value'}]}]})
+        
+        Bib({'650': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'value': 'Ambiguous value'}]}]})
+    
 def test_commit(db, bibs, auths):
     from dlx import DB
     from dlx.marc import Bib, Auth
     from datetime import datetime
     from bson import ObjectId
     from jsonschema.exceptions import ValidationError
-    
-    with pytest.raises(Exception):
-        Bib({'_id': 'I am invalid'}).commit()
     
     for bib in [Bib(x) for x in bibs]:
         assert bib.commit().acknowledged
@@ -405,12 +418,10 @@ def test_from_mrk(db):
 def test_to_jmarcnx(bibs):
     from dlx.marc import Bib
     import json
-    
-    control = '{"_id": 1, "000": ["leader"], "008": ["controlfield"], "245": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "This"}, {"code": "b", "value": "is the"}, {"code": "c", "value": "title"}]}], "520": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Description"}]}, {"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another description"}, {"code": "a", "value": "Repeated subfield"}]}], "650": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Header"}]}], "710": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another header"}]}]}'
-    
+  
     jnx = Bib.from_id(1).to_jmarcnx()
     bib = Bib(json.loads(jnx))
-    assert bib.to_dict() == json.loads(control)
+    assert bib.to_jmarcnx() == jnx
 
 def test_from_jmarcnx(bibs):
     from dlx.marc import Bib
