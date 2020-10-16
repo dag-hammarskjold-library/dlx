@@ -731,7 +731,7 @@ class Marc(object):
         
         for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
             d[tag] = [f.to_dict() for f in self.get_fields(tag)]
-            
+           
         return d
         
     def to_json(self, to_indent=None):
@@ -1115,7 +1115,7 @@ class Controlfield(Field):
         self.value = value
 
     def set(self, value):
-        self.value = value   
+        self.value = value
 
     def to_mij(self):
         return {self.tag: self.value}
@@ -1338,7 +1338,7 @@ class Linked(Subfield):
         b['code'], b['xref'] = self.code, self.xref
         
         return b
-        
+ 
 ### Matcher classes
 # deprecated
 
