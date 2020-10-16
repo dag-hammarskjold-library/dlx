@@ -315,23 +315,22 @@ def test_merge():
     bib1.merge(bib2)
     assert bib1.get_value('269', 'a') == 'Date'
     assert bib1.get_value('000') ==  'leader'
+    
+    bib2.set('269', 'a', 'New date')
+    bib1.merge(bib2, overwrite=False)
+    assert bib1.get_value('269', 'a') == 'Date'
+    bib1.merge(bib2, overwrite=True)
+    assert bib1.get_value('269', 'a') == 'New date'
        
 def test_set_008(bibs):
     from dlx.marc import Bib
     from dlx.config import Config
     import time
     
-    bib = Bib(bibs[0])
+    bib = Bib()
     date_tag, date_code = Config.date_field
     bib.set(date_tag, date_code, '19991231')
-    
-    with pytest.raises(Exception):
-        bib.set('008', None, 'already set')
-        bib.set_008()
-    
-    bib.set('008', None, '')
-    bib.set_008();
-
+    bib.set_008()
     assert bib.get_value('008')[0:6] == time.strftime('%y%m%d')
     assert bib.get_value('008')[7:11] == '1999'
     
