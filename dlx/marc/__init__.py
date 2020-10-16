@@ -6,7 +6,7 @@ from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree as XML
 import jsonschema
-from bson import SON
+from bson import SON, Regex
 from pymongo import ReturnDocument
 from dlx.config import Config
 from dlx.db import DB
@@ -992,11 +992,11 @@ class Auth(Marc):
         return value
         
     @classmethod
-    def xlookup(cls, record_type, tag, code, value):
+    def xlookup(cls, tag, code, value, *, record_type):
         auth_tag = Config.authority_source_tag(record_type, tag, code)
         
         if auth_tag is None:
-            raise Exception(f'{record_type} {tag} is not authority-controlled')
+            return
         
         query = Query(Condition(auth_tag, {code: value}))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
@@ -1004,6 +1004,41 @@ class Auth(Marc):
         
         return xrefs
 
+    @classmethod
+    def partial_lookup(cls, tag, code, string, *, record_type, limit=50):
+        """Returns a list of tuples containing the authority-controlled values
+        that match the given string
+        
+        Positional arguments
+        --------------------
+        tag : str
+        code : str
+        string : str
+            The string to match against
+        
+        Keyword arguments
+        -----------------
+        record_type : 'bib' or 'auth'
+        limit : int
+            Limits the results. Default is 50
+        
+        Returns
+        -------
+        List(Tuple)
+            A list of pairs, the first element in the pair is the string value
+            and the second is the xref#
+        """
+        
+        auth_tag = Config.authority_source_tag(record_type, tag, code)
+        
+        if auth_tag is None:
+            return
+            
+        query = Query(Condition(auth_tag, {code: Regex(string)}))
+        auths = AuthSet.from_query(query.compile(), limit=limit, projection={'_id': 1, '100': 1, '110': 1, '111': 1, '150': 1, '190': 1})
+       
+        return [(a.heading_value(code), a.id) for a in auths]
+    
     def __init__(self, doc={}):
         self.record_type = 'auth'
         super().__init__(doc)
@@ -1114,7 +1149,7 @@ class Datafield(Field):
                 if DB.auths.count_documents({'_id': new_val}) == 0:
                     raise InvalidAuthXref(self.tag, code, new_val)
             else:
-                xrefs = Auth.xlookup(self.record_type, self.tag, code, new_val)
+                xrefs = Auth.xlookup(self.tag, code, new_val, record_type=self.record_type)
                 
                 if len(xrefs) == 0:
                     raise InvalidAuthValue(self.tag, code, new_val)

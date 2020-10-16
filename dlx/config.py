@@ -24,7 +24,7 @@ class Config():
     bib_index_case_insensitive = ['191']  
     
     auth_index = ['100', '110', '111', '150', '190']
-    auth_index_case_insensitive = [] 
+    auth_index_case_insensitive = ['100', '110', '111'] 
     
     # this is used by dlx.query to locate the linked value
     bib_authority_controlled = {

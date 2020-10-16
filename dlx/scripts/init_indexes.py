@@ -30,7 +30,7 @@ def run():
     DB.files.create_index('identifiers.value')
     DB.files.create_index(
         'identifiers.value',
-        name='identifers.value_caseinsensitive', 
+        name='identifiers.value_caseinsensitive', 
         collation=Collation(locale='en', strength=2)
     )
     
