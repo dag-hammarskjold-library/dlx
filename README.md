@@ -1,43 +1,53 @@
 
 
 # DLX
-DLX is a serialization, storage, and query toolkit for MARC data and associated content files. DLX provies APIs for manipulating, storing, and retrieving MARC data ~~as well as content file submission and retrieval (not yet implemented)~~.
+DLX provies APIs for performing ETL operations on MARC and file data
+
+###Requirements:
+* Python 3.6+
+* Valid MongoDB connection string
+* AWS S3 credentials (file submission only)
 
 ### Installation:
 ```bash
 > pip install git+git://github.com/dag-hammarskjold-library/dlx
 ```
 ### Usage:
-DLX provides various classes for working with the DLX data.
-
 ```python
-from bson import Regex
 from dlx import DB
-from dlx.marc import BibSet, QueryDocument, Condition
 
-DB.connect(<connection_string>)
+DB.connect('<connection string>')
 
-query = QueryDocument(
-    Condition(
-        tag='191',
-        modifier='exists'
-    ),
-    Condition(
-        tag='269',
-        subfields={'a': Regex('^1975')}
-    )
+###
+
+from dlx.marc import Bib, BibSet, Query, Condition
+
+bib = Bib.from_id(100)
+print(bib.get_value('245', 'a'))
+
+query = Query(
+	Condition('245', {'a': 'Title', 'b': 'subtitle'})
 )
 
-print(query.to_json())
+for bib in BibSet.from_query(query):
+	bib.set('245', 'a', 'New title')
 
-bibset = BibSet.from_query(query, projection={'191': True}, skip=0, limit=0)
-print('There are {} results'.format(bibset.count))
+###
 
-bibset.cache()
+from dlx.file import File, Identifier, S3
 
-for bib in bibset.records:
-    print('id: {}, symbol: {}'.format(bib.id, bib.get_value('191','a')))
+S3.connect('<AWS key>', '<AWS key ID>', '<bucket name>')
 
-print(bibset.to_xml())
+fileobj = open('file.txt', 'r')
 
+File.import(
+	fileobj, 
+	identifiers=[Identifier('isbn', '1')], 
+	filename='fn.txt', languages=['EN'], 
+	mimetype='text/plain', 
+	source='demo'
+)
+
+xfile = File.latest_by_identifier_language(Identifier('isbn', '1'), 'EN')
+print(xfile.url)
 ```
