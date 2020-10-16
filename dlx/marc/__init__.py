@@ -14,19 +14,27 @@ from dlx.query import jfile as FQ
 from dlx.marc.query import QueryDocument, Query, Condition, Or
 from dlx.util import isint, Table
 
+### Exceptions
+
 class InvalidAuthXref(Exception):
-    def __init__(self, tag, code, xref):
+    def __init__(self, rtype, tag, code, xref):
         super().__init__(f'xref (auth#) is invalid: {tag}, {code}, {xref}')
         
 class InvalidAuthValue(Exception):
-    def __init__(self, tag, code, value):
+    def __init__(self, rtype, tag, code, value):
         super().__init__(f'Invalid authority-controlled value: {tag}, {code}, "{value}"')
         
 class AmbiguousAuthValue(Exception):
-    def __init__(self, tag, code, value):
+    def __init__(self, rtype, tag, code, value):
         super().__init__(f'Authority-controlled value: {tag}, {code}, "{value}" is a header for multiple auth records. Use the xref instead')
 
-class _Decorators():
+class InvalidAuthField(Exception):
+    def __init__(self, rtype, tag, code):
+        super().__init__(f'{tag}, {code} is an authority-controlled field')
+    
+### Decorators
+
+class Decorators():
     def check_connection(method):
         def wrapper(*args, **kwargs):
             DB.check_connection()
@@ -47,7 +55,7 @@ class MarcSet():
     # constructors
         
     @classmethod
-    @_Decorators.check_connection
+    @Decorators.check_connection
     def from_query(cls, *args, **kwargs):
         """Instatiates a MarcSet object from a Pymongo database query.
 
@@ -255,7 +263,7 @@ class Marc(object):
         return max_dict.get('_id') or 0
 
     @classmethod
-    @_Decorators.check_connection
+    @Decorators.check_connection
     def handle(cls):       
         return DB.bibs if cls.__name__ == 'Bib' else DB.auths
 
@@ -380,20 +388,21 @@ class Marc(object):
 
             if tag[:2] == '00':
                 for value in doc[tag]:
-                    self.fields.append(Controlfield(tag, value, record_type=self.record_type))
+                    self.set(tag, None, value, address='+')
             else:
                 for field in doc[tag]:                
-                    ind1 = field['indicators'][0]
-                    ind2 = field['indicators'][1]
-                    subfields = []
+                    ind1, ind2 = field['indicators'][0:2]
+
+                    f = Datafield(record_type=self.record_type, tag=tag, ind1=ind1, ind2=ind2)
 
                     for sub in field['subfields']:
-                        if 'value' in sub:
-                            subfields.append(Literal(sub['code'], sub['value']))
-                        elif 'xref' in sub:
-                            subfields.append(Linked(sub['code'], sub['xref']))
-
-                    self.fields.append(Datafield(tag, ind1, ind2, subfields, record_type=self.record_type))
+                        
+                        if 'xref' in sub:
+                            f.set(sub['code'], sub['xref'], subfield_place='+')
+                        else:
+                            f.set(sub['code'], sub['value'], subfield_place='+')
+                    
+                    self.fields.append(f)
 
     #### "get"-type methods
 
@@ -604,17 +613,29 @@ class Marc(object):
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
 
-    @_Decorators.check_connection
+    @Decorators.check_connection
     def commit(self, user='admin'):
         # clear the caches in case there is a new auth value
         if isinstance(self, Auth):
             Auth._cache = {}
             Auth._xcache = {}
             
+        new_flag = False
+        
         if self.id is None:
             # this is a new record
+            new_flag = True
             cls = type(self)
             self.id = cls._increment_ids()
+            
+        for field in filter(lambda x: isinstance(x, Datafield), self.fields):
+            for sub in field.subfields:
+                if Config.is_authority_controlled(self.record_type, field.tag, sub.code):
+                    if not isinstance(sub, Linked):
+                        raise InvalidAuthField(self.record_type, field.tag, sub.code)
+                        
+                    if DB.auths.count_documents({'_id': sub.xref}) == 0:
+                        raise InvalidAuthXref(self.record_type, field.tag, sub.code, sub.xref)
 
         self.validate()
         data = self.to_bson()
@@ -624,7 +645,6 @@ class Marc(object):
         self.user = data['user']
         
         # save a copy of self in history
-        
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
         
@@ -632,7 +652,11 @@ class Marc(object):
             record_history['history'].append(data)
         else:
             record_history = SON()
-            record_history['_id'] = self.id    
+            record_history['_id'] = self.id
+            
+            if new_flag:
+                record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
+            
             record_history['history'] = [data]
 
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
@@ -681,26 +705,35 @@ class Marc(object):
         
         return self
 
-    def check(self, tag, val):
-        pass
-
-    def diff(self, marc):
-        pass
-
+    def diff(self, other):
+        return Diff(self, other)
+        
     #### serializations
 
     def to_bson(self):
         bson = SON()
         bson['_id'] = self.id
-
-        for tag in self.get_tags():
-            bson[tag] = [field.to_bson() for field in self.get_fields(tag)]
+        
+        for tag in filter(lambda x: x[0:2] == '00', self.get_tags()):
+            bson[tag] = [f.value for f in self.get_fields(tag)]
+        
+        for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
+            bson[tag] = [f.to_bson() for f in self.get_fields(tag)]
 
         return bson
 
     def to_dict(self):
-        return self.to_bson().to_dict()
-
+        d = {}
+        d['_id'] = self.id
+        
+        for tag in filter(lambda x: x[0:2] == '00', self.get_tags()):
+            d[tag] = [f.value for f in self.get_fields(tag)]
+        
+        for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
+            d[tag] = [f.to_dict() for f in self.get_fields(tag)]
+           
+        return d
+        
     def to_json(self, to_indent=None):
         return json.dumps(self.to_dict(), indent=to_indent)
 
@@ -870,7 +903,7 @@ class Marc(object):
                 
                 for chunk in filter(None, rest[2:].split('$')):
                     code, value = chunk[0], chunk[1:]
-                    field.set(code, value, auth_control=False, auth_flag=True, subfield_place='+')
+                    field.set(code, value, subfield_place='+')
                 
             record.fields.append(field)
             
@@ -900,7 +933,7 @@ class Marc(object):
                     for subfield_place in range(0, len(data[tag][tag_place]['subfields'])):
                         subfield = data[tag][tag_place]['subfields'][subfield_place]
                         
-                        field.set(subfield['code'], subfield['value'], subfield_place='+', auth_control=False, auth_flag=True)
+                        field.set(subfield['code'], subfield['value'], subfield_place='+')
                 
                 record.fields.append(field)
                 
@@ -1064,6 +1097,37 @@ class Auth(Marc):
         for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
 
+class Diff():
+    """Compare two Marc objects.
+    
+    Atrributes
+    ----------
+    a : list(dlx.marc.Field)
+        The fields unique to record "a"
+    b : list(dlx.marc.Field)
+        The fields unique to record "b"
+    c : list(dlx.marc.Field)
+        The fields common to both records
+    """
+    
+    def __init__(self, a, b):
+        """Initilizes the object. Sets attribute "a" to a list of the fields 
+        unique to record a. Sets attribute "b" to a list of the fields unique 
+        to record b. Sets attribute "c" to a list of the fields common to both 
+        records. 
+        
+        Positional arguments
+        --------------------
+        a : Marc
+        b : Marc
+        """
+        assert isinstance(a, Marc)
+        assert isinstance(b, Marc)
+        
+        self.a = list(filter(lambda x: x not in b.fields, a.fields))
+        self.b = list(filter(lambda x: x not in a.fields, b.fields))
+        self.c = list(filter(lambda x: x in b.fields, a.fields))
+
 ### Field classes
 
 class Field():
@@ -1074,13 +1138,19 @@ class Field():
         raise Exception('This is a stub')
 
 class Controlfield(Field):
+    def __eq__(self, other):
+        if not isinstance(other, Controlfield):
+            return False
+        
+        return self.value == other.value
+        
     def __init__(self, tag, value, record_type=None):
         self.record_type = record_type
         self.tag = tag
         self.value = value
 
-    def to_bson(self):
-        return self.value
+    def set(self, value):
+        self.value = value
 
     def to_mij(self):
         return {self.tag: self.value}
@@ -1090,8 +1160,14 @@ class Controlfield(Field):
 
     def to_mrk(self, language=None):
         return '={}  {}'.format(self.tag, self.value)
-
+    
 class Datafield(Field):
+    def __eq__(self, other):
+        if not isinstance(other, Datafield):
+            return False
+            
+        return self.to_dict() == other.to_dict()
+        
     @classmethod
     def from_jmarcnx(cls, *, record_type, tag, data):
         self = cls()
@@ -1141,56 +1217,69 @@ class Datafield(Field):
     def set(self, code, new_val, subfield_place=0, auth_control=True, auth_flag=False):
         if not self.record_type:
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
-            
-        subs = list(filter(lambda sub: sub.code == code, self.subfields))
-
+        
+        auth_ctrl = False
+        
         if Config.is_authority_controlled(self.record_type, self.tag, code):
             if isint(new_val):
                 if DB.auths.count_documents({'_id': new_val}) == 0:
-                    raise InvalidAuthXref(self.tag, code, new_val)
+                    raise InvalidAuthXref(self.record_type, self.tag, code, new_val)
             else:
                 xrefs = Auth.xlookup(self.tag, code, new_val, record_type=self.record_type)
                 
                 if len(xrefs) == 0:
-                    raise InvalidAuthValue(self.tag, code, new_val)
+                    raise InvalidAuthValue(self.record_type, self.tag, code, new_val)
                 elif len(xrefs) > 1:
-                    raise AmbiguousAuthValue(self.tag, code, new_val)
+                    raise AmbiguousAuthValue(self.record_type, self.tag, code, new_val)
                     
                 new_val = xrefs[0]
             
-        ###
-
+            auth_ctrl = True
+        
+        subs = list(filter(lambda sub: sub.code == code, self.subfields))
+        
         if len(subs) == 0 or subfield_place == '+':
             # new subfield
-            
-            if Config.is_authority_controlled(self.record_type, self.tag, code) == True:
-                self.subfields.append(Linked(code, new_val))
-                
-            else:
-                self.subfields.append(Literal(code, new_val))
+            sub = Linked(code, new_val) if auth_ctrl else Literal(code, new_val)
+            self.subfields.append(sub)
 
             return self
     
-        elif isinstance(subfield_place, int):
+        if isinstance(subfield_place, int):
             # replace exisiting subfield
-            
-            subs = [subs[subfield_place]]
+            sub = subs[subfield_place]
 
-        for sub in subs:
             if isinstance(sub, Literal):
                 sub.value = new_val
             elif isinstance(sub, Linked):
                 sub.xref = new_val
+        else:
+            raise Exception('Invalid subfield place')
         
         return self
     
     def to_bson(self):
-        return SON(
-            {
-                'indicators' : [self.ind1, self.ind2],
-                'subfields' : [sub.to_bson() for sub in self.subfields]
-            }
-        )
+        b = SON()
+        b['indicators'] = self.ind1, self.ind2,
+        b['subfields'] = [sub.to_bson() for sub in self.subfields]
+        
+        return b
+        
+    def to_dict(self):
+        d = {}
+        
+        d['indicators'] = [self.ind1, self.ind2]
+        d['subfields'] = []
+        
+        for sub in self.subfields:
+            s = {'code': sub.code, 'value': sub.value}
+            
+            if isinstance(sub, Linked):
+                s['xref'] = sub.xref
+            
+            d['subfields'].append(s)
+            
+        return d
 
     def to_mij(self):
         serialized = {self.tag: {}}
@@ -1261,7 +1350,10 @@ class Literal(Subfield):
         self.value = value
 
     def to_bson(self):
-        return SON(data = {'code' : self.code, 'value' : self.value})
+        b = SON()
+        b['code'], b['value'] = self.code, self.value
+        
+        return b
 
 class Linked(Subfield):
     def __init__(self, code, xref):
@@ -1277,8 +1369,11 @@ class Linked(Subfield):
         return Auth.lookup(self.xref, self.code, language)
 
     def to_bson(self):
-        return SON(data = {'code' : self.code, 'xref' : self.xref})
-
+        b = SON()
+        b['code'], b['xref'] = self.code, self.xref
+        
+        return b
+ 
 ### Matcher classes
 # deprecated
 
