@@ -1,9 +1,9 @@
 
 
 # DLX
-DLX provies APIs for performing ETL operations on MARC and file data
+APIs for performing ETL operations on MARC and file data
 
-###Requirements:
+### Requirements:
 * Python 3.6+
 * Valid MongoDB connection string
 * AWS S3 credentials (file submission only)
@@ -31,6 +31,7 @@ query = Query(
 
 for bib in BibSet.from_query(query):
 	bib.set('245', 'a', 'New title')
+	bib.commit(user='you')
 
 ###
 
