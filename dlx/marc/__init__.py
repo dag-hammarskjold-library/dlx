@@ -391,18 +391,7 @@ class Marc(object):
                     self.set(tag, None, value, address='+')
             else:
                 for field in doc[tag]:                
-                    ind1, ind2 = field['indicators'][0:2]
-
-                    f = Datafield(record_type=self.record_type, tag=tag, ind1=ind1, ind2=ind2)
-
-                    for sub in field['subfields']:
-                        
-                        if 'xref' in sub:
-                            f.set(sub['code'], sub['xref'], subfield_place='+')
-                        else:
-                            f.set(sub['code'], sub['value'], subfield_place='+')
-                    
-                    self.fields.append(f)
+                    self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field))
 
     #### "get"-type methods
 
@@ -924,7 +913,7 @@ class Marc(object):
                 field = Controlfield(tag, rest)
             else:
                 ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
-                field = Datafield(tag=tag, ind1=ind1, ind2=ind2, record_type=cls.record_type)
+                field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
                 
                 for chunk in filter(None, rest[2:].split('$')):
                     code, value = chunk[0], chunk[1:]
@@ -935,34 +924,15 @@ class Marc(object):
         return record
 
     def from_xml(self, string):
-        pass
+        raise
+    
+    @classmethod
+    def from_json(cls, string):
+       return cls(json.loads(string))
     
     @classmethod
     def from_jmarcnx(cls, string):
-        data = json.loads(string)
-        
-        record = cls()
-        idx = data.pop('_id', None)
-        
-        if idx:
-            record.id = idx
-            
-        for tag in data.keys():
-            for tag_place in range(0, len(data[tag])):
-                if tag[:2] == '00':
-                    field = Controlfield(tag, data[tag][tag_place])
-                else:
-                    ind1, ind2 = data[tag][tag_place]['indicators']
-                    field = Datafield(tag, ind1, ind2, record_type=cls.record_type)
-                    
-                    for subfield_place in range(0, len(data[tag][tag_place]['subfields'])):
-                        subfield = data[tag][tag_place]['subfields'][subfield_place]
-                        
-                        field.set(subfield['code'], subfield['value'], subfield_place='+')
-                
-                record.fields.append(field)
-                
-        return record
+        return cls.from_json(string)
 
 class Bib(Marc):
     record_type = 'bib'
@@ -1192,23 +1162,33 @@ class Datafield(Field):
             return False
             
         return self.to_dict() == other.to_dict()
-        
+     
     @classmethod
-    def from_jmarcnx(cls, *, record_type, tag, data):
+    def from_dict(cls, *, record_type, tag, data):
         self = cls()
         self.record_type = record_type
         self.tag = tag
-        
-        data = json.loads(data)
         
         self.ind1 = data['indicators'][0]
         self.ind2 = data['indicators'][1]
             
         for sub in data['subfields']:
-            code, value = sub['code'], sub['value']
-            self.set(code, value, subfield_place='+')
+            if 'xref' in sub:
+                self.set(sub['code'], sub['xref'], subfield_place='+')
+            else:
+                self.set(sub['code'], sub['value'], subfield_place='+')
             
         return self
+    
+    @classmethod
+    def from_json(cls, *args, **kwargs):
+        kwargs['data'] = json.loads(kwargs['data'])
+        
+        return cls.from_dict(**kwargs)
+        
+    @classmethod
+    def from_jmarcnx(cls, *args, **kwargs):
+        return cls.from_json(*args, **kwargs)
     
     def __init__(self, tag=None, ind1=None, ind2=None, subfields=None, record_type=None):
         self.record_type = record_type
@@ -1305,6 +1285,9 @@ class Datafield(Field):
             d['subfields'].append(s)
             
         return d
+        
+    def to_json(self, to_indent=None):
+        return json.dumps(self.to_dict(), indent=to_indent)
 
     def to_mij(self):
         serialized = {self.tag: {}}
@@ -1352,7 +1335,7 @@ class Datafield(Field):
             string += ''.join(['${}{}'.format(sub.code, sub.value)])
 
         return string
-
+    
 ### Subfield classes
 
 class Subfield():
