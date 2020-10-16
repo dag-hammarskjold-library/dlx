@@ -570,14 +570,7 @@ class Marc(object):
     
     def set_008(self):
         # sets position 0-5 and 7-10
-        text = self.get_value('008')
-        text = text.ljust(40, '|')
-        
-        if not re.match(r'^[ \|]+$', text[0:6]):
-            raise Exception('008 pos. 0-5 is already set')
-        elif not re.match(r'^[ \|]+$', text[7:11]):
-            raise Exception('008 pos. 7-10 is already set')
-
+        text = self.get_value('008').ljust(40, '|')
         date_tag, date_code = Config.date_field
         pub_date = self.get_value(date_tag, date_code)
         pub_year = pub_date[0:4].ljust(4, '|')
@@ -682,27 +675,59 @@ class Marc(object):
 
     #### utlities
     
-    def merge(self, to_merge):
-        # sets any value from to_merge if the field doesn't exist in self
-        # does not overwrite any values
+    def merge(self, to_merge, overwrite=False):
+        """Imports the fields from to_merge
         
-        for field in to_merge.fields:
+        Positional arguments
+        --------------------
+        to_merge : dlx.marc.Marc
+        
+        Keyword Arguments
+        -----------------
+        overwrite : bool (default: False)
+            If True, overwrites any fields from self with fields from to_merge.
+            If False, adds the fields to self if the field doesn't already exist 
+            in self
+        
+        Returns
+        -------
+        self
+        """
+        
+        assert isinstance(to_merge, Marc)
+        
+        diff = self.diff(to_merge)
+        diffrec = type(self)()
+        diffrec.fields = diff.b
+        
+        for tag in diffrec.get_tags():
+            i = 0
             
-            if isinstance(field, Controlfield):
-                val = self.get_value(field.tag)
-                if val:
-                    for pos in range(len(val)):
-                        if val[pos] in [' ', '|']:
-                            val[pos] = field.value[pos]       
-                        self.set(field.tag, None, val)
-                else:
+            for field in diffrec.get_fields(tag):
+                if isinstance(field, Controlfield):
+                    if overwrite:
+                        val = field.value
+                        
+                        for pos in range(len(val)):
+                            if val[pos] in [' ', '|']:
+                                val = val[:pos] + field.value[pos] + val[pos+1:]
+                                
+                        self.set(field.tag, None, val, address=[i])
                     
-                    self.set(field.tag, None, field.value)
-            else:
-                for sub in field.subfields:
-                    if not self.get_value(field.tag, sub.code):
-                        self.set(field.tag, sub.code, sub.value)
-        
+                    elif not self.get_value(field.tag):
+                        self.fields.append(field)
+                
+                else:
+                    g = 0
+                    
+                    for sub in field.subfields:
+                        if overwrite or not self.get_value(field.tag, sub.code, address=[i, g]):
+                            self.set(field.tag, sub.code, sub.value, address=[i, g])
+                        
+                        g += 1
+                            
+                i += 1
+
         return self
 
     def diff(self, other):
