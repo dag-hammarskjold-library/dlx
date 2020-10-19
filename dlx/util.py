@@ -5,9 +5,10 @@ from xlrd.xldate import xldate_as_tuple
 def isint(x):
     try:
         assert x == int(x)
-        return True
     except:
         return False
+        
+    return True
 
 class Table():
     @classmethod
@@ -81,14 +82,14 @@ class Table():
         rows = []
         
         for row in self.to_list():
-            tds = ['<td>{}</td>'.format(val) for val in row]
+            tds = [f'<td>{val}</td>' for val in row]
             to_str = ''.join(tds)
             rows.append(to_str)
         
-        trs = ['<tr>{}</tr>'.format(row) for row in rows]
+        trs = [f'<tr>{row}</tr>' for row in rows]
         to_str = ''.join(trs)
         
-        table = '<table>{}</table>'.format(to_str)
+        table = f'<table>{to_str}</table>'
         
         return table
         
