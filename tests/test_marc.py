@@ -235,7 +235,7 @@ def test_field_get_value(bibs):
     assert field.get_value('a') == 'This'
     assert field.get_values('a', 'b') == ['This', 'is the']
 
-def test_get_value(bibs):
+def test_get_value(db, bibs):
     from dlx.marc import Bib
     
     bib = Bib(bibs[0])
@@ -255,8 +255,8 @@ def test_get_xref(db, bibs):
     bib.set('710', 'a', 2, address='+')
     assert bib.get_xrefs('710') == [2, 2]
     
-def test_set():
-    from dlx.marc import Bib, Auth, InvalidAuthXref, InvalidAuthValue, AmbiguousAuthValue
+def test_set(db):
+    from dlx.marc import Bib, Auth, InvalidAuthXref, InvalidAuthValue, AmbiguousAuthValue, InvalidAuthField
     
     bib = Bib()
     bib.set('245', 'a', 'Edited')
@@ -286,7 +286,13 @@ def test_set():
     
     # str is subject to auth control
     with pytest.raises(InvalidAuthValue):
-        bib.set('650', 'a', 'invalid auth controlled value')
+        bib.set('650', 'a', 'Invalid auth controlled value')
+        
+    bib.set('650', 'a', 'Invalid auth controlled value', auth_control=False)
+    assert bib.get_value('650', 'a') == 'Invalid auth controlled value'
+    
+    with pytest.raises(InvalidAuthField):
+        bib.commit()
         
     bib.set('650', 'a', 'Header')
     assert bib.get_xref('650', 'a') == 1
@@ -295,7 +301,7 @@ def test_set():
     with pytest.raises(AmbiguousAuthValue):
         Auth().set('150', 'a', 'Header').commit()
         bib.set('650', 'a', 'Header')
-    
+
     # multi values
     bib = Bib().set_values(
         ('245', 'a', 'yet another'),
@@ -457,7 +463,8 @@ def test_field_from_json(bibs):
 def test_partial_lookup(db):
     from dlx.marc import Auth
     
-    assert Auth.partial_lookup('650', 'a', 'Head', record_type='bib') == [('Header', 1)]
+    results = Auth.partial_lookup('650', 'a', 'Head', record_type='bib')
+    assert results[0].heading_value('a') == 'Header'
     
     for i in range(0, 100):
         Auth().set('150', 'a', f'Header{i}').commit()

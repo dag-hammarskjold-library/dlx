@@ -94,12 +94,9 @@ def test_from_table(db):
         
     with pytest.raises(Exception):
         bibset = BibSet.from_table(Table([['245a'], ['This']]), field_check='245a')
-        
+
     with pytest.raises(Exception):
-        bibset = BibSet.from_table(Table([['650a'], ['Should an int']]), auth_control=True)
-        
-    with pytest.raises(Exception):
-        bibset = BibSet.from_table(Table([['650a'], ['Invalid']]), auth_control=False, auth_flag=True)
+        bibset = BibSet.from_table(Table([['650a'], ['Invalid']]), auth_control=True)
         
 def test_from_excel():
     from dlx.marc import BibSet

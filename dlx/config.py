@@ -23,22 +23,21 @@ class Config():
     bib_index = ['191', '791', '930', '998']
     bib_index_case_insensitive = ['191']  
     
-    auth_index = ['100', '110', '111', '150', '190']
+    auth_index = ['100', '110', '111', '130', '150', '190']
     auth_index_case_insensitive = ['100', '110', '111'] 
     
     # this is used by dlx.query to locate the linked value
     bib_authority_controlled = {
         '191': {'b': '190', 'c': '190'},
-        '600': {'a': '100'},
-        '610': {'a': '110'},
-        '611': {'a': '111'},
-        '630': {'a': '130'},
+        '600': {'a': '100', 'g': '100'},
+        '610': {'a': '110', 'g': '110'},
+        '611': {'a': '111', 'g': '111'},
+        '630': {'a': '130', 'g': '130'},
         '650': {'a': '150'},
         '651': {'a': '151'},
-        '700': {'a': '100'},
-        '700': {'g': '100'},
+        '700': {'a': '100', 'g': '100'},
         '710': {'a': '110', '9': '110'},
-        '711': {'a': '111'},
+        '711': {'a': '111', 'g': '111'},
         '730': {'a': '130'},
         '791': {'b': '190', 'c' : '190'},
         '830': {'a': '130'},
@@ -55,8 +54,8 @@ class Config():
     }
     
     auth_language_tag = {
-        '150': {'fr': '993', 'es': '994'},
-        '151': {'fr': '993', 'es': '994'}
+        '150': {'fr': '993', 'es': '994', 'ar': '995', 'zh': '996', 'ru': '997'},
+        '151': {'fr': '993', 'es': '994', 'ar': '995', 'zh': '996', 'ru': '997'},
     }
 
     @staticmethod
@@ -93,8 +92,8 @@ class Config():
     def auth_heading_tags():
         r = []
         
-        for tag, langs in list(Config.bib_authority_controlled.items()) + list(Config.auth_authority_controlled.items()):
-            r += [tag for tag in langs.values()]
+        for tag, code in list(Config.bib_authority_controlled.items()) + list(Config.auth_authority_controlled.items()):
+            r += [t for t in code.values()]
         
         return list(set(r))
     
@@ -115,11 +114,11 @@ class Config():
         return Config.language_source_tag(auth_tag, language)
     
     @staticmethod    
-    def get_language_tags():
+    def auth_language_tags():
         r = []
         
-        for tag, langs in Config.auth_language_tag.items():
-            for t in langs.values():
-                r.append(t)
+        for tag in Config.auth_language_tag.values():
+            for lang in tag.keys():
+                r.append(tag[lang])
         
-        return r
+        return list(set(r))

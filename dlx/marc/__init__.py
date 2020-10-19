@@ -16,19 +16,22 @@ from dlx.util import isint, Table
 
 ### Exceptions
 
-class InvalidAuthXref(Exception):
+class AuthException(Exception):
+    pass
+    
+class InvalidAuthXref(AuthException):
     def __init__(self, rtype, tag, code, xref):
         super().__init__(f'xref (auth#) is invalid: {tag}, {code}, {xref}')
         
-class InvalidAuthValue(Exception):
+class InvalidAuthValue(AuthException):
     def __init__(self, rtype, tag, code, value):
         super().__init__(f'Invalid authority-controlled value: {tag}, {code}, "{value}"')
         
-class AmbiguousAuthValue(Exception):
+class AmbiguousAuthValue(AuthException):
     def __init__(self, rtype, tag, code, value):
         super().__init__(f'Authority-controlled value: {tag}, {code}, "{value}" is a header for multiple auth records. Use the xref instead')
 
-class InvalidAuthField(Exception):
+class InvalidAuthField(AuthException):
     def __init__(self, rtype, tag, code):
         super().__init__(f'{tag}, {code} is an authority-controlled field')
     
@@ -122,29 +125,26 @@ class MarcSet():
                 elif len(field_name) == 3 and field_name[0:2] == '00':
                     tag, code = field_name, None
                 else:
-                    #raise Exception('Invalid column header "{}"'.format(field_name))
                     exceptions.append('Invalid column header "{}"'.format(field_name))
                     continue
                     
                 if record.get_value(tag, code, address=[instance,0]):
-                    #raise Exception('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
                     
                 if field_check and field_check == tag + (code or ''):
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
-                        #raise Exception('{}${}: "{}" is already in the system'.format(tag, code, value))
                         exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
                         continue
                         
                 if record.get_field(tag, place=instance):
                     try:
-                        record.set(tag, code, value, address=[instance], auth_control=auth_control, auth_flag=auth_flag)
+                        record.set(tag, code, value, address=[instance], auth_control=auth_control)
                     except Exception as e:
                         exceptions.append(str(e))
                 else:
                     try:
-                        record.set(tag, code, value, address=['+'], auth_control=auth_control, auth_flag=auth_flag)
+                        record.set(tag, code, value, address=['+'], auth_control=auth_control)
                     except Exception as e:
                         exceptions.append(str(e))
             
@@ -161,7 +161,7 @@ class MarcSet():
     def from_excel(cls, path, auth_control=True, auth_flag=False, field_check=None, date_format='%Y%m%d'):
         table = Table.from_excel(path, date_format=date_format)
 
-        return cls.from_table(table, auth_control=auth_control, auth_flag=auth_flag, field_check=field_check)
+        return cls.from_table(table, auth_control=auth_control, field_check=field_check)
     
     # instance
     
@@ -404,97 +404,87 @@ class Marc(object):
     def get_field(self, tag, place=0):
         fields = self.get_fields(tag)
         
-        try:
+        if len(fields) == 0:
+            return
+        if len(fields) > place:
             return fields[place]
-        except IndexError:
-            return None
 
     def get_values(self, tag, *codes, **kwargs):
-        if 'place' in kwargs:
-            field = self.get_field(tag, **kwargs)
-            fields = [field] if field else []
-        else:
-            fields = self.get_fields(tag)
+        if tag[:2] == '00':
+            return [field.value for field in self.get_fields(tag)]
+            
+        return [sub.value for sub in self.get_subfields(tag, *codes, place=kwargs.get('place'))]
 
-        vals = []
-
-        for field in fields:
-            if isinstance(field, Controlfield):
-                return [field.value]
-            else:
-                if len(codes) == 0:
-                    subs = field.subfields
-                else:
-                    subs = filter(lambda sub: sub.code in codes, field.subfields)
-
-                for sub in subs:
-                    vals.append(sub.value)
-
-        return vals
-
-    def get_value(self, tag, code=None, address=None, language=None):
-        if address:
-            if len(address) != 2:
-                raise Exception('Invalid address')
-
-            try:
-                return self.get_values(tag, code, place=address[0])[address[1] or 0]
-            except IndexError:
-                return ''
-                
-        field = self.get_field(tag)
-
-        if field is None:
-            return ''
-
+    def get_value(self, tag, code=None, address=[0, 0], language=None):
+        field = self.get_field(tag, place=address[0])    
+        
         if isinstance(field, Controlfield):
             return field.value
-
-        sub = next(filter(lambda sub: sub.code == code, field.subfields), None)
         
-        if language is not None:
-            return sub.translated(language)
+        if isinstance(field, Datafield):    
+            sub = self.get_subfield(tag, code, address=address)
+            
+            if sub:
+                if language:
+                    return sub.translated(language)
+                else:
+                    return sub.value
         
-        return sub.value if sub else ''
+        return ''
 
     def get_tags(self):
-        return sorted([x.tag for x in self.get_fields()])
+        return sorted(set([x.tag for x in self.get_fields()]))
 
     def get_xrefs(self, *tags):
         xrefs = []
 
         for field in filter(lambda f: isinstance(f, Datafield), self.get_fields(*tags)):
-            xrefs = xrefs + field.get_xrefs()
+            xrefs += field.get_xrefs()
 
         return xrefs
         
-    def get_xref(self, tag, code, address=[0, 0]):
-        f = 0
-        for field in self.get_fields(tag):
-            if f < address[0]:
-                continue
-        
-            if isinstance(field, Datafield):
-                s = 0    
-                for subfield in field.subfields:   
-                    if s < address[1]:
-                        continue
-                    
-                    if subfield.code == code and isinstance(subfield, Linked):
-                        return subfield.xref
-                        
-                    s += 1
-                    
-            f += 1
+    def get_xref(self, tag, code, address=None):
+        return self.get_subfield(tag, code, address=address).xref 
+    
+    def get_subfield(self, tag, code, address=None):
+        if address:
+            return self.get_field(tag, place=address[0]).get_subfield(code, place=address[1])
             
-        return ''
-
+            i, j = 0, 0
+        
+            for i, field in enumerate(self.get_fields(tag)):
+                for j, sub in enumerate(filter(lambda x: x.code == code, field.subfields)):
+                    if [i, j] == address:
+                        return sub
+        else:
+            return next(filter(lambda x: x.code == code, self.get_field(tag).subfields), None)
+                            
+    def get_subfields(self, tag, *codes, **kwargs):
+        place = kwargs.get('place')
+        
+        if isinstance(place, int):
+            fields = [self.get_field(tag, place=place)]
+        elif place is None:
+            fields = self.get_fields(tag)
+        else:
+            raise Exception('Invalid place')
+        
+        subs = []
+        
+        for field in fields:
+            if isinstance(field, Controlfield):
+                return
+                
+            subs += list(filter(lambda x: x.code in codes, field.subfields))
+        
+        return subs
+    
     def get_text(self, tag):
         pass
 
     #### "set"-type methods
 
-    def set(self, tag, code, new_val, *, ind1=None, ind2=None, auth_control=True, auth_flag=False, address=[]):
+    def set(self, tag, code, new_val, *, ind1=None, ind2=None, auth_control=True, address=[]):
         field_place, subfield_place = 0, 0
         
         if len(address) > 0:
@@ -518,11 +508,8 @@ class Marc(object):
                 field = Controlfield(tag, new_val)
                 self.fields.append(field)
             else:
-                field = Datafield(record_type=self.record_type)
-                field.tag = tag
-                field.ind1 = ind1 or ' '
-                field.ind2 = ind2 or ' '
-                field.set(code, new_val)
+                field = Datafield(tag=tag, record_type=self.record_type)            
+                field.set(code, new_val, ind1=ind1, ind2=ind2, auth_control=auth_control)
                 self.fields.append(field)
             
             return self
@@ -536,16 +523,8 @@ class Marc(object):
             
         if isinstance(field, Controlfield):
             field.value = new_val
-
-            return self
-            
-        if ind1:
-            field.ind1 = ind1
-        
-        if ind2:
-            field.ind2 = ind2
-
-        field.set(code, new_val, subfield_place, auth_control)
+        else:
+            field.set(code, new_val, ind1=ind1 or None, ind2=ind2 or None, place=subfield_place, auth_control=auth_control)
         
         return self
         
@@ -567,24 +546,27 @@ class Marc(object):
         
         self.set('008', None, cat_date + text[6] + pub_year + text[11:])
 
-    def change_tag(self, old_tag, new_tag):
-        pass
-
-    def delete_field(self, tag, place=None):
-        if place:
-            fields = filter(lambda x: x.tag == tag, self.fields)
-            i = 0
+    def delete_field(self, tag, place=0):
+        if isinstance(place, int):
+            i, j = 0, 0
             
-            for field in fields:
-                if i == place:
-                    self.fields.remove(field)
-                
-                i += 1    
-                
+            for i, field in enumerate(self.fields):
+                if field.tag == tag:
+                    if j == place:
+                        del self.fields[i]
+                        
+                        return
+                    
+                    j += 1
         else:
-            self.fields = list(filter(lambda x: x.tag != tag, self.datafields))
+            raise Exception('Invalid place')
         
-        return
+        return self
+        
+    def delete_fields(self, *tags):
+        self.fields = list(filter(lambda x: x.tag not in tags, self.datafields))
+        
+        return self
 
     ### store
 
@@ -599,8 +581,8 @@ class Marc(object):
     def commit(self, user='admin'):
         # clear the caches in case there is a new auth value
         if isinstance(self, Auth):
-            Auth._cache = {}
-            Auth._xcache = {}
+            for cache in ('_cache', '_xcache', '_pcache', '_langcahce'):
+                setattr(Auth, cache, {})
             
         new_flag = False
         
@@ -613,10 +595,10 @@ class Marc(object):
         for field in filter(lambda x: isinstance(x, Datafield), self.fields):
             for sub in field.subfields:
                 if Config.is_authority_controlled(self.record_type, field.tag, sub.code):
-                    if not isinstance(sub, Linked):
-                        raise InvalidAuthField(self.record_type, field.tag, sub.code)
-                        
-                    if DB.auths.count_documents({'_id': sub.xref}) == 0:
+                    if not hasattr(sub, 'xref'):
+                       raise InvalidAuthField(self.record_type, field.tag, sub.code) 
+                    
+                    if not Auth.lookup(sub.xref, sub.code):
                         raise InvalidAuthXref(self.record_type, field.tag, sub.code, sub.xref)
 
         self.validate()
@@ -646,6 +628,10 @@ class Marc(object):
         return type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
         
     def delete(self, user='admin'):
+        if isinstance(self, Auth):
+            for cache in ('_cache', '_xcache', '_pcache', '_langcahce'):
+                setattr(Auth, cache, {})
+
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id}) or SON()
         record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
@@ -674,9 +660,9 @@ class Marc(object):
         Keyword Arguments
         -----------------
         overwrite : bool (default: False)
-            If True, overwrites any fields from self with fields from to_merge.
-            If False, adds the fields to self if the field doesn't already exist 
-            in self
+            If True, overwrites any fields with the same tag from self with 
+            fields from to_merge. If False, adds the fields to self if the field
+            doesn't already exist in self
         
         Returns
         -------
@@ -690,15 +676,13 @@ class Marc(object):
         diffrec.fields = diff.b
         
         for tag in diffrec.get_tags():
-            i = 0
-            
-            for field in diffrec.get_fields(tag):
+            for i, field in enumerate(diffrec.get_fields(tag)):
                 if isinstance(field, Controlfield):
                     if overwrite:
                         val = field.value
                         
                         for pos in range(len(val)):
-                            if val[pos] in [' ', '|']:
+                            if val[pos] in [' ', '|']: 
                                 val = val[:pos] + field.value[pos] + val[pos+1:]
                                 
                         self.set(field.tag, None, val, address=[i])
@@ -707,15 +691,9 @@ class Marc(object):
                         self.fields.append(field)
                 
                 else:
-                    g = 0
-                    
-                    for sub in field.subfields:
-                        if overwrite or not self.get_value(field.tag, sub.code, address=[i, g]):
-                            self.set(field.tag, sub.code, sub.value, address=[i, g])
-                        
-                        g += 1
-                            
-                i += 1
+                    for j, sub in enumerate(field.subfields):
+                        if overwrite or not self.get_value(field.tag, sub.code, address=[i, j]):
+                            self.set(field.tag, sub.code, getattr(sub, 'xref', None) or sub.value, address=[i, j])
 
         return self
 
@@ -872,28 +850,16 @@ class Marc(object):
         xrec.fields += self.controlfields
         
         for field in self.datafields:
-            i = 0 
-
-            for subfield in field.subfields:
+            for i, subfield in enumerate(field.subfields):
                 if isinstance(subfield, Linked):
                     new_subfield = Literal(subfield.code, subfield.value)
                     field.subfields[i] = new_subfield
-                
-                i += 1
                     
             xrec.fields.append(field)
 
         return xrec.to_json()
     
     #### de-serializations
-    # these formats don't fully support linked values.
-
-    # todo: data coming from these formats should be somehow flagged as
-    # "externally sourced" and not committed to the DB without revision.
-    #
-    # alternatively, we can try to match string values from known DLX auth-
-    # controlled fields with DLX authority strings and automatically assign
-    # the xref (basically, the Horizon approach)
 
     def from_mij(self, string):
         pass
@@ -917,7 +883,7 @@ class Marc(object):
                 
                 for chunk in filter(None, rest[2:].split('$')):
                     code, value = chunk[0], chunk[1:]
-                    field.set(code, value, subfield_place='+')
+                    field.set(code, value, place='+')
                 
             record.fields.append(field)
             
@@ -981,58 +947,55 @@ class Auth(Marc):
     set_class= AuthSet
     _cache = {}
     _xcache = {}
+    _pcache = {}
     _langcache = {}
 
     @classmethod
+    @Decorators.check_connection
     def lookup(cls, xref, code, language=None):
-        DB.check_connection()
+        if language:
+            cached = cls._langcache.get(xref, {}).get(code, {}).get(language, None)
+        else:
+            cached = cls._cache.get(xref, {}).get(code, None)
+            
+        if cached:
+            return cached
         
-        if language and xref in cls._langcache:
-            if code in cls._langcache[xref]:
-                if language in cls._langcache[xref][code]:
-                    return cls._langcache[xref][code][language]
-        else:
-            cls._langcache[xref] = {}
-            
-        if xref in cls._cache:
-            if code in cls._cache[xref]:
-                return  cls._cache[xref][code]
-        else:
-            cls._cache[xref] = {}
-            
-        projection = dict.fromkeys(Config.auth_heading_tags(), True)
+        label_tags = Config.auth_heading_tags()
+        label_tags += Config.auth_language_tags() if language else []
+        auth = Auth.find_one({'_id': xref}, projection=dict.fromkeys(label_tags, 1))
+        value = auth.heading_value(code, language) if auth else None
         
         if language:
-            for x in Config.get_language_tags():
-                projection[x] = True
-        
-        auth = Auth.find_one({'_id': xref}, projection)
-        value = auth.heading_value(code, language) if auth else '**Linked Auth Not Found**'
-        
-        if language:
-            if code not in cls._langcache[xref]:
-                cls._langcache[xref][code] = {}
-                
-            cls._langcache[xref][code][language] = value
+            cls._langcache[xref] = {code: {language: value}}
         else:
-            cls._cache[xref][code] = value
-
+            cls._cache[xref] = {code: value}
+            
         return value
         
     @classmethod
+    @Decorators.check_connection
     def xlookup(cls, tag, code, value, *, record_type):
         auth_tag = Config.authority_source_tag(record_type, tag, code)
         
         if auth_tag is None:
             return
+
+        cached = Auth._xcache.get(auth_tag, {}).get(code, {}).get(value, None)
         
+        if cached:
+            return cached
+            
         query = Query(Condition(auth_tag, {code: value}))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
         
+        Auth._xcache[auth_tag] = {code: {value: xrefs}}
+
         return xrefs
 
     @classmethod
+    @Decorators.check_connection
     def partial_lookup(cls, tag, code, string, *, record_type, limit=50):
         """Returns a list of tuples containing the authority-controlled values
         that match the given string
@@ -1057,16 +1020,23 @@ class Auth(Marc):
             and the second is the xref#
         """
         
+        cached = Auth._pcache.get(string)
+        
+        if cached:
+            return cached
+            
         auth_tag = Config.authority_source_tag(record_type, tag, code)
         
         if auth_tag is None:
             return
             
         query = Query(Condition(auth_tag, {code: Regex(string)}))
-        auths = AuthSet.from_query(query.compile(), limit=limit, projection={'_id': 1, '100': 1, '110': 1, '111': 1, '150': 1, '190': 1})
-       
-        return [(a.heading_value(code), a.id) for a in auths]
-    
+        auths = AuthSet.from_query(query.compile(), limit=limit, projection=dict.fromkeys(Config.auth_heading_tags(), 1))
+        results = list(auths)
+        Auth._pcache[string] = results
+                    
+        return results
+        
     def __init__(self, doc={}):
         self.record_type = 'auth'
         super().__init__(doc)
@@ -1176,14 +1146,14 @@ class Datafield(Field):
             xref = sub.get('xref')
             
             if xref:
-                self.set(sub['code'], int(xref), subfield_place='+')
+                self.set(sub['code'], int(xref), place='+')
                 
             else:
                 value = sub.get('value')
                 
                 if value:
-                    self.set(sub['code'], str(value), subfield_place='+')
-            
+                    self.set(sub['code'], str(value), place='+')
+                    
         return self
     
     @classmethod
@@ -1199,16 +1169,16 @@ class Datafield(Field):
     def __init__(self, tag=None, ind1=None, ind2=None, subfields=None, record_type=None):
         self.record_type = record_type
         self.tag = tag
-        self.ind1 = ind1
-        self.ind2 = ind2
+        self.ind1 = ind1 or ' '
+        self.ind2 = ind2 or ' '
         self.subfields = subfields or []
         
     @property
     def indicators(self):
         return [self.ind1, self.ind2]
     
-    def get_value(self, code):
-        sub = next(filter(lambda sub: sub.code == code, self.subfields), None)
+    def get_value(self, code, place=0):
+        sub = self.get_subfield(code, place=place)
         
         return sub.value if sub else ''
         
@@ -1225,16 +1195,28 @@ class Datafield(Field):
             if sub.code == code:
                 return sub.xref
     
-    def set(self, code, new_val, subfield_place=0, auth_control=True, auth_flag=False):
-        if not self.record_type:
+    def get_subfields(self, code):
+        return filter(lambda x: x.code == code, self.subfields)
+            
+    def get_subfield(self, code, place=None):
+        if place is None:
+            return next(self.get_subfields(code), None)
+            
+        for i, sub in enumerate(self.get_subfields(code)):
+            if i == place:
+                return sub
+
+    def set(self, code, new_val, *, ind1=None, ind2=None, place=0, auth_control=True):
+        if auth_control and not self.record_type:
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
         
-        auth_ctrl = False
-        
-        if Config.is_authority_controlled(self.record_type, self.tag, code):
+        if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
             if isint(new_val):
-                if DB.auths.count_documents({'_id': new_val}) == 0:
+                xref = new_val
+                
+                if not Auth.lookup(xref, code): 
                     raise InvalidAuthXref(self.record_type, self.tag, code, new_val)
+
             else:
                 xrefs = Auth.xlookup(self.tag, code, new_val, record_type=self.record_type)
                 
@@ -1244,28 +1226,31 @@ class Datafield(Field):
                     raise AmbiguousAuthValue(self.record_type, self.tag, code, new_val)
                     
                 new_val = xrefs[0]
-            
-            auth_ctrl = True
-        
-        subs = list(filter(lambda sub: sub.code == code, self.subfields))
-        
-        if len(subs) == 0 or subfield_place == '+':
-            # new subfield
-            sub = Linked(code, new_val) if auth_ctrl else Literal(code, new_val)
-            self.subfields.append(sub)
-
-            return self
-    
-        if isinstance(subfield_place, int):
-            # replace exisiting subfield
-            sub = subs[subfield_place]
-
-            if isinstance(sub, Literal):
-                sub.value = new_val
-            elif isinstance(sub, Linked):
-                sub.xref = new_val
         else:
-            raise Exception('Invalid subfield place')
+            auth_control = False
+        
+        # existing subfield
+        # need to walk to the tree to replace the subfield object
+        
+        i, j = 0, 0
+            
+        for i, sub in enumerate(self.subfields):
+            if sub.code == code:
+                if j == place:
+                    self.subfields[j] = Linked(code, new_val) if auth_control else Literal(code, new_val)
+                    
+                    return self
+                
+                j += 1
+
+        # new subfield
+        if place in ('+', 0):
+            self.subfields.append(Linked(code, new_val) if auth_control else Literal(code, new_val))
+        elif place > j or not isinstance(place, int):
+            raise Exception(f'Invalid subfield place {place}')
+            
+        if ind1: self.ind1 = ind1
+        if ind2: self.ind2 = ind2
         
         return self
     
@@ -1283,10 +1268,13 @@ class Datafield(Field):
         d['subfields'] = []
         
         for sub in self.subfields:
-            s = {'code': sub.code, 'value': sub.value}
+            s = {'code': sub.code}
             
             if isinstance(sub, Linked):
                 s['xref'] = sub.xref
+            
+            if sub.value is not None:
+                s['value'] = sub.value
             
             d['subfields'].append(s)
             
