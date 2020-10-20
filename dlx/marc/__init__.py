@@ -953,10 +953,12 @@ class Auth(Marc):
     @classmethod
     @Decorators.check_connection
     def lookup(cls, xref, code, language=None):
+        cache, langcache = Auth._cache, Auth._langcache
+        
         if language:
-            cached = cls._langcache.get(xref, {}).get(code, {}).get(language, None)
+            cached = langcache.get(xref, {}).get(code, {}).get(language, None)
         else:
-            cached = cls._cache.get(xref, {}).get(code, None)
+            cached = cache.get(xref, {}).get(code, None)
             
         if cached:
             return cached
@@ -967,21 +969,25 @@ class Auth(Marc):
         value = auth.heading_value(code, language) if auth else None
         
         if language:
-            cls._langcache[xref] = {code: {language: value}}
+            langcache[xref] = {code: {language: value}}
         else:
-            cls._cache[xref] = {code: value}
-            
+            if xref in cache:
+                cache[xref].update({code: value})
+            else:
+                cache[xref] = {code: value}
+                
         return value
         
     @classmethod
     @Decorators.check_connection
     def xlookup(cls, tag, code, value, *, record_type):
         auth_tag = Config.authority_source_tag(record_type, tag, code)
+        xcache = Auth._xcache
         
         if auth_tag is None:
             return
 
-        cached = Auth._xcache.get(auth_tag, {}).get(code, {}).get(value, None)
+        cached = xcache.get(value, {}).get(auth_tag, {}).get(code, None)
         
         if cached:
             return cached
@@ -990,7 +996,7 @@ class Auth(Marc):
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
         
-        Auth._xcache[auth_tag] = {code: {value: xrefs}}
+        xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
 
         return xrefs
 
@@ -1191,10 +1197,8 @@ class Datafield(Field):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
 
     def get_xref(self, code):
-        for sub in self.subfields:
-            if sub.code == code:
-                return sub.xref
-    
+        return next((sub.xref for sub in filter(lambda x: x.code == code, self.subfields)), None)
+
     def get_subfields(self, code):
         return filter(lambda x: x.code == code, self.subfields)
             
@@ -1251,7 +1255,7 @@ class Datafield(Field):
             
         if ind1: self.ind1 = ind1
         if ind2: self.ind2 = ind2
-        
+
         return self
     
     def to_bson(self):
