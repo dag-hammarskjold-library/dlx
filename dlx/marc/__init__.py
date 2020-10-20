@@ -12,7 +12,7 @@ from dlx.config import Config
 from dlx.db import DB
 from dlx.query import jfile as FQ
 from dlx.marc.query import QueryDocument, Query, Condition, Or
-from dlx.util import isint, Table
+from dlx.util import Table
 
 ### Exceptions
 
@@ -366,12 +366,12 @@ class Marc(object):
 
     # Instance methods
 
-    def __init__(self, doc={}):
+    def __init__(self, doc={}, **kwargs):
         self.id = int(doc['_id']) if '_id' in doc else None
         self.updated = doc['updated'] if 'updated' in doc else None
         self.user = doc['user'] if 'user' in doc else None
         self.fields = []
-        self.parse(doc)
+        self.parse(doc, auth_control=kwargs.get('auth_control'))
         
     @property
     def controlfields(self):
@@ -381,17 +381,17 @@ class Marc(object):
     def datafields(self):
         return list(filter(lambda x: x.tag[:2] != '00', sorted(self.fields, key=lambda x: x.tag)))
 
-    def parse(self, doc):
+    def parse(self, doc, *, auth_control=False):
         for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
 
             if tag[:2] == '00':
                 for value in doc[tag]:
-                    self.set(tag, None, value, address='+')
+                    self.fields.append(Controlfield(tag, value))
             else:
                 for field in doc[tag]:                
-                    self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field))
+                    self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field, auth_control=auth_control))
 
     #### "get"-type methods
 
@@ -868,7 +868,7 @@ class Marc(object):
         pass
 
     @classmethod
-    def from_mrk(cls, string):
+    def from_mrk(cls, string, auth_control=True):
         record = cls()
         
         for line in filter(None, string.split('\n')):
@@ -883,7 +883,7 @@ class Marc(object):
                 
                 for chunk in filter(None, rest[2:].split('$')):
                     code, value = chunk[0], chunk[1:]
-                    field.set(code, value, place='+')
+                    field.set(code, value, place='+', auth_control=auth_control)
                 
             record.fields.append(field)
             
@@ -893,20 +893,16 @@ class Marc(object):
         raise
     
     @classmethod
-    def from_json(cls, string):
-       return cls(json.loads(string))
-    
-    @classmethod
-    def from_jmarcnx(cls, string):
-        return cls.from_json(string)
+    def from_json(cls, string, auth_control=False):
+        return cls(doc=json.loads(string), auth_control=auth_control)
 
 class Bib(Marc):
     record_type = 'bib'
     set_class = BibSet
     
-    def __init__(self, doc={}):
+    def __init__(self, doc={}, **kwargs):
         self.record_type = 'bib'
-        super().__init__(doc)
+        super().__init__(doc, **kwargs)
 
     #### shorctuts
 
@@ -1043,9 +1039,9 @@ class Auth(Marc):
                     
         return results
         
-    def __init__(self, doc={}):
+    def __init__(self, doc={}, **kwargs):
         self.record_type = 'auth'
-        super().__init__(doc)
+        super().__init__(doc, **kwargs)
     
     @property    
     def heading_field(self):
@@ -1140,33 +1136,37 @@ class Datafield(Field):
         return self.to_dict() == other.to_dict()
      
     @classmethod
-    def from_dict(cls, *, record_type, tag, data):
+    def from_dict(cls, *, record_type, tag, data, auth_control=False):
         self = cls()
         self.record_type = record_type
         self.tag = tag
         
         self.ind1 = data['indicators'][0]
         self.ind2 = data['indicators'][1]
+        
+        assert len(data['subfields']) > 0
             
         for sub in data['subfields']:
-            xref = sub.get('xref')
-            
-            if xref:
-                self.set(sub['code'], int(xref), place='+')
-                
+            if 'xref' in sub:
+                if auth_control:
+                    self.set(sub['code'], int(sub['xref']), place='+')
+                else:
+                    self.subfields.append(Linked(sub['code'], sub['xref']))
+            elif 'value' in sub:
+                if auth_control:
+                    self.set(sub['code'], str(sub['value']), place='+')
+                else:
+                    self.subfields.append(Literal(sub['code'], sub['value']))
             else:
-                value = sub.get('value')
-                
-                if value:
-                    self.set(sub['code'], str(value), place='+')
-                    
+                raise ValueError
+
         return self
     
     @classmethod
     def from_json(cls, *args, **kwargs):
         kwargs['data'] = json.loads(kwargs['data'])
         
-        return cls.from_dict(**kwargs)
+        return cls.from_dict(*args, **kwargs)
         
     @classmethod
     def from_jmarcnx(cls, *args, **kwargs):
@@ -1197,7 +1197,7 @@ class Datafield(Field):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
 
     def get_xref(self, code):
-        return next((sub.xref for sub in filter(lambda x: x.code == code, self.subfields)), None)
+        return next((sub.xref for sub in filter(lambda x: hasattr(x, 'xref') and x.code == code, self.subfields)), None)
 
     def get_subfields(self, code):
         return filter(lambda x: x.code == code, self.subfields)
@@ -1215,7 +1215,7 @@ class Datafield(Field):
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
         
         if auth_control == True and Config.is_authority_controlled(self.record_type, self.tag, code):
-            if isint(new_val):
+            if isinstance(new_val, int):
                 xref = new_val
                 
                 if not Auth.lookup(xref, code): 

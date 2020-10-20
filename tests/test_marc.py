@@ -58,12 +58,15 @@ def test_init_auth(db, auths):
             assert subfield.code and subfield.value
 
 def test_init_auth_check(db):
+    # auth check on init is off
+    return 
+    
     from dlx import DB
     from dlx.marc import Bib, Auth, InvalidAuthXref, InvalidAuthValue, AmbiguousAuthValue
     
     with pytest.raises(InvalidAuthXref):
         Bib({'650': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'xref': 9}]}]})
-        
+   
     with pytest.raises(InvalidAuthValue):
         Bib({'650': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'value': 'invalid'}]}]})
         
@@ -434,6 +437,19 @@ def test_from_mrk(db):
     assert bib.to_mrk() == mrk
     assert bib.commit()
     
+def test_from_json():
+    from dlx.marc import Bib, InvalidAuthValue, InvalidAuthField
+    
+    json = '{"600": [{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Not auth controlled"}]}]}'
+    bib = Bib.from_json(json)
+    assert bib
+    
+    with pytest.raises(InvalidAuthValue):
+        Bib.from_json(json, auth_control=True)
+        
+    with pytest.raises(InvalidAuthField):
+        bib.commit()
+    
 def test_to_jmarcnx(bibs):
     from dlx.marc import Bib
     import json
@@ -441,11 +457,6 @@ def test_to_jmarcnx(bibs):
     jnx = Bib.from_id(1).to_jmarcnx()
     bib = Bib(json.loads(jnx))
     assert bib.to_jmarcnx() == jnx
-
-def test_from_jmarcnx(bibs):
-    from dlx.marc import Bib
-
-    assert Bib.from_jmarcnx(Bib.from_id(1).to_jmarcnx()).to_dict() == Bib.from_id(1).to_dict()
     
 def test_field_from_json(bibs):
     from dlx.marc import Datafield
@@ -462,7 +473,8 @@ def test_field_from_json(bibs):
     field = Datafield.from_json(
         record_type='bib',
         tag='610',
-        data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another header"}]}'
+        data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Another header"}]}',
+        auth_control=True
     )
     
     assert field.get_xref('a') == 2
@@ -471,7 +483,8 @@ def test_field_from_json(bibs):
         field = Datafield.from_json(
             record_type='bib',
             tag='610',
-            data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Wrong header"}]}'
+            data='{"indicators": [" ", " "], "subfields": [{"code": "a", "value": "Wrong header"}]}',
+            auth_control=True
         )
 
 def test_partial_lookup(db):
