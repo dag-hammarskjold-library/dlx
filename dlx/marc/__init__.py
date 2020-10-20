@@ -1266,44 +1266,29 @@ class Datafield(Field):
         return b
         
     def to_dict(self):
-        d = {}
-        
+        d = {}        
         d['indicators'] = [self.ind1, self.ind2]
-        d['subfields'] = []
-        
-        for sub in self.subfields:
-            s = {'code': sub.code}
-            
-            if isinstance(sub, Linked):
-                s['xref'] = sub.xref
-            
-            if sub.value is not None:
-                s['value'] = sub.value
-            
-            d['subfields'].append(s)
-            
+        d['subfields'] = [sub.to_dict() for sub in self.subfields]
+
         return d
         
     def to_json(self, to_indent=None):
         return json.dumps(self.to_dict(), indent=to_indent)
 
     def to_mij(self):
-        serialized = {self.tag: {}}
+        mij = {self.tag: {}}
 
-        serialized[self.tag]['ind1'] = self.ind1
-        serialized[self.tag]['ind2'] = self.ind2
+        mij[self.tag]['ind1'] = self.ind1
+        mij[self.tag]['ind2'] = self.ind2
 
         subs = []
 
         for sub in self.subfields:
-            if isinstance(sub, Linked):
-                subs.append({sub.code : Auth.lookup(sub.xref, sub.code)})
-            else:
-                subs.append({sub.code : sub.value})
+            subs.append({sub.code : sub.value})
 
-        serialized[self.tag]['subfields'] = subs
+        mij[self.tag]['subfields'] = subs
 
-        return serialized
+        return mij
 
     def to_mrc(self, delim=u'\u001f', term=u'\u001e', language=None):
         string = self.ind1 + self.ind2
@@ -1360,6 +1345,9 @@ class Literal(Subfield):
         b['code'], b['value'] = self.code, self.value
         
         return b
+        
+    def to_dict(self):
+        return {'code': self.code, 'value': self.value}
 
 class Linked(Subfield):
     def __init__(self, code, xref):
@@ -1379,6 +1367,9 @@ class Linked(Subfield):
         b['code'], b['xref'] = self.code, self.xref
         
         return b
+        
+    def to_dict(self):
+        return {'code': self.code, 'value': self.value, 'xref': self.xref}
  
 ### Matcher classes
 # deprecated
