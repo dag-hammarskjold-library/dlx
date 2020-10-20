@@ -356,13 +356,27 @@ def test_delete_field(bibs):
 def test_auth_lookup(db):
     from dlx.marc import Bib, Auth
     
+    Auth._cache = {}
+    Auth._xcache = {}
+    
+    with pytest.raises(KeyError):
+        Auth._cache[1]
+    
     bib = Bib.find_one({'_id': 1})
     assert bib.get_xref('650', 'a') == 1
     assert bib.get_value('650', 'a') == 'Header'
-
+    
+    assert Auth._cache[1]['a'] == 'Header'
+   
     auth = Auth.find_one({'_id': 1})
     auth.set('150', 'a', 'Changed').commit()
     assert bib.get_value('650', 'a') == 'Changed'
+    
+    Auth().set('150', 'a', 'New').commit()
+    bib.set('650', 'a', 'New')
+    assert Auth._xcache['New']['150']['a'] == [3]
+    
+    bib.set('650', 'a', 'New')
     
 def test_language(db):
     from dlx.marc import Bib, Auth
@@ -483,3 +497,4 @@ def test_diff(db):
     
     for field in diff.a + diff.b + diff.c:
         assert isinstance(field, Field)
+

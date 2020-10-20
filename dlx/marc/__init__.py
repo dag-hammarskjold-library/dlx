@@ -953,10 +953,12 @@ class Auth(Marc):
     @classmethod
     @Decorators.check_connection
     def lookup(cls, xref, code, language=None):
+        cache, langcache = Auth._cache, Auth._langcache
+        
         if language:
-            cached = cls._langcache.get(xref, {}).get(code, {}).get(language, None)
+            cached = langcache.get(xref, {}).get(code, {}).get(language, None)
         else:
-            cached = cls._cache.get(xref, {}).get(code, None)
+            cached = cache.get(xref, {}).get(code, None)
             
         if cached:
             return cached
@@ -967,21 +969,25 @@ class Auth(Marc):
         value = auth.heading_value(code, language) if auth else None
         
         if language:
-            cls._langcache[xref] = {code: {language: value}}
+            langcache[xref] = {code: {language: value}}
         else:
-            cls._cache[xref] = {code: value}
-            
+            if xref in cache:
+                cache[xref].update({code: value})
+            else:
+                cache[xref] = {code: value}
+                
         return value
         
     @classmethod
     @Decorators.check_connection
     def xlookup(cls, tag, code, value, *, record_type):
         auth_tag = Config.authority_source_tag(record_type, tag, code)
+        xcache = Auth._xcache
         
         if auth_tag is None:
             return
 
-        cached = Auth._xcache.get(auth_tag, {}).get(code, {}).get(value, None)
+        cached = xcache.get(value, {}).get(auth_tag, {}).get(code, None)
         
         if cached:
             return cached
@@ -990,7 +996,7 @@ class Auth(Marc):
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
         
-        Auth._xcache[auth_tag] = {code: {value: xrefs}}
+        xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
 
         return xrefs
 
@@ -1191,10 +1197,8 @@ class Datafield(Field):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
 
     def get_xref(self, code):
-        for sub in self.subfields:
-            if sub.code == code:
-                return sub.xref
-    
+        return next((sub.xref for sub in filter(lambda x: x.code == code, self.subfields)), None)
+
     def get_subfields(self, code):
         return filter(lambda x: x.code == code, self.subfields)
             
@@ -1251,7 +1255,7 @@ class Datafield(Field):
             
         if ind1: self.ind1 = ind1
         if ind2: self.ind2 = ind2
-        
+
         return self
     
     def to_bson(self):
@@ -1262,44 +1266,29 @@ class Datafield(Field):
         return b
         
     def to_dict(self):
-        d = {}
-        
+        d = {}        
         d['indicators'] = [self.ind1, self.ind2]
-        d['subfields'] = []
-        
-        for sub in self.subfields:
-            s = {'code': sub.code}
-            
-            if isinstance(sub, Linked):
-                s['xref'] = sub.xref
-            
-            if sub.value is not None:
-                s['value'] = sub.value
-            
-            d['subfields'].append(s)
-            
+        d['subfields'] = [sub.to_dict() for sub in self.subfields]
+
         return d
         
     def to_json(self, to_indent=None):
         return json.dumps(self.to_dict(), indent=to_indent)
 
     def to_mij(self):
-        serialized = {self.tag: {}}
+        mij = {self.tag: {}}
 
-        serialized[self.tag]['ind1'] = self.ind1
-        serialized[self.tag]['ind2'] = self.ind2
+        mij[self.tag]['ind1'] = self.ind1
+        mij[self.tag]['ind2'] = self.ind2
 
         subs = []
 
         for sub in self.subfields:
-            if isinstance(sub, Linked):
-                subs.append({sub.code : Auth.lookup(sub.xref, sub.code)})
-            else:
-                subs.append({sub.code : sub.value})
+            subs.append({sub.code : sub.value})
 
-        serialized[self.tag]['subfields'] = subs
+        mij[self.tag]['subfields'] = subs
 
-        return serialized
+        return mij
 
     def to_mrc(self, delim=u'\u001f', term=u'\u001e', language=None):
         string = self.ind1 + self.ind2
@@ -1356,6 +1345,9 @@ class Literal(Subfield):
         b['code'], b['value'] = self.code, self.value
         
         return b
+        
+    def to_dict(self):
+        return {'code': self.code, 'value': self.value}
 
 class Linked(Subfield):
     def __init__(self, code, xref):
@@ -1375,6 +1367,9 @@ class Linked(Subfield):
         b['code'], b['xref'] = self.code, self.xref
         
         return b
+        
+    def to_dict(self):
+        return {'code': self.code, 'value': self.value, 'xref': self.xref}
  
 ### Matcher classes
 # deprecated
