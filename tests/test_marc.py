@@ -325,10 +325,19 @@ def test_merge():
     assert bib1.get_value('269', 'a') == 'Date'
     assert bib1.get_value('000') ==  'leader'
     
-    bib2.set('269', 'a', 'New date')
-    bib1.merge(bib2, overwrite=False)
+def test_xmerge():
+    from dlx.marc import Bib
+    
+    bib1 = Bib().set('000', None, 'leader').set('245', 'a', 'Title')
+    bib2 = Bib().set('000', None, '|eade|').set('269', 'a', 'Date')
+    bib1.merge(bib2)
     assert bib1.get_value('269', 'a') == 'Date'
-    bib1.merge(bib2, overwrite=True)
+    assert bib1.get_value('000') ==  'leader'
+    
+    bib2.set('269', 'a', 'New date')
+    bib1.xmerge(bib2, overwrite=False)
+    assert bib1.get_value('269', 'a') == 'Date'
+    bib1.xmerge(bib2, overwrite=True)
     assert bib1.get_value('269', 'a') == 'New date'
        
 def test_set_008(bibs):
@@ -510,4 +519,12 @@ def test_diff(db):
     
     for field in diff.a + diff.b + diff.c:
         assert isinstance(field, Field)
+        
+def test_blank_fields(db):
+    from dlx.marc import Bib
+    
+    bib = Bib().set('245', 'a', 'Title').set('246', 'a', '')
+    
+    print(bib.to_mrk())
+    
 
