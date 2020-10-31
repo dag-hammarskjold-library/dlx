@@ -366,12 +366,12 @@ class Marc(object):
 
     # Instance methods
 
-    def __init__(self, doc={}, **kwargs):
+    def __init__(self, doc={}, *, auth_control=True, **kwargs):
         self.id = int(doc['_id']) if '_id' in doc else None
         self.updated = doc['updated'] if 'updated' in doc else None
         self.user = doc['user'] if 'user' in doc else None
         self.fields = []
-        self.parse(doc, auth_control=kwargs.get('auth_control'))
+        self.parse(doc, auth_control=auth_control)
 
     @property
     def controlfields(self):
@@ -381,7 +381,7 @@ class Marc(object):
     def datafields(self):
         return list(filter(lambda x: x.tag[:2] != '00', sorted(self.fields, key=lambda x: x.tag)))
 
-    def parse(self, doc, *, auth_control=False):
+    def parse(self, doc, *, auth_control=True):
         for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
@@ -1165,7 +1165,7 @@ class Datafield(Field):
         return self.to_dict() == other.to_dict()
 
     @classmethod
-    def from_dict(cls, *, record_type, tag, data, auth_control=False):
+    def from_dict(cls, *, record_type, tag, data, auth_control=True):
         self = cls()
         self.record_type = record_type
         self.tag = tag

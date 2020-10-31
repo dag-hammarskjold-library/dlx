@@ -389,7 +389,16 @@ def test_auth_lookup(db):
     assert Auth._xcache['New']['150']['a'] == [3]
     
     bib.set('650', 'a', 'New')
+  
+def test_auth_control(db):
+    from dlx.marc import Bib, InvalidAuthValue
     
+    with pytest.raises(Exception):
+        Bib({'650': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'value': 'Invalid'}]}]}, auth_control=True)
+    
+    bib = Bib({'650': [{'indicators': [' ', ' '], 'subfields': [{'code': 'a', 'value': 'Header'}]}]}, auth_control=True)
+    assert bib.get_xref('650', 'a') == 1
+      
 def test_language(db):
     from dlx.marc import Bib, Auth
     
