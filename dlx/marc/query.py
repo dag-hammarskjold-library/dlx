@@ -8,36 +8,37 @@ from dlx.config import Config
 class Query():
     @classmethod
     def from_string(cls, string):
-        qdict = json.loads(string)
+        # supports exact match only
+        # todo: indicators, OR, NOT, regex, all-subfield
         self = cls()
         
-        def extract_condition(val):
-            if isinstance(val, dict):
-                for code, sval in val.items():
-                    if sval[0] == '/':
-                        val[code] = Regex(sval[1:-1]) 
-                return Condition(key, val)
-            elif val == 1:
-                return Condition(key, modifier='exists')
-            elif val == 0:
-                return Condition(key, modifier='not_exists')
+        def tokenize(string):
+            tokens = re.split(' ?AND ?', string)
             
-        for key, val in qdict.items():
-            if re.match(r'^\d{3}$', key):
-                self.add_condition(extract_condition(val))
-            elif key == 'OR':
-                ors = []
+            return tokens
+            
+        def parse(token):
+            tag = token[:3]
+            
+            if len(token) > 7:
+                ind1, ind2 = token[3], token[4]
                 
-                for key, val in qdict['OR'].items():
-                    if re.match(r'^\d{3}$', key):
-                        ors.append(extract_condition(val))
-                
-                self.add_condition(Or(*ors))
+                code = token[5]
+
+            match = re.search(r':(.*)', token)
+            
+            if match:
+                value = match.group(1)
+            
+            return Condition(tag, {code: value})
+        
+        for token in tokenize(string):
+            self.conditions.append(parse(token))
 
         return self
         
     def __init__(self, *conditions):
-        self.conditions = conditions
+        self.conditions = conditions or []
 
     def add_condition(self, *conditions):
         self.conditions += conditions
@@ -131,17 +132,15 @@ class Condition(object):
 
             if not Config.is_authority_controlled(self.record_type, tag, code):
                 subconditions.append(
-                    SON({'$elemMatch':{'code':code, 'value':val}})
+                    SON({'$elemMatch': {'code': code, 'value': val}})
                 )
             else:
                 if isinstance(val, int):
                     xrefs = [val]
                 else:
                     auth_tag = Config.authority_source_tag(self.record_type, tag, code)
-                    lookup = SON(
-                        {auth_tag+'.subfields':SON({'$elemMatch':{'code':code, 'value':val}})}
-                    )
-                    xrefs = [doc['_id'] for doc in DB.auths.find(lookup, {'_id':1})]
+                    lookup = SON({f'{auth_tag}.subfields': SON({'$elemMatch': {'code': code, 'value': val}})})
+                    xrefs = [doc['_id'] for doc in DB.auths.find(lookup, {'_id': 1})]
 
                 subconditions.append(
                     SON({'$elemMatch': {'code': code, 'xref': xrefs[0] if len(xrefs) == 1 else {'$in' : xrefs}}})
@@ -150,10 +149,10 @@ class Condition(object):
         submatch = subconditions[0] if len(subconditions) == 1 else {'$all' : subconditions}
 
         if not self.modifier:
-            return SON({tag:{'$elemMatch':{'subfields':submatch}}})
+            return SON({tag: {'$elemMatch': {'subfields': submatch}}})
         else:
             if self.modifier == 'not':
-                return SON({'$or':[{tag:{'$not':{'$elemMatch':{'subfields':submatch}}}}, {tag:{'$exists':False}}]})
+                return SON({'$or': [{tag: {'$not': {'$elemMatch': {'subfields': submatch}}}}, {tag: {'$exists': False}}]})
             elif self.modifier == 'exists':
                 return {tag: {'$exists': True}}
             elif self.modifier == 'not_exists':

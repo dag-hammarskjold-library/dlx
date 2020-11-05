@@ -194,16 +194,16 @@ def test_querydocument(db):
     assert Auth.find_one(query.compile()).id == 2
     
 def test_querystring(db):
-    from dlx.marc import Bib, Auth, QueryDocument
+    from dlx.marc import BibSet, Auth, Query
+
+    query = Query.from_string('245__c:title')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
     
-    query = QueryDocument.from_string('{"245": {"a": "/^(This|Another)/", "b": "is the", "c": "title"}}')
-    assert len(list(Bib.find(query.compile()))) == 2
+    query = Query.from_string('245__a:This AND 650__a:Header')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
     
-    query = QueryDocument.from_string('{"OR": {"650": 0, "710": 0}}')
-    assert len(list(Bib.find(query.compile()))) == 1
-    
-    query = QueryDocument.from_string('{"110": {"a": "Another header"}}')
-    assert Auth.find_one(query.compile()).id == 2
+    query = Query.from_string('110__a:Another header')
+    assert Auth.from_query(query.compile()).id == 2
 
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
@@ -533,7 +533,6 @@ def test_blank_fields(db):
     from dlx.marc import Bib
     
     bib = Bib().set('245', 'a', 'Title').set('246', 'a', '')
-    
-    print(bib.to_mrk())
+
     
 
