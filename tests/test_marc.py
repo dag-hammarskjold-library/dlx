@@ -204,6 +204,9 @@ def test_querystring(db):
     
     query = Query.from_string('110__a:Another header')
     assert Auth.from_query(query.compile()).id == 2
+    
+    query = Query.from_string('650__a:/[Hh]eader/')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
 
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
