@@ -27,8 +27,14 @@ class Query():
 
             match = re.search(r':(.*)', token)
             
-            if match:
-                value = match.group(1)
+            if not match: 
+                raise Exception('Invalid search syntax')
+            
+            value = match.group(1).strip()
+            
+            if value[0] == '/' and value[-1] == '/':
+                value = Regex(value[1:-1])
+                print(value)
             
             return Condition(tag, {code: value})
         
