@@ -8,6 +8,7 @@ from xml.etree import ElementTree as XML
 import jsonschema
 from bson import SON, Regex
 from pymongo import ReturnDocument
+from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
 from dlx.query import jfile as FQ
@@ -584,7 +585,7 @@ class Marc(object):
     def commit(self, user='admin'):
         # clear the caches in case there is a new auth value
         if isinstance(self, Auth):
-            for cache in ('_cache', '_xcache', '_pcache', '_langcahce'):
+            for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                 setattr(Auth, cache, {})
 
         new_flag = False
@@ -1027,7 +1028,7 @@ class Auth(Marc):
 
     @classmethod
     @Decorators.check_connection
-    def partial_lookup(cls, tag, code, string, *, record_type, limit=50):
+    def partial_lookup(cls, tag, code, string, *, record_type, limit=25):
         """Returns a list of tuples containing the authority-controlled values
         that match the given string
 
@@ -1042,7 +1043,7 @@ class Auth(Marc):
         -----------------
         record_type : 'bib' or 'auth'
         limit : int
-            Limits the results. Default is 50
+            Limits the results. Default is 25
 
         Returns
         -------
@@ -1051,7 +1052,7 @@ class Auth(Marc):
             and the second is the xref#
         """
 
-        cached = Auth._pcache.get(string)
+        cached = Auth._pcache.get(tag, {}).get(code, {}).get(string, None)
 
         if cached:
             return cached
@@ -1061,10 +1062,16 @@ class Auth(Marc):
         if auth_tag is None:
             return
 
-        query = Query(Condition(auth_tag, {code: Regex(string)}))
-        auths = AuthSet.from_query(query.compile(), limit=limit, projection=dict.fromkeys(Config.auth_heading_tags(), 1))
+        query = Query(Condition(auth_tag, {code: Regex(string, 'i')}))
+        auths = AuthSet.from_query(
+            query.compile(),
+            #collation=Collation(locale='en', strength=2),
+            projection=dict.fromkeys(Config.auth_heading_tags(), 1),
+            limit=limit
+        )
         results = list(auths)
-        Auth._pcache[string] = results
+        
+        Auth._pcache.setdefault(tag, {}).setdefault(code, {}).update({string: results})
 
         return results
 

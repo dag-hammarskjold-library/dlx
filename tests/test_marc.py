@@ -516,8 +516,12 @@ def test_partial_lookup(db):
     
     for i in range(0, 100):
         Auth().set('150', 'a', f'Header{i}').commit()
-        
-    assert len(Auth.partial_lookup('650', 'a', 'eader', record_type='bib')) == 50
+    
+    assert len(Auth.partial_lookup('650', 'a', 'eader', record_type='bib')) == 25
+    assert len(Auth._pcache['650']['a']['eader']) == 25
+    
+    Auth._pcache['650']['a']['eader'] = ['dummy']
+    assert len(Auth.partial_lookup('650', 'a', 'eader', record_type='bib')) == 1
     
 def test_diff(db):
     from dlx.marc import Bib, Field, Diff

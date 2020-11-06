@@ -34,7 +34,6 @@ class Query():
             
             if value[0] == '/' and value[-1] == '/':
                 value = Regex(value[1:-1])
-                print(value)
             
             return Condition(tag, {code: value})
         
