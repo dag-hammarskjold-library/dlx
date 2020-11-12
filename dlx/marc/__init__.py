@@ -74,7 +74,6 @@ class MarcSet():
         -------
         MarcSet
         """
-
         self = cls()
 
         if isinstance(args[0], Query) or isinstance(args[0], Condition):
@@ -90,7 +89,8 @@ class MarcSet():
 
         self.query_params = [args, kwargs]
         Marc = self.record_class
-        self.records = map(lambda r: Marc(r), self.handle.find(*args, **kwargs))
+        ac = kwargs.pop('auth_control', False)
+        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.find(*args, **kwargs))
 
         return self
 
