@@ -1,7 +1,6 @@
-'''
-'''
+"""dlx.marc"""
 
-import re, json, time
+import re, json
 from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree as XML
@@ -39,9 +38,11 @@ class InvalidAuthField(AuthException):
 ### Decorators
 
 class Decorators():
-    def check_connection(method):
+    def check_connected(method):
         def wrapper(*args, **kwargs):
-            DB.check_connection()
+            if not DB.connected:
+                raise Exception('Must be connected to DB before exececuting this function')
+                
             return method(*args, **kwargs)
 
         return wrapper
@@ -59,7 +60,7 @@ class MarcSet():
     # constructors
 
     @classmethod
-    @Decorators.check_connection
+    @Decorators.check_connected
     def from_query(cls, *args, **kwargs):
         """Instatiates a MarcSet object from a Pymongo database query.
 
@@ -90,6 +91,7 @@ class MarcSet():
         self.query_params = [args, kwargs]
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
+        
         self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.find(*args, **kwargs))
 
         return self
@@ -214,7 +216,7 @@ class MarcSet():
 
     def to_mrk(self):
         return '\n'.join([r.to_mrk() for r in self.records])
-
+        
     def to_str(self):
         return '\n'.join([r.to_str() for r in self.records])
 
@@ -264,23 +266,23 @@ class Marc(object):
         return max_dict.get('_id') or 0
 
     @classmethod
-    @Decorators.check_connection
+    @Decorators.check_connected
     def handle(cls):
         return DB.bibs if cls.__name__ == 'Bib' else DB.auths
 
     @classmethod
-    def match_id(cls, id):
+    def match_id(cls, idx):
         """
         Deprecated
         """
 
         warn('dlx.marc.Marc.match_id() is deprecated. Use dlx.marc.Marc.from_id() instead')
 
-        return cls.find_one(filter={'_id' : id})
+        return cls.find_one(filter={'_id' : idx})
 
     @classmethod
-    def from_id(cls, id):
-        return cls.from_query({'_id' : id})
+    def from_id(cls, idx, *args, **kwargs):
+        return cls.from_query({'_id' : idx}, *args, **kwargs)
 
     @classmethod
     def match_ids(cls, *ids, **kwargs):
@@ -367,7 +369,7 @@ class Marc(object):
 
     # Instance methods
 
-    def __init__(self, doc={}, *, auth_control=True, **kwargs):
+    def __init__(self, doc={}, *, auth_control=False, **kwargs):
         self.id = int(doc['_id']) if '_id' in doc else None
         self.updated = doc['updated'] if 'updated' in doc else None
         self.user = doc['user'] if 'user' in doc else None
@@ -382,7 +384,7 @@ class Marc(object):
     def datafields(self):
         return list(filter(lambda x: x.tag[:2] != '00', sorted(self.fields, key=lambda x: x.tag)))
 
-    def parse(self, doc, *, auth_control=True):
+    def parse(self, doc, *, auth_control=False):
         for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
@@ -393,7 +395,7 @@ class Marc(object):
             else:
                 for field in filter(lambda x: [s.get('xref') or s.get('value') for s in x.get('subfields')], doc[tag]):                
                     self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field, auth_control=auth_control))
-
+                
     #### "get"-type methods
 
     def get_fields(self, *tags):
@@ -403,12 +405,13 @@ class Marc(object):
         return list(filter(lambda x: True if x.tag in tags else False, sorted(self.fields, key=lambda x: x.tag)))
 
     def get_field(self, tag, place=0):
-        fields = self.get_fields(tag)
-
-        if len(fields) == 0:
+        if place == 0:
+            return next(filter(lambda x: True if x.tag == tag else False, self.fields), None)
+        
+        try:
+            return self.get_fields(tag)[place]
+        except IndexError:
             return
-        if len(fields) > place:
-            return fields[place]
 
     def get_values(self, tag, *codes, **kwargs):
         if tag[:2] == '00':
@@ -422,8 +425,8 @@ class Marc(object):
         if isinstance(field, Controlfield):
             return field.value
 
-        if isinstance(field, Datafield):    
-            sub = self.get_subfield(tag, code, address=address)
+        if isinstance(field, Datafield):
+            sub = field.get_subfield(code, place=address[1])
 
             if sub:
                 if language:
@@ -546,7 +549,7 @@ class Marc(object):
         date_tag, date_code = Config.date_field
         pub_date = self.get_value(date_tag, date_code)
         pub_year = pub_date[0:4].ljust(4, '|')
-        cat_date = time.strftime('%y%m%d')
+        cat_date = datetime.utcnow().strftime('%y%m%d')
 
         self.set('008', None, cat_date + text[6] + pub_year + text[11:])
 
@@ -581,7 +584,7 @@ class Marc(object):
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
 
-    @Decorators.check_connection
+    @Decorators.check_connected
     def commit(self, user='admin'):
         # clear the caches in case there is a new auth value
         if isinstance(self, Auth):
@@ -846,7 +849,9 @@ class Marc(object):
                 xref = None
 
                 for sub in field.subfields:
-                    if not sub.value:
+                    val = sub.value
+                    
+                    if not val:
                         continue
                     
                     if hasattr(sub, 'xref'):
@@ -859,7 +864,7 @@ class Marc(object):
                         subnode.text = sub.translated(language)
                         continue   
 
-                    subnode.text = sub.value
+                    subnode.text = val
 
                 if xref:
                     subnode = XML.SubElement(node, 'subfield')
@@ -977,43 +982,38 @@ class Auth(Marc):
     _langcache = {}
 
     @classmethod
-    @Decorators.check_connection
     def lookup(cls, xref, code, language=None):
-        cache, langcache = Auth._cache, Auth._langcache
-
         if language:
-            cached = langcache.get(xref, {}).get(code, {}).get(language, None)
+            cached = Auth._langcache.get(xref, {}).get(code, {}).get(language, None)
         else:
-            cached = cache.get(xref, {}).get(code, None)
-
+            cached = Auth._cache.get(xref, {}).get(code, None)
+            
         if cached:
             return cached
-
+            
         label_tags = Config.auth_heading_tags()
         label_tags += Config.auth_language_tags() if language else []
-        auth = Auth.find_one({'_id': xref}, projection=dict.fromkeys(label_tags, 1))
+        auth = Auth.from_query({'_id': xref}, projection=dict.fromkeys(label_tags, 1))
         value = auth.heading_value(code, language) if auth else None
 
         if language:
-            langcache[xref] = {code: {language: value}}
+            Auth._langcache[xref] = {code: {language: value}}
         else:
-            if xref in cache:
-                cache[xref].update({code: value})
+            if xref in Auth._cache:
+                Auth._cache[xref][code] = value
             else:
-                cache[xref] = {code: value}
+                Auth._cache[xref] = {code: value}
 
         return value
 
     @classmethod
-    @Decorators.check_connection
     def xlookup(cls, tag, code, value, *, record_type):
         auth_tag = Config.authority_source_tag(record_type, tag, code)
-        xcache = Auth._xcache
 
         if auth_tag is None:
             return
 
-        cached = xcache.get(value, {}).get(auth_tag, {}).get(code, None)
+        cached = Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None)
 
         if cached:
             return cached
@@ -1022,12 +1022,11 @@ class Auth(Marc):
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
 
-        xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
+        Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
 
         return xrefs
 
     @classmethod
-    @Decorators.check_connection
     def partial_lookup(cls, tag, code, string, *, record_type, limit=25):
         """Returns a list of tuples containing the authority-controlled values
         that match the given string
@@ -1077,11 +1076,17 @@ class Auth(Marc):
 
     def __init__(self, doc={}, **kwargs):
         self.record_type = 'auth'
+        self._heading_field = None
         super().__init__(doc, **kwargs)
 
     @property    
     def heading_field(self):
-        return next(filter(lambda field: field.tag[0:1] == '1', self.fields), None)
+        if self._heading_field:
+            return self._heading_field
+            
+        self._heading_field = next(filter(lambda field: field.tag[0:1] == '1', self.fields), None)
+        
+        return self._heading_field
 
     def heading_value(self, code, language=None):
         if language:
@@ -1172,7 +1177,7 @@ class Datafield(Field):
         return self.to_dict() == other.to_dict()
 
     @classmethod
-    def from_dict(cls, *, record_type, tag, data, auth_control=True):
+    def from_dict(cls, *, record_type, tag, data, auth_control=False):
         self = cls()
         self.record_type = record_type
         self.tag = tag
@@ -1181,7 +1186,7 @@ class Datafield(Field):
         self.ind2 = data['indicators'][1]
 
         assert len(data['subfields']) > 0
-
+        
         for sub in data['subfields']:
             if 'xref' in sub:
                 if auth_control:
@@ -1239,7 +1244,7 @@ class Datafield(Field):
         return filter(lambda x: x.code == code, self.subfields)
 
     def get_subfield(self, code, place=None):
-        if place is None:
+        if place is None or place == 0:
             return next(self.get_subfields(code), None)
 
         for i, sub in enumerate(self.get_subfields(code)):
@@ -1354,7 +1359,7 @@ class Datafield(Field):
             else: 
                 value = sub.value
 
-            string += ''.join(['${}{}'.format(sub.code, sub.value)])
+            string += ''.join(['${}{}'.format(sub.code, value)])
 
         return string
 
