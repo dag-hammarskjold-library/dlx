@@ -385,7 +385,7 @@ class Marc(object):
         return list(filter(lambda x: x.tag[:2] != '00', sorted(self.fields, key=lambda x: x.tag)))
 
     def parse(self, doc, *, auth_control=False):
-        for tag in filter(lambda x: False if x in ('_id', 'updated', 'user') else True, doc.keys()):
+        for tag in filter(lambda x: re.match('^(\d{3}|[A-Z]{3})', x), doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
 
