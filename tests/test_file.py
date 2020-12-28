@@ -2,7 +2,7 @@
 Tests for dlx.file
 """
 
-import os, pytest, responses
+import os, time, pytest, responses
 from moto import mock_s3
 
 @pytest.fixture
@@ -86,16 +86,14 @@ def test_import_from_handle(db, s3, tempfile):
 
 @mock_s3   
 def test_import_from_path(db, s3):
-    from tempfile import NamedTemporaryFile
     from dlx.file import S3, File, Identifier
     
     S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
-    fh = NamedTemporaryFile()
+    fh = open('temp', 'wb') # can't use NamedTemoraryFile here because the file goes awwy when the handle is closed
     fh.write(b'test data')
-    fh.seek(0)
-    path = fh.name
+    fh.close()
     control = 'eb733a00c0c9d336e65691a37ab54293'
-    f = File.import_from_path(path, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
+    f = File.import_from_path('temp', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
     assert f.id == control
 
 @mock_s3
@@ -149,25 +147,26 @@ def test_find_special(db, s3, tempfile):
     
     S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing
     File.import_from_handle(tempfile, identifiers=[ID('isbn', 'X')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
-    
+
     results = list(File.find_by_identifier(ID('isbn', 'X')))
     assert len(results) == 1
     
     for f in results:    
         assert isinstance(f, File)
         
-    results = list(File.find_by_identifier(ID('isbn', 'X'), 'FR'))
-    assert len(results) == 0
+    results = list(File.find_by_identifier(ID('isbn', 'X'), 'EN'))
+    assert len(results) == 1
     
     for f in results:    
         assert isinstance(f, File)
-        
+    
+    time.sleep(1) # needed to get test to pass in Windows?
     results = list(File.find_by_date(datetime.strptime('1900-01-01', '%Y-%m-%d')))
     assert len(results) == 1
     
     for f in results:    
         assert isinstance(f, File)
-        
+
     result = File.latest_by_identifier_language(ID('isbn', 'X'), 'EN')
     assert isinstance(result, File)
     
