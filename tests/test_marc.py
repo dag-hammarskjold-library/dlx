@@ -541,5 +541,22 @@ def test_blank_fields(db):
     
     bib = Bib().set('245', 'a', 'Title').set('246', 'a', '')
 
-    
+def test_auth_in_use(db, bibs, auths):
+    from dlx.marc import Auth
 
+    auth = Auth.from_id(1)
+    assert auth.in_use()
+    
+    auth = Auth()
+    auth.set('100', 'a', 'Name')
+    assert not auth.in_use()
+    auth.commit()
+    assert not auth.in_use()
+    
+def test_catch_delete_auth(db, bibs, auths):
+    from dlx.marc import Auth, AuthInUse
+    
+    auth = Auth.from_id(1)
+    
+    with pytest.raises(AuthInUse):
+        auth.delete()

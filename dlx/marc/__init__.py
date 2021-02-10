@@ -35,6 +35,10 @@ class InvalidAuthField(AuthException):
     def __init__(self, rtype, tag, code):
         super().__init__(f'{tag}, {code} is an authority-controlled field')
 
+class AuthInUse(Exception):
+     def __init__(self):
+        super().__init__('Can\'t delete Auth record because it is in use by other records')
+
 ### Decorators
 
 class Decorators():
@@ -636,7 +640,10 @@ class Marc(object):
 
     def delete(self, user='admin'):
         if isinstance(self, Auth):
-            for cache in ('_cache', '_xcache', '_pcache', '_langcahce'):
+            if self.in_use():
+                raise AuthInUse()
+        
+            for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                 setattr(Auth, cache, {})
 
         history_collection = DB.handle[self.record_type + '_history']
@@ -1104,6 +1111,22 @@ class Auth(Marc):
 
         for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
+
+    def in_use(self):
+        if not self.id:
+            return
+            
+        this_tag = self.heading_field.tag
+        bac, aac = Config.bib_authority_controlled, Config.auth_authority_controlled
+        
+        for d in bac, aac:
+            for check_tag in d.keys():
+                for code in d[check_tag].keys():
+                    sourced_tag = d[check_tag][code]
+
+                    if this_tag == sourced_tag:
+                        if Bib.from_query({f'{check_tag}.subfields.xref': self.id}, projection={'_id': 1}):
+                            return True
 
 class Diff():
     """Compare two Marc objects.
