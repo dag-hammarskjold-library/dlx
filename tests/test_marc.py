@@ -82,7 +82,7 @@ def test_commit(db, bibs, auths):
     from datetime import datetime
     from bson import ObjectId
     from jsonschema.exceptions import ValidationError
-    
+
     for bib in [Bib(x) for x in bibs]:
         assert bib.commit().acknowledged
         
