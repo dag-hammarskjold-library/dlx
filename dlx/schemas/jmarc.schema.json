@@ -1,78 +1,74 @@
 {
     "_notes:" : [
-        "This schema is an instance of JSON Schema (http://json-schema.org)"
+        "This schema is an instance of JSON Schema",
+		"http://json-schema.org"
     ],
-    
     "type" : "object",
+    "required" : ["_id"],
+	"additionalProperties": false,
     "properties" : {
-        "_id" : {
-            "type" : "integer"
-        },
-		"updated" : {
-			"bsonType" : "date"
-		}
+        "_id" : {"type" : "integer"},
+		"updated" : {"bsonType" : "date"}
     },
     "patternProperties" : {
         "^00" :  {
-            "$ref" : "#/subschemas/controlfield"
-        },
+            "type" : "array",
+            "minItems" : 1,
+            "items" : {"$ref" : "#/.controlfield"}
+		},
         "^([1-9]..|0[1-9].)$" : {
-            "$ref" : "#/subschemas/datafield"
+            "type" : "array",
+            "minItems" : 1,
+            "items" : {"$ref" : "#/.datafield"}
         }
     },
-    "additionalProperties": false,
-    "required" : ["_id"],
-    
-    "subschemas" : {
-        "controlfield" : {
-            "type" : "array",
-            "minItems" : 1,
-            "items" : {
-                "type" : "string"
+	".controlfield" : {
+	    "_notes:" : [
+	        "This schema is an instance of JSON Schema",
+			"http://json-schema.org"
+	    ],
+		 "type" : "string"
+	},
+    ".datafield" : {
+	    "_notes:" : [
+	        "This schema is an instance of JSON Schema",
+			"http://json-schema.org"
+	    ],
+        "type" : "object",
+        "properties" : {
+            "indicators" : {
+                "type" : "array",
+                "minItems" : 2,
+                "maxItems" : 2,
+                "items" : {
+                    "type" : "string",
+                    "minLength" : 1,
+                    "maxLength" : 1
+                }
+            },
+            "subfields" : {
+                "type" : "array",
+                "minItems" : 1,
+                "items" : {"$ref" : "#/.subfield"}
             }
-        },
-        "datafield" : {
-            "type" : "array",
-            "minItems" : 1,
-            "items" : {
-                "type" : "object",
-                "properties" : {
-                    "indicators" : {
-                        "type" : "array",
-                        "minItems" : 2,
-                        "maxItems" : 2,
-                        "items" : {
-                            "type" : "string",
-                            "minLength" : 1,
-                            "maxLength" : 1
-                        }
-                    },
-                    "subfields" : {
-                        "type" : "array",
-                        "minItems" : 1,
-                        "items" : {
-                            "type" : "object",
-                            "properties" : {
-                                "code" : {
-                                    "type" : "string",
-                                    "minLength" : 1,
-                                    "maxLength" : 1
-                                },
-                                "value" : {
-                                    "type" : "string"
-                                },
-                                "xref" : {
-                                    "type" : "integer"
-                                }
-                            },
-                            "additionalProperties" : false,
-                            "required" : ["code"]
-                        }
-                    }
-                },
-                "additionalProperties" : false,
-                "required" : ["indicators", "subfields"]
-            }
-        }    
+        }
+    },
+    ".subfield" : {
+	    "_notes:" : [
+	        "This schema is an instance of JSON Schema",
+			"http://json-schema.org"
+	    ],
+        "type" : "object",
+        "properties" : {
+            "code" : {
+                "type" : "string",
+                "minLength" : 1,
+                "maxLength" : 1
+            },
+            "value" : {"type" : "string"},
+            "xref" : {"type" : "integer"},
+            "additionalProperties" : false,
+            "required" : ["code"]
+        }
     }
 }
