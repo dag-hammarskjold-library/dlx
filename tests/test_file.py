@@ -11,7 +11,7 @@ def s3():
     from dlx import Config
     from dlx.file import S3
        
-    S3.connect('mock_key', 'mock_key_id', 'mock_bucket')
+    S3.connect(bucket='mock_bucket')
     S3.client.create_bucket(Bucket=S3.bucket) # has no effect outside this function?
     
     return S3.client

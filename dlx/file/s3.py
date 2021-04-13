@@ -6,14 +6,14 @@ class S3(object):
     '''Wrapper around the boto3 s3 client'''
     
     connected = False
-    
+        
     @classmethod
-    def connect(cls, access_key_id, access_key, bucket):
+    def connect(cls, *, access_key_id=None, access_key=None, region='us-east-1', bucket):
         '''Start a global "connection" to a specific s3 bucket'''
         
         cls.client = boto3.client(
             "s3",
-            region_name = "us-east-1",
+            region_name = region,
             aws_access_key_id = access_key_id,
             aws_secret_access_key = access_key,
         )
@@ -31,7 +31,7 @@ class S3(object):
         '''
         
         if not cls.connected:
-            raise Exception('Not connected to s3')
+            raise Exception('Not connected to s3. `Use dlx.file.S3.connect`')
         
         cls.client.upload_fileobj(
             handle,
