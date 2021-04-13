@@ -41,7 +41,7 @@ S3.connect('<AWS key>', '<AWS key ID>', '<bucket name>')
 
 fileobj = open('file.txt', 'r')
 
-File.import(
+File.import_from_handle(
 	fileobj, 
 	identifiers=[Identifier('isbn', '1')], 
 	filename='fn.txt', languages=['EN'], 
