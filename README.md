@@ -37,7 +37,7 @@ for bib in BibSet.from_query(query):
 
 from dlx.file import File, Identifier, S3
 
-S3.connect('<AWS key>', '<AWS key ID>', '<bucket name>')
+S3.connect(aws_key='<AWS key>', aws_key_id='<AWS key ID>', bucket='<bucket name>')
 
 fileobj = open('file.txt', 'r')
 
