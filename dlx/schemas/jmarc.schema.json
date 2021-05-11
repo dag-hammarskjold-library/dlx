@@ -1,5 +1,5 @@
 {
-    "_notes:" : [
+    "_notes" : [
         "This schema is an instance of JSON Schema",
 		"http://json-schema.org"
     ],
@@ -23,14 +23,14 @@
         }
     },
 	".controlfield" : {
-	    "_notes:" : [
+	    "_notes" : [
 	        "This schema is an instance of JSON Schema",
 			"http://json-schema.org"
 	    ],
 		 "type" : "string"
 	},
     ".datafield" : {
-	    "_notes:" : [
+	    "_notes" : [
 	        "This schema is an instance of JSON Schema",
 			"http://json-schema.org"
 	    ],
@@ -54,7 +54,7 @@
         }
     },
     ".subfield" : {
-	    "_notes:" : [
+	    "_notes" : [
 	        "This schema is an instance of JSON Schema",
 			"http://json-schema.org"
 	    ],
@@ -66,9 +66,9 @@
                 "maxLength" : 1
             },
             "value" : {"type" : "string"},
-            "xref" : {"type" : "integer"},
-            "additionalProperties" : false,
-            "required" : ["code"]
-        }
+            "xref" : {"type" : "integer"}
+		},	
+        "additionalProperties" : false,
+        "required" : ["code"]
     }
 }
