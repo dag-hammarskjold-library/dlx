@@ -83,9 +83,10 @@ class MarcSet():
         
         if isinstance(args[0], Query):
             for cond in args[0].conditions:
-                cond.record_type = self.record_type
+                if not isinstance(cond, Or):
+                    cond.record_type = self.record_type
                 
-            query = cond.compile()
+            query = args[0].compile()
         elif isinstance(args[0], Condition):
             args[0].record_type = self.record_type
             query = args[0].compile()
@@ -93,7 +94,8 @@ class MarcSet():
             conditions = args[0]
             
             for cond in conditions:
-                cond.record_type = self.record_type
+                if not isinstance(cond, Or):
+                    cond.record_type = self.record_type
 
             query = QueryDocument(*conditions).compile()
         else:
