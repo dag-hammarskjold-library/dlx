@@ -91,11 +91,11 @@ class Condition(object):
             self._subfields = [*subs]
 
     def __init__(self, tag=None, *subs, record_type=None, **kwargs):
-        self.record_type = kwargs.get('record_type', 'bib').lower()
-
-        if self.record_type not in ('bib', 'auth'):
+        if record_type not in (None, 'bib', 'auth'):
             raise Exception('Invalid record type')
-
+        
+        self.record_type = record_type
+        
         if tag:
             self.tag = tag
         elif 'tag' in kwargs:
@@ -128,6 +128,10 @@ class Condition(object):
                 raise Exception('Invalid modifier: "{}"'.format(mod))
 
     def compile(self):
+        if not self.record_type:
+            warn('Record type is not set for query condition. Defaulting to bib')
+            self.record_type = 'bib'
+            
         tag = self.tag
         subconditions = []
 
@@ -139,7 +143,7 @@ class Condition(object):
                 subconditions.append(
                     SON({'$elemMatch': {'code': code, 'value': val}})
                 )
-            else:
+            else:      
                 if isinstance(val, int):
                     xrefs = [val]
                 else:
@@ -164,3 +168,14 @@ class Condition(object):
                 return {tag: {'$exists': False}}
             else:
                 raise Exception('Invalid modifier')
+                
+class BibCondition(Condition):
+    def __init__(self, *args, **kwargs):
+        kwargs['record_type'] = 'bib'
+        super().__init__(*args, **kwargs)
+
+class AuthCondition(Condition):
+    def __init__(self, *args, **kwargs):
+        kwargs['record_type'] = 'auth'
+        super().__init__(*args, **kwargs)
+ 
