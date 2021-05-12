@@ -164,12 +164,12 @@ def test_from_id(db, bibs, auths):
     assert Bib.from_id(2).id == 2
     
 def test_querydocument(db):
-    from dlx.marc import Bib, Auth, QueryDocument, Condition, Or
+    from dlx.marc import Bib, Auth, Query, Condition, Or
     from bson import SON
     from json import loads
     import re
     
-    query = QueryDocument(Condition(tag='245', subfields={'a': 'This'}))
+    query = Query(Condition(tag='245', subfields={'a': 'This'}))
     assert isinstance(query.compile(), SON)
     
     qjson = query.to_json()
@@ -177,7 +177,7 @@ def test_querydocument(db):
     assert qdict['245']['$elemMatch']['subfields']['$elemMatch']['code'] == 'a'
     assert qdict['245']['$elemMatch']['subfields']['$elemMatch']['value'] == 'This'
     
-    query = QueryDocument(
+    query = Query(
         Condition(tag='245', subfields={'a': re.compile(r'(This|Another)'), 'b': 'is the', 'c': 'title'}),
         Condition(tag='650', modifier='exists'),
         Or(
@@ -187,11 +187,23 @@ def test_querydocument(db):
     )
     assert len(list(Bib.find(query.compile()))) == 2
     
-    query = QueryDocument(
+    query = Query(
         Condition(tag='110', subfields={'a': 'Another header'}),
     )
     assert len(list(Auth.find(query.compile()))) == 1
     assert Auth.find_one(query.compile()).id == 2
+    
+def test_bug(db):
+    from dlx.marc import Bib, Auth, AuthSet, Query, Condition, Or
+    
+    a = Auth()
+    a.set('191', 'b', '58')
+    a.commit()
+    
+    q = Query(Condition('191', {'b': '58'}))
+    
+    for a in AuthSet.from_query(q):
+        print(a.to_mrk())
     
 def test_querystring(db):
     from dlx.marc import BibSet, Auth, Query
@@ -346,13 +358,13 @@ def test_xmerge():
 def test_set_008(bibs):
     from dlx.marc import Bib
     from dlx.config import Config
-    import time
+    from datetime import datetime, timezone
     
     bib = Bib()
     date_tag, date_code = Config.date_field
     bib.set(date_tag, date_code, '19991231')
     bib.set_008()
-    assert bib.get_value('008')[0:6] == time.strftime('%y%m%d')
+    assert bib.get_value('008')[0:6] == datetime.now(timezone.utc).strftime('%y%m%d')
     assert bib.get_value('008')[7:11] == '1999'
     
 def test_delete_field(bibs):

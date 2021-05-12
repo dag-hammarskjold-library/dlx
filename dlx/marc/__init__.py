@@ -70,7 +70,7 @@ class MarcSet():
 
         Parameters
         ----------
-        filter : bson.SON, dlx.marc.Query
+        filter : (dict|bson.SON), dlx.marc.Query
             A valid Pymongo query filter against the database or a dlx.marc.Query object
         *args, **kwargs : 
             Passes all remaining arguments to `pymongo.collection.Collection.find())
@@ -80,18 +80,26 @@ class MarcSet():
         MarcSet
         """
         self = cls()
-
-        if isinstance(args[0], Query) or isinstance(args[0], Condition):
+        
+        if isinstance(args[0], Query):
+            for cond in args[0].conditions:
+                cond.record_type = self.record_type
+                
+            query = cond.compile()
+        elif isinstance(args[0], Condition):
+            args[0].record_type = self.record_type
             query = args[0].compile()
-            args = [query, *args[1:]]
         elif isinstance(args[0], (list, tuple)):
             conditions = args[0]
+            
             for cond in conditions:
-                cond.record_type = self.record_class.record_type
+                cond.record_type = self.record_type
 
             query = QueryDocument(*conditions).compile()
-            args = [query, *args[1:]]
-
+        else:
+            query = args[0]
+            
+        args = [query, *args[1:]]
         self.query_params = [args, kwargs]
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
@@ -231,12 +239,14 @@ class BibSet(MarcSet):
     def __init__(self, *args, **kwargs):
         self.handle = DB.bibs
         self.record_class = Bib
+        self.record_type = 'bib'
         super().__init__(*args, **kwargs)
 
 class AuthSet(MarcSet):
     def __init__(self, *args, **kwargs):
         self.handle = DB.auths
         self.record_class = Auth
+        self.record_type = 'auth'
         super().__init__(*args, **kwargs)
 
 ### Record classes
