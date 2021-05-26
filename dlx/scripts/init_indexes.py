@@ -34,33 +34,26 @@ def run():
         collation=Collation(locale='en', strength=2)
     )
     
-    for tag in Config.bib_index:
-        DB.bibs.create_index(f'{tag}.subfields.code')
-        DB.bibs.create_index(f'{tag}.subfields.value')
+    for _ in ('bibs', 'auths'):
+        col = DB.handle[_]
+        auth_ctrl = getattr(Config, _[:-1] + '_authority_controlled')
+        case_ins = getattr(Config, _[:-1] + '_index_case_insensitive')
         
-        if tag in Config.bib_authority_controlled:
-            DB.bibs.create_index(f'{tag}.subfields.xref')
+        for tag in Config.bib_index:
+            col.create_index(f'{tag}.subfields.code')
+            col.create_index(f'{tag}.subfields.value')
         
-    for tag in Config.bib_index_case_insensitive:
-        DB.bibs.create_index(
-            f'{tag}.subfields.value', 
-            name=f'{tag}.subfields.value_caseinsensitive', 
-            collation=Collation(locale='en', strength=2)
-        )
+            if tag in auth_ctrl:
+                col.create_index(f'{tag}.subfields.xref')
         
-    for tag in Config.auth_index:
-        DB.auths.create_index(f'{tag}.subfields.code')
-        DB.auths.create_index(f'{tag}.subfields.value')
-        
-        if tag in Config.auth_authority_controlled:
-            DB.auths.create_index(f'{tag}.subfields.xref')
-        
-    for tag in Config.auth_index_case_insensitive:
-        DB.auths.create_index(
-            f'{tag}.subfields.value', 
-            name=f'{tag}.subfields.value_caseinsensitive', 
-            collation=Collation(locale='en', strength=2)
-        )
+        for tag in case_ins:
+            col.create_index(
+                f'{tag}.subfields.value', 
+                name=f'{tag}.subfields.value_caseinsensitive', 
+                collation=Collation(locale='en', strength=2)
+            )
+            
+        col.create_index([('$**', 'text')])
     
     created = sum(
         [
