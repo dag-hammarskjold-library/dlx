@@ -575,7 +575,7 @@ class Marc(object):
         return self
 
     def delete_fields(self, *tags):
-        self.fields = list(filter(lambda x: x.tag not in tags, self.datafields))
+        self.fields = list(filter(lambda x: x.tag not in tags, self.fields))
 
         return self
 

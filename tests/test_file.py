@@ -191,4 +191,10 @@ def test_commit(db, s3, tempfile):
     assert f.identifiers[0].value == '2'
     assert f.updated
     
+def test_encode_fn():
+    from dlx.file import File
+    
+    assert File.encode_fn(['test /[]*:;', 'id2'], ['en', 'fr'], 'tiff') == 'test__^^!#%&id2-EN-FR.tiff'
+    assert File.encode_fn('x' * 300, 'en', 'pdf') == 'x' * 245 + '...-EN.pdf'
+    assert File.encode_fn('x', None, 'pdf') == 'x.pdf'
     

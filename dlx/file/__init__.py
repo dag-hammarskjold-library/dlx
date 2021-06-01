@@ -240,18 +240,22 @@ class File(object):
             raise FileExists()
             
     @staticmethod
-    def encode_fn(identifiers, languages, extension):
+    def encode_fn(identifiers, languages, extension, maxchars=255):
         ids = [identifiers] if isinstance(identifiers, str) else identifiers
-        langs = [languages] if isinstance(languages, str) else languages
+        langs = [languages] if isinstance(languages, str) else languages or []
         
         for lang in langs:
             assert ISO6391.codes[lang.lower()]
         
-        return '{}-{}.{}'.format(
-            '&'.join([idx.translate(str.maketrans(' /[]*:;', '__^^!#%')) for idx in ids]),
-            '-'.join([x.upper() for x in langs]),
-            extension
-        )
+        name = '&'.join([idx.translate(str.maketrans(' /[]*:;', '__^^!#%')) for idx in ids])
+        langs = '-' + '-'.join([x.upper() for x in langs]) if len(langs) else ''
+        ext = f'.{extension}' if extension else ''
+
+        if len(name + langs + ext) > maxchars:
+            end = maxchars - len(langs + ext) - 3
+            name = name[0:end] + '...'
+            
+        return f'{name}{langs}{ext}'
             
     ###
     
