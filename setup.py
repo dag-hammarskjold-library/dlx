@@ -32,12 +32,7 @@ setup(
     author_email = 'library-ny@un.org',
     license = 'http://www.opensource.org/licenses/bsd-license.php',
     packages = find_packages(exclude=['tests']),
-    package_data = {'dlx': 
-        [
-            'schemas/jmarc.schema.json',
-            'schemas/jfile.schema.json'
-        ]
-    },
+    package_data = {'dlx': ['schemas/jmarc.schema.json', 'schemas/jfile.schema.json']},
     test_suite = 'tests',
     install_requires = requirements,
     description = 'Read, write and modify DLX data.',
