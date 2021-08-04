@@ -16,15 +16,7 @@ class Config():
     with open(schema_dir + 'jfile.schema.json') as fs:
         jfile_schema = json.loads(fs.read())
     
-    #files_bucket = 'temp'
-    
     date_field = ['269', 'a']
-        
-    bib_index = ['191', '791', '930', '998']
-    bib_index_case_insensitive = ['191']  
-    
-    auth_index = ['100', '110', '111', '130', '150', '190']
-    auth_index_case_insensitive = ['100', '110', '111'] 
     
     # this is used by dlx.query to locate the linked value
     bib_authority_controlled = {
@@ -57,6 +49,12 @@ class Config():
         '150': {'fr': '993', 'es': '994', 'ar': '995', 'zh': '996', 'ru': '997'},
         '151': {'fr': '993', 'es': '994', 'ar': '995', 'zh': '996', 'ru': '997'},
     }
+    
+    bib_index = ['269', '930', '998'] + list(bib_authority_controlled.keys())
+    bib_index_case_insensitive = ['191']  
+    
+    auth_index = ['100', '110', '111', '130', '150', '190']
+    auth_index_case_insensitive = ['100', '110', '111']
 
     @staticmethod
     def is_authority_controlled(record_type, tag, code):
