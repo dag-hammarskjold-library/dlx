@@ -105,6 +105,10 @@ def test_commit(db, bibs, auths):
     DB.handle['bib_id_counter'].drop()
     Bib().commit()
     assert Bib.max_id() == 1
+    
+    with pytest.raises(ValidationError):
+        bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': None, 'value': 'Subfield code is a space'}]}]})
+        bib.commit()
 
 def test_delete(db):
     from dlx import DB
