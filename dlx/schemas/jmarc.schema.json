@@ -1,39 +1,39 @@
 {
     "_notes" : [
         "This schema is an instance of JSON Schema",
-		"http://json-schema.org"
+        "http://json-schema.org"
     ],
     "type" : "object",
     "required" : ["_id"],
-	"additionalProperties": false,
+    "additionalProperties": false,
     "properties" : {
         "_id" : {"type" : "integer"},
-		"updated" : {"bsonType" : "date"}
+        "updated" : {"bsonType" : "date"}
     },
     "patternProperties" : {
         "^00" :  {
             "type" : "array",
             "minItems" : 1,
             "items" : {"$ref" : "#/.controlfield"}
-		},
+        },
         "^([1-9]..|0[1-9].)$" : {
             "type" : "array",
             "minItems" : 1,
             "items" : {"$ref" : "#/.datafield"}
         }
     },
-	".controlfield" : {
-	    "_notes" : [
-	        "This schema is an instance of JSON Schema",
-			"http://json-schema.org"
-	    ],
-		 "type" : "string"
-	},
+    ".controlfield" : {
+        "_notes" : [
+            "This schema is an instance of JSON Schema",
+            "http://json-schema.org"
+        ],
+         "type" : "string"
+    },
     ".datafield" : {
-	    "_notes" : [
-	        "This schema is an instance of JSON Schema",
-			"http://json-schema.org"
-	    ],
+        "_notes" : [
+            "This schema is an instance of JSON Schema",
+            "http://json-schema.org"
+        ],
         "type" : "object",
         "properties" : {
             "indicators" : {
@@ -54,20 +54,21 @@
         }
     },
     ".subfield" : {
-	    "_notes" : [
-	        "This schema is an instance of JSON Schema",
-			"http://json-schema.org"
-	    ],
+        "_notes" : [
+            "This schema is an instance of JSON Schema",
+            "http://json-schema.org"
+        ],
         "type" : "object",
         "properties" : {
             "code" : {
                 "type" : "string",
                 "minLength" : 1,
-                "maxLength" : 1
+                "maxLength" : 1,
+				"pattern": "^[a-z0-9]$"
             },
             "value" : {"type" : "string"},
             "xref" : {"type" : "integer"}
-		},	
+        }, 
         "additionalProperties" : false,
         "required" : ["code"]
     }
