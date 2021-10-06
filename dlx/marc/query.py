@@ -9,7 +9,7 @@ class Query():
     @classmethod
     def from_string(cls, string):
         # supports exact match only
-        # todo: indicators, OR, NOT, regex, all-subfield
+        # todo: indicators, OR, NOT, all-subfield
         self = cls()
         
         def tokenize(string):
@@ -18,24 +18,18 @@ class Query():
             return tokens
             
         def parse(token):
-            tag = token[:3]
+            match = re.match('(\d{3})(.)(.)([a-z0-9]):(.*)', token)
             
-            if len(token) > 7:
-                ind1, ind2 = token[3], token[4]
-                
-                code = token[5]
+            if match:
+                tag, ind1, ind2, code, value = match.group(1, 2, 3, 4, 5)
 
-            match = re.search(r':(.*)', token)
-            
-            if not match: 
-                raise Exception('Invalid search syntax')
-            
-            value = match.group(1).strip()
-            
-            if value[0] == '/' and value[-1] == '/':
-                value = Regex(value[1:-1])
-            
-            return Condition(tag, {code: value})
+                # regex
+                if value[0] == '/' and value[-1] == '/':
+                    value = Regex(value[1:-1])
+                
+                return Condition(tag, {code: value})
+            else:
+                return Wildcard(token)
         
         for token in tokenize(string):
             self.conditions.append(parse(token))
@@ -178,4 +172,11 @@ class AuthCondition(Condition):
     def __init__(self, *args, **kwargs):
         kwargs['record_type'] = 'auth'
         super().__init__(*args, **kwargs)
- 
+
+class Wildcard():
+    def __init__(self, string=''):
+        self.string = string
+    
+    def compile(self):
+        return {'$text': {'$search': f'"{self.string}"'}}
+         
