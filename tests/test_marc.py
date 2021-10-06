@@ -223,6 +223,15 @@ def test_querystring(db):
     
     query = Query.from_string('650__a:/[Hh]eader/')
     assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    # all fields
+    query = Query.from_string('Another header')
+   
+    with pytest.raises(NotImplementedError):
+        # $text operator not implemented in mongomock
+        assert len(list(BibSet.from_query(query.compile()))) == 2
+        
+    assert query.compile() == {'$text': {'$search': '"Another header"'}}
 
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
