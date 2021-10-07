@@ -8,7 +8,6 @@ from dlx.config import Config
 class Query():
     @classmethod
     def from_string(cls, string):
-        # supports exact match only
         # todo: indicators, OR, NOT, all-subfield
         self = cls()
         
@@ -17,19 +16,28 @@ class Query():
             
             return tokens
             
+        def check_regex(string):
+            return Regex(string[1:-1]) if string[0] == string[-1] == '/' else string
+                
         def parse(token):
+            # fully qualified syntax
             match = re.match('(\d{3})(.)(.)([a-z0-9]):(.*)', token)
             
             if match:
                 tag, ind1, ind2, code, value = match.group(1, 2, 3, 4, 5)
-
-                # regex
-                if value[0] == '/' and value[-1] == '/':
-                    value = Regex(value[1:-1])
                 
-                return Condition(tag, {code: value})
-            else:
-                return Wildcard(token)
+                return Condition(tag, {code: check_regex(value)})
+                
+            # tag only syntax. does not search across subfields
+            match = re.match('(\d{3}):(.*)', token)
+            
+            if match:
+                tag, value = match.group(1, 2)
+                
+                return Raw({f'{tag}.subfields.value': check_regex(value)})
+            
+            # free text
+            return Wildcard(token)
         
         for token in tokenize(string):
             self.conditions.append(parse(token))
@@ -174,9 +182,20 @@ class AuthCondition(Condition):
         super().__init__(*args, **kwargs)
 
 class Wildcard():
+    """Wildcard text condition"""
+    
     def __init__(self, string=''):
         self.string = string
     
     def compile(self):
         return {'$text': {'$search': f'"{self.string}"'}}
+        
+class Raw():
+    """Raw MongoDB query document condition"""
+    
+    def __init__(self, doc):
+        self.condition = doc
+        
+    def compile(self):
+        return self.condition
          

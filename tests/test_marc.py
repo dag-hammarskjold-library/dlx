@@ -232,6 +232,10 @@ def test_querystring(db):
         assert len(list(BibSet.from_query(query.compile()))) == 2
         
     assert query.compile() == {'$text': {'$search': '"Another header"'}}
+    
+    # tag no subfields
+    query = Query.from_string('245:title')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
 
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
