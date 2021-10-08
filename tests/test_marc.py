@@ -210,7 +210,7 @@ def test_bug(db):
         print(a.to_mrk())
     
 def test_querystring(db):
-    from dlx.marc import BibSet, Auth, Query
+    from dlx.marc import BibSet, Bib, Auth, Query
 
     query = Query.from_string('245__c:title')
     assert len(list(BibSet.from_query(query.compile()))) == 2
@@ -232,7 +232,16 @@ def test_querystring(db):
         assert len(list(BibSet.from_query(query.compile()))) == 2
         
     assert query.compile() == {'$text': {'$search': '"Another header"'}}
-
+    
+    # tag no subfield
+    query = Query.from_string('245:This')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+    
+    # logical fields
+    Bib().set('246', 'a', 'This').commit()
+    query = Query.from_string('title:This')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
+    
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
     
