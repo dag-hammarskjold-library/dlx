@@ -206,7 +206,7 @@ class Wildcard():
         self.string = string
     
     def compile(self):
-        return {'$text': {'$search': f'"{self.string}"'}}
+        return {'$text': {'$search': f'{self.string}'}}
         
 class Raw():
     """Raw MongoDB query document condition"""

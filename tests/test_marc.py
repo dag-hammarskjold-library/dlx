@@ -231,7 +231,7 @@ def test_querystring(db):
         # $text operator not implemented in mongomock
         assert len(list(BibSet.from_query(query.compile()))) == 2
         
-    assert query.compile() == {'$text': {'$search': '"Another header"'}}
+    assert query.compile() == {'$text': {'$search': 'Another header'}}
     
     # tag no subfield
     query = Query.from_string('245:This')
