@@ -28,13 +28,31 @@ class Query():
                 
                 return Condition(tag, {code: check_regex(value)})
                 
-            # tag only syntax. does not search across subfields
+            # tag only syntax 
+            # does not currently search across subfields
             match = re.match('(\d{3}):(.*)', token)
             
             if match:
                 tag, value = match.group(1, 2)
                 
                 return Raw({f'{tag}.subfields.value': check_regex(value)})
+                
+            # logical field 
+            # does not currently search across subfields
+            pipeline = []
+            conditions =[]
+            
+            for field in Config.logical_fields.keys():
+                match = re.match(f'{field}:(.*)', token)
+                
+                if match:
+                    value = match.group(1)
+                    
+                    for tag in Config.logical_fields[field].keys():
+                        for code in Config.logical_fields[field][tag]:
+                            conditions.append(Condition(tag, {code: value}))
+                            
+                    return Or(*conditions)
             
             # free text
             return Wildcard(token)

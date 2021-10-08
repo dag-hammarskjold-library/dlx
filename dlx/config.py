@@ -55,6 +55,19 @@ class Config():
     
     auth_index = ['100', '110', '111', '130', '150', '190']
     auth_index_case_insensitive = ['100', '110', '111']
+    
+    logical_fields = {
+        # field names must be unique to both bibs and auths
+        # WIP
+        'title': {
+            '245': ['a', 'b', 'c'],
+            '246': ['a', 'b', 'c']
+        },
+        'symbol': {
+            '191': ['a'],
+            '791': ['a']
+        }
+    }
 
     @staticmethod
     def is_authority_controlled(record_type, tag, code):
