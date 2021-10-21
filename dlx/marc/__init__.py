@@ -1127,28 +1127,28 @@ class Auth(Marc):
     def in_use(self, *, count=False, usage_type="bibs"):
         if not self.id:
             return
-            
-        this_tag = self.heading_field.tag
-        bac, aac = Config.bib_authority_controlled, Config.auth_authority_controlled
         
-        for d in bac, aac:
-            for check_tag in d.keys():
-                for code in d[check_tag].keys():
-                    sourced_tag = d[check_tag][code]
-                    
-                    if usage_type == "bibs":
-                        lookup_class = Bib
-                    elif usage_type == "auths":
-                        lookup_class = Auth
-                    else:
-                        raise Exception("Invalid usage_type")
+        if usage_type == "bibs":
+            lookup_class = Bib
+            amap = Config.bib_authority_controlled
+        elif usage_type == "auths":
+            lookup_class = Auth
+            amap = Config.auth_authority_controlled
+        else:
+            raise Exception("Invalid usage_type")
+        
+        this_tag = self.heading_field.tag
+        
+        for check_tag in amap.keys():
+            for code in amap[check_tag].keys():
+                sourced_tag = amap[check_tag][code]
 
-                    if this_tag == sourced_tag:
-                        if count:
-                           return lookup_class.count_documents({f'{check_tag}.subfields.xref': self.id})
-                        else:
-                            if lookup_class.from_query({f'{check_tag}.subfields.xref': self.id}, projection={'_id': 1}):
-                                return True
+                if this_tag == sourced_tag:
+                    if count:
+                       return lookup_class.count_documents({f'{check_tag}.subfields.xref': self.id})
+                    else:
+                        if lookup_class.from_query({f'{check_tag}.subfields.xref': self.id}, projection={'_id': 1}):
+                            return True
         
         return False
 
