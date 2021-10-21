@@ -594,3 +594,10 @@ def test_catch_delete_auth(db, bibs, auths):
     
     with pytest.raises(AuthInUse):
         auth.delete()
+        
+def test_auth_use_count(db, bibs, auths):
+    from dlx.marc import Auth
+    
+    auth = Auth.from_id(1)
+    assert auth.in_use(count=True, usage_type="bibs") == 2
+    assert auth.in_use(count=True, usage_type="auths") == 0
