@@ -600,4 +600,6 @@ def test_auth_use_count(db, bibs, auths):
     
     auth = Auth.from_id(1)
     assert auth.in_use(count=True, usage_type="bibs") == 2
-    assert auth.in_use(count=True, usage_type="auths") == 0
+
+    Auth().set("550", "a", 1).commit()
+    assert auth.in_use(count=True, usage_type="auths") == 1
