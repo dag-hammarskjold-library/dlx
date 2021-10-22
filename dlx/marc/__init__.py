@@ -379,7 +379,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.MarcSet.count instead')
+        warn('dlx.marc.Marc.count_documents() is deprecated. Use dlx.marc.MarcSet.count instead')
 
         return cls.handle().count_documents(*args, **kwargs)
 
@@ -1124,33 +1124,40 @@ class Auth(Marc):
         for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
 
-    def in_use(self, *, count=False, usage_type="bibs"):
+    def in_use(self, *, count=False, usage_type='bib'):
+        """Returns true if the authority is in use by """
+        
         if not self.id:
             return
         
-        if usage_type == "bibs":
+        if usage_type == 'bib':
             lookup_class = Bib
             amap = Config.bib_authority_controlled
-        elif usage_type == "auths":
+        elif usage_type == 'auth':
             lookup_class = Auth
             amap = Config.auth_authority_controlled
         else:
-            raise Exception("Invalid usage_type")
+            raise Exception('Invalid usage_type')
         
-        this_tag = self.heading_field.tag
+        this_tag, total = self.heading_field.tag, 0
         
         for check_tag in amap.keys():
+            seen = {}
+            
             for code in amap[check_tag].keys():
                 sourced_tag = amap[check_tag][code]
 
-                if this_tag == sourced_tag:
+                if this_tag == sourced_tag and seen.get(sourced_tag) is None:
                     if count:
-                       return lookup_class.count_documents({f'{check_tag}.subfields.xref': self.id})
+                        seen[sourced_tag] = True
+                        total += lookup_class.count_documents({f'{check_tag}.subfields.xref': self.id})
                     else:
                         if lookup_class.from_query({f'{check_tag}.subfields.xref': self.id}, projection={'_id': 1}):
                             return True
-        
-        return False
+                            
+                        return False
+
+        return total
 
 class Diff():
     """Compare two Marc objects.
