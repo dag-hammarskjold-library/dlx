@@ -606,12 +606,12 @@ def test_auth_use_count(db, bibs, auths):
     from dlx.marc import Bib, Auth
     
     auth = Auth.from_id(1)
-    assert auth.in_use(count=True, usage_type='bib') == 2
+    assert auth.in_use(usage_type='bib') == 2
 
     Auth().set("550", "a", 1).commit()
-    assert auth.in_use(count=True, usage_type='auth') == 1
+    assert auth.in_use(usage_type='auth') == 1
     
     auth = Auth().set('100', 'a', 't').commit()
     Bib().set('700', 'a', 't').commit()
     
-    assert auth.in_use(count=True, usage_type="bib") == 1
+    assert auth.in_use() == 1

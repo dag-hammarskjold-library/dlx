@@ -1129,8 +1129,8 @@ class Auth(Marc):
         for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
 
-    def in_use(self, *, count=False, usage_type='bib'):
-        """Returns true if the authority is in use by """
+    def in_use(self, *, usage_type='bib'):
+        """Returns the count of records using the authority"""
         
         if not self.id:
             return
@@ -1153,14 +1153,8 @@ class Auth(Marc):
                 sourced_tag = amap[check_tag][code]
 
                 if this_tag == sourced_tag and seen.get(sourced_tag) is None:
-                    if count:
-                        seen[sourced_tag] = True
-                        total += lookup_class.count_documents({f'{check_tag}.subfields.xref': self.id})
-                    else:
-                        if lookup_class.from_query({f'{check_tag}.subfields.xref': self.id}, projection={'_id': 1}):
-                            return True
-                            
-                        return False
+                    seen[sourced_tag] = True
+                    total += lookup_class.count_documents({f'{check_tag}.subfields.xref': self.id})
 
         return total
 
