@@ -648,7 +648,12 @@ class Marc(object):
 
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
 
-        return type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
+        result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
+        
+        if result:
+            return self
+            
+        return result
 
     def delete(self, user='admin'):
         if isinstance(self, Auth):

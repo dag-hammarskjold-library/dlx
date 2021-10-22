@@ -84,13 +84,13 @@ def test_commit(db, bibs, auths):
     from jsonschema.exceptions import ValidationError
 
     for bib in [Bib(x) for x in bibs]:
-        assert bib.commit().acknowledged
+        assert bib.commit() == bib
         
     for auth in [Auth(x) for x in auths]:
-        assert auth.commit().acknowledged
+        assert auth.commit() == auth
         
     bib = Bib({'_id': 3})
-    assert bib.commit().acknowledged
+    assert bib.commit() == bib
     assert isinstance(bib.updated, datetime)
     assert bib.user == 'admin'
     assert bib.history()[0].to_dict() == bib.to_dict()
@@ -588,15 +588,22 @@ def test_auth_in_use(db, bibs, auths):
     assert not auth.in_use()
     
 def test_catch_delete_auth(db, bibs, auths):
-    from dlx.marc import Auth, AuthInUse
+    from dlx.marc import Bib, Auth, AuthInUse
     
-    auth = Auth.from_id(1)
+    auth = Auth().set('100', 'a', 'x').commit()
+    Bib().set('600', 'a', 'x').commit()
+    
+    with pytest.raises(AuthInUse):
+        auth.delete()
+        
+    auth = Auth().set('100', 'a', 'y').commit()
+    Auth().set('500', 'a', 'y').commit()
     
     with pytest.raises(AuthInUse):
         auth.delete()
         
 def test_auth_use_count(db, bibs, auths):
-    from dlx.marc import Auth, Bib
+    from dlx.marc import Bib, Auth
     
     auth = Auth.from_id(1)
     assert auth.in_use(count=True, usage_type='bib') == 2
@@ -604,10 +611,7 @@ def test_auth_use_count(db, bibs, auths):
     Auth().set("550", "a", 1).commit()
     assert auth.in_use(count=True, usage_type='auth') == 1
     
-    auth = Auth().set('100', 'a', 't')
-    auth.commit()
+    auth = Auth().set('100', 'a', 't').commit()
     Bib().set('700', 'a', 't').commit()
     
     assert auth.in_use(count=True, usage_type="bib") == 1
-    
-    
