@@ -596,10 +596,18 @@ def test_catch_delete_auth(db, bibs, auths):
         auth.delete()
         
 def test_auth_use_count(db, bibs, auths):
-    from dlx.marc import Auth
+    from dlx.marc import Auth, Bib
     
     auth = Auth.from_id(1)
-    assert auth.in_use(count=True, usage_type="bibs") == 2
+    assert auth.in_use(count=True, usage_type='bib') == 2
 
     Auth().set("550", "a", 1).commit()
-    assert auth.in_use(count=True, usage_type="auths") == 1
+    assert auth.in_use(count=True, usage_type='auth') == 1
+    
+    auth = Auth().set('100', 'a', 't')
+    auth.commit()
+    Bib().set('700', 'a', 't').commit()
+    
+    assert auth.in_use(count=True, usage_type="bib") == 1
+    
+    
