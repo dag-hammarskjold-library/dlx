@@ -1,5 +1,5 @@
 
-version = '1.2.5.2'
+version = '1.2.5.3'
 
 import sys
 from setuptools import setup, find_packages
