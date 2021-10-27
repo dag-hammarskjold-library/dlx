@@ -1,23 +1,8 @@
 
-version = '1.2.5.3'
+version = '1.2.6'
 
 import sys
 from setuptools import setup, find_packages
-
-classifiers = """
-Intended Audience :: Education
-Intended Audience :: Developers
-Intended Audience :: Information Technology
-License :: OSI Approved :: BSD License
-Programming Language :: Python
-Programming Language :: Python :: 3
-Programming Language :: Python :: 3.3
-Programming Language :: Python :: 3.4
-Programming Language :: Python :: 3.5
-Programming Language :: Python :: 3.6
-Programming Language :: Python :: 3.7
-Topic :: Text Processing :: General
-"""
 
 with open("README.md") as f:
     long_description = f.read()
@@ -27,6 +12,9 @@ with open("requirements.txt") as f:
 
 setup(
     name = 'dlx',
+    description = 'Read, write and modify DLX data.',
+    long_description = long_description,
+    long_description_content_type = "text/markdown",
     version = version,
     url = 'http://github.com/dag-hammarskjold-library/dlx',
     author = 'United Nations Dag Hammarskjöld Library',
@@ -36,15 +24,12 @@ setup(
     package_data = {'dlx': ['schemas/jmarc.schema.json', 'schemas/jfile.schema.json']},
     test_suite = 'tests',
     install_requires = requirements,
-    description = 'Read, write and modify DLX data.',
-    long_description = long_description,
-    long_description_content_type = "text/markdown",
-    classifiers = list(filter(None, classifiers.split('\n'))),
-    python_requires = '>=3.3',
+    python_requires = '>=3.6',
     entry_points = {
         'console_scripts': [
             'excel-marc=dlx.scripts.excel_marc:run',
-            'init-indexes=dlx.scripts.init_indexes:run'
+            'init-indexes=dlx.scripts.init_indexes:run',
+            'build-logical-fields=dlx.scripts.build_logical_fields:run'
         ]
     }
 )

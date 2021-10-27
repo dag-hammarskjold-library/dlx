@@ -5,6 +5,9 @@ from bson.json_util import dumps
 from dlx.db import DB
 from dlx.config import Config
 
+class InvalidQueryString(Exception):
+    pass
+    
 class Query():
     @classmethod
     def from_string(cls, string):
@@ -29,31 +32,64 @@ class Query():
                 return Condition(tag, {code: check_regex(value)})
                 
             # tag only syntax 
-            # does not currently search across subfields
+            # matches a single subfield only
             match = re.match('(\d{3}):(.*)', token)
             
             if match:
                 tag, value = match.group(1, 2)
                 
+                if tag == '001':
+                    # interpret 001 as id
+                    try:
+                        return Raw({'_id': int(value)})
+                    except ValueError:
+                        raise InvalidQueryString(f'ID must be a number')
+                elif tag[:2] == '00':
+                    return Raw({tag: value})
+                
                 return Raw({f'{tag}.subfields.value': check_regex(value)})
                 
-            # logical field 
-            # does not currently search across subfields
-            pipeline = []
-            conditions =[]
-            
-            for field in Config.logical_fields.keys():
-                match = re.match(f'{field}:(.*)', token)
+            # id search
+            match = re.match('id:(.*)', token)
+
+            if match:
+                value = match.group(1)
                 
-                if match:
-                    value = match.group(1)
+                try:
+                    return Raw({'_id': int(value)})
+                except ValueError:
+                    raise InvalidQueryString(f'ID must be a number')
                     
-                    for tag in Config.logical_fields[field].keys():
-                        for code in Config.logical_fields[field][tag]:
-                            conditions.append(Condition(tag, {code: check_regex(value)}))
-                            
-                    return Or(*conditions)
+            # xref (records that reefrence a given auth#)
+            match = re.match(f'xref:(.*)', token)
             
+            if match:
+                value = match.group(1)
+                
+                try:
+                    xref = int(value)
+                except ValueError:
+                    raise InvalidQueryString(f'xref must be a number')
+                    
+                conditions = []
+                
+                for tag in list(Config.bib_authority_controlled.keys()) + list(Config.auth_authority_controlled.keys()):
+                    conditions.append(Raw({f'{tag}.subfields.xref': xref}))
+                
+                return Or(*conditions)
+            
+            # logical field
+            match = re.match(f'(\w+):(.*)', token)
+            
+            if match:
+                logical_fields = list(Config.bib_logical_fields.keys()) + list(Config.auth_logical_fields.keys())
+                field, value = match.group(1, 2)
+                
+                if field in logical_fields:
+                    return Raw({field: check_regex(value)})    
+                else:
+                    raise InvalidQueryString(f'Unrecognized query field "{field}"')
+                    
             # free text
             return Wildcard(token)
         
