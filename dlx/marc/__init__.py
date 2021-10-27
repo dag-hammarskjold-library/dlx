@@ -238,6 +238,8 @@ class MarcSet():
         pass
 
 class BibSet(MarcSet):
+    handle = DB.bibs
+    
     def __init__(self, *args, **kwargs):
         self.handle = DB.bibs
         self.record_class = Bib
@@ -245,6 +247,8 @@ class BibSet(MarcSet):
         super().__init__(*args, **kwargs)
 
 class AuthSet(MarcSet):
+    handle = DB.auths
+    
     def __init__(self, *args, **kwargs):
         self.handle = DB.auths
         self.record_class = Auth
@@ -602,36 +606,29 @@ class Marc(object):
 
     @Decorators.check_connected
     def commit(self, user='admin'):
-        # clear the caches in case there is a new auth value
-        if isinstance(self, Auth):
-            for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
-                setattr(Auth, cache, {})
+        new_record = True if self.id is None else False
 
-        new_flag = False
-
-        if self.id is None:
-            # this is a new record
-            new_flag = True
-            cls = type(self)
-            self.id = cls._increment_ids()
-
-        for field in filter(lambda x: isinstance(x, Datafield), self.fields):
-            for sub in field.subfields:
-                if Config.is_authority_controlled(self.record_type, field.tag, sub.code):
-                    if not hasattr(sub, 'xref'):
-                       raise InvalidAuthField(self.record_type, field.tag, sub.code) 
-
-                    if not Auth.lookup(sub.xref, sub.code):
-                        raise InvalidAuthXref(self.record_type, field.tag, sub.code, sub.xref)
-
+        if new_record:
+            self.id = type(self)._increment_ids()
+        
         self.validate()
         data = self.to_bson()
-        data['updated'] = datetime.utcnow()
-        data['user'] = user
-        self.updated = data['updated']
-        self.user = data['user']
+        self.updated = data['updated'] = datetime.utcnow()
+        self.user = data['user'] = user
+        logical_fields = {}
+        
+        # scan fields
+        for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
+            for subfield in field.subfields:
+                # auth control
+                if Config.is_authority_controlled(self.record_type, field.tag, subfield.code):
+                    if not hasattr(subfield, 'xref'):
+                       raise InvalidAuthField(self.record_type, field.tag, subfield.code) 
 
-        # save a copy of self in history
+                    if not Auth.lookup(subfield.xref, subfield.code):
+                        raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
+
+        # history
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
 
@@ -641,19 +638,29 @@ class Marc(object):
             record_history = SON()
             record_history['_id'] = self.id
 
-            if new_flag:
+            if new_record:
                 record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
 
             record_history['history'] = [data]
 
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
+        
+        # add logical fields
+        for logical_field, values in self.logical_fields().items():
+            data[logical_field] = values
 
+        # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
         
-        if result:
+        if result.acknowledged:
+            # clear the caches in case there is a new auth value
+            if isinstance(self, Auth):
+                for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
+                    setattr(Auth, cache, {})
+            
             return self
             
-        return result
+        raise Exception('Commit failed')
 
     def delete(self, user='admin'):
         if isinstance(self, Auth):
@@ -678,6 +685,34 @@ class Marc(object):
             return [type(self)(x) for x in record_history['history']]
         else:
             return []
+
+    def logical_fields(self):
+        """Returns a dict of the record's logical fields"""
+        
+        logical_fields = getattr(Config, self.record_type + '_logical_fields') 
+        
+        self._logical_fields = {}
+        
+        #print(self.id)
+        #print(logical_fields.items())
+        
+        for logical_field, tags in logical_fields.items():
+            
+            for tag, subfield_groups in tags.items():
+                
+                for group in subfield_groups:
+                    #print([tag, self.to_dict()])
+                    
+                    for field in self.get_fields(tag):
+                        value = ' '.join(field.get_values(*group))
+                        
+                        #print(tag)
+                        
+                        if value:
+                            self._logical_fields.setdefault(logical_field, [])
+                            self._logical_fields[logical_field].append(value)
+                            
+        return self._logical_fields
 
     #### utlities
 

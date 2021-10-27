@@ -196,19 +196,7 @@ def test_querydocument(db):
     )
     assert len(list(Auth.find(query.compile()))) == 1
     assert Auth.find_one(query.compile()).id == 2
-    
-def test_bug(db):
-    from dlx.marc import Bib, Auth, AuthSet, Query, Condition, Or
-    
-    a = Auth()
-    a.set('191', 'b', '58')
-    a.commit()
-    
-    q = Query(Condition('191', {'b': '58'}))
-    
-    for a in AuthSet.from_query(q):
-        print(a.to_mrk())
-    
+
 def test_querystring(db):
     from dlx.marc import BibSet, Bib, Auth, Query
 
@@ -238,9 +226,9 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     # logical fields
-    Bib().set('246', 'a', 'This').commit()
-    query = Query.from_string('title:This')
-    assert len(list(BibSet.from_query(query.compile()))) == 2
+    bib = Bib().set('246', 'a', 'This title:').set('246', 'b', 'is a title').commit()
+    query = Query.from_string('title:This title: is a title')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
     
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
@@ -615,3 +603,15 @@ def test_auth_use_count(db, bibs, auths):
     Bib().set('700', 'a', 't').commit()
     
     assert auth.in_use() == 1
+    
+def test_logical_fields(db):
+    from dlx import DB, Config
+    from dlx.marc import Bib
+
+    Config.bib_logical_fields.update({'test_field': {'867': ['a', 'z']}})
+    bib = Bib().set('867', 'a', 'logical value 1').set('867', 'z', 'logical value 2').commit()
+    assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['logical value 1', 'logical value 2']
+    
+    Config.bib_logical_fields.update({'test_field': {'867': ['abc']}})
+    bib.set('867', 'a', 'part 1,').set('867', 'b', 'part 2 +').set('867', 'c', 'part 3').commit()
+    assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['part 1, part 2 + part 3']

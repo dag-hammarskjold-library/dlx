@@ -38,20 +38,15 @@ class Query():
                 return Raw({f'{tag}.subfields.value': check_regex(value)})
                 
             # logical field 
-            # does not currently search across subfields
-            pipeline = []
-            conditions =[]
+            conditions, seen = [], {}
             
-            for field in Config.logical_fields.keys():
-                match = re.match(f'{field}:(.*)', token)
+            for logical_field in list(Config.bib_logical_fields.keys()) + list(Config.auth_logical_fields.keys()):
+                match = re.match(f'{logical_field}:(.*)', token)
                 
                 if match:
                     value = match.group(1)
+                    conditions.append(Raw({logical_field: check_regex(value)}))
                     
-                    for tag in Config.logical_fields[field].keys():
-                        for code in Config.logical_fields[field][tag]:
-                            conditions.append(Condition(tag, {code: check_regex(value)}))
-                            
                     return Or(*conditions)
             
             # free text
