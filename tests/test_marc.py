@@ -232,7 +232,7 @@ def test_querystring(db):
     # xref
     auth = Auth().set('100', 'a', 'x').commit()
     bib = Bib().set('700', 'a', auth.id).commit()
-    query = Query.from_string(f'xref:{auth.id}')
+    query = Query.from_string(f'xref:{auth.id}', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     # logical fields

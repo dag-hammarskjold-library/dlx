@@ -10,9 +10,10 @@ class InvalidQueryString(Exception):
     
 class Query():
     @classmethod
-    def from_string(cls, string):
+    def from_string(cls, string, *, record_type=None):
         # todo: indicators, OR, NOT, all-subfield
         self = cls()
+        self.record_type = record_type
         
         def tokenize(string):
             tokens = re.split(' ?AND ?', string)
@@ -60,9 +61,9 @@ class Query():
                 except ValueError:
                     raise InvalidQueryString(f'ID must be a number')
                     
-            # xref (records that reefrence a given auth#)
+            # xref (records that reference a given auth#)
             match = re.match(f'xref:(.*)', token)
-            
+
             if match:
                 value = match.group(1)
                 
@@ -70,10 +71,18 @@ class Query():
                     xref = int(value)
                 except ValueError:
                     raise InvalidQueryString(f'xref must be a number')
+
+                if self.record_type == 'bib':
+                    tags = list(Config.bib_authority_controlled.keys())
+                elif self.record_type == 'auth':
+                    tags = list(Config.auth_authority_controlled.keys())
+                else:
+                    print(record_type)
+                    raise Exception('"Query().record_type" must be set to "bib" or "auth" to do xref search')
                     
                 conditions = []
                 
-                for tag in list(Config.bib_authority_controlled.keys()) + list(Config.auth_authority_controlled.keys()):
+                for tag in tags:
                     conditions.append(Raw({f'{tag}.subfields.xref': xref}))
                 
                 return Or(*conditions)
@@ -99,6 +108,7 @@ class Query():
         return self
         
     def __init__(self, *conditions):
+        self.record_type = None
         self.conditions = conditions or []
 
     def add_condition(self, *conditions):
@@ -127,7 +137,21 @@ class QueryDocument(Query):
         warn('dlx.marc.QueryDocument is deprecated. Use dlx.marc.Query instead')
         
         super().__init__(*args, **kwargs)
-
+        
+class BibQuery(Query):
+    record_type = 'bib'
+    
+    def __init__(self, *args, **kwargs):
+        self.record_type = 'bib'
+        super().__init__(*args, **kwargs)
+    
+class AuthQuery(Query):
+    record_type = 'auth'
+    
+    def __init__(self, *args, **kwargs):
+        self.record_type = 'auth'
+        super().__init__(*args, **kwargs)
+    
 class Or(object):
     def __init__(self, *conditions):
         self.conditions = conditions

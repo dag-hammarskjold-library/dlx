@@ -97,7 +97,7 @@ class MarcSet():
                 if not isinstance(cond, Or):
                     cond.record_type = self.record_type
 
-            query = QueryDocument(*conditions).compile()
+            query = Query(*conditions).compile()
         else:
             query = args[0]
             
