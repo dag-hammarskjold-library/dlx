@@ -37,7 +37,7 @@ class Config():
     }
 
     auth_authority_controlled = {
-        #'491': {'a': '191'}, # ?
+        '491': {'a': '191'},
         '500': {'a': '100'},
         '510': {'a': '110'},
         '511': {'a': '111'},
@@ -53,14 +53,15 @@ class Config():
     bib_index = ['269', '930', '998'] + list(bib_authority_controlled.keys())
     bib_index_case_insensitive = ['191']  
     
-    auth_index = ['100', '110', '111', '130', '150', '190']
+    auth_index = ['100', '110', '111', '130', '150', '190', '998'] + list(auth_authority_controlled.keys())
     auth_index_case_insensitive = ['100', '110', '111']
     
     bib_logical_fields = {
         'symbol': {
             '079': ['a'],
             '767': ['o'],
-            '191': ['a', 'z']
+            '191': ['a', 'z'],
+            '791': ['a', 'z']
         },
         'subject': {
             '600': ['abcdq'],
@@ -171,11 +172,19 @@ class Config():
     }
     
     auth_logical_fields = {
+        'heading': {
+            '100': ['abcdq'],
+            '110': ['abcdfgkn'],
+            '111': ['acdegknq'],
+            '130': ['adfgklnp'],
+            '150': ['a'],
+            '191': ['abcd']
+        },
         'agenda_title': {
-            '991': ['c']
+            '191': ['c']
         },
         'agenda_subject': {
-            '991': ['d']
+            '191': ['d']
         },
     }
 

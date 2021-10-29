@@ -432,8 +432,10 @@ class Marc(object):
     def get_values(self, tag, *codes, **kwargs):
         if tag[:2] == '00':
             return [field.value for field in self.get_fields(tag)]
+            
+        values = [sub.value for sub in self.get_subfields(tag, *codes, place=kwargs.get('place'))]
 
-        return [sub.value for sub in self.get_subfields(tag, *codes, place=kwargs.get('place'))]
+        return list(filter(None, values))
 
     def get_value(self, tag, code=None, address=[0, 0], language=None):
         field = self.get_field(tag, place=address[0])    
@@ -682,13 +684,16 @@ class Marc(object):
         else:
             return []
 
-    def logical_fields(self):
+    def logical_fields(self, *names):
         """Returns a dict of the record's logical fields"""
         
         self._logical_fields = {}
         logical_fields = getattr(Config, self.record_type + '_logical_fields') 
         
         for logical_field, tags in logical_fields.items():
+            if names and logical_field not in names:
+                continue
+                
             for tag, subfield_groups in tags.items():
                 for group in subfield_groups:
                     for field in self.get_fields(tag):
@@ -797,7 +802,10 @@ class Marc(object):
             d[tag] = [f.value for f in self.get_fields(tag)]
 
         for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
-            d[tag] = [f.to_dict() for f in self.get_fields(tag)]
+            fields = list(filter(lambda x: x.get('subfields'), [f.to_dict() for f in self.get_fields(tag)]))
+            
+            if fields:
+                d[tag] = fields
 
         return d
 
@@ -1126,6 +1134,13 @@ class Auth(Marc):
 
     @property    
     def heading_field(self):
+        """Returns the heading field of the authority record.
+        
+        Returns
+        -------
+        dlx.marc.Datafield
+        """
+        
         if self._heading_field:
             return self._heading_field
             
@@ -1134,6 +1149,19 @@ class Auth(Marc):
         return self._heading_field
 
     def heading_value(self, code, language=None):
+        """Returns the value of the specified subfield of the heading field of 
+        the authority record.
+        
+        Parameters
+        ----------
+        code : str
+            The code of the subfield of the heading field to get.
+        
+        Returns
+        -------
+        str
+        """
+        
         if language:
             tag = self.heading_field.tag
             lang_tag = Config.language_source_tag(tag, language)
@@ -1150,35 +1178,46 @@ class Auth(Marc):
         for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
 
-    def in_use(self, *, usage_type='bib'):
-        """Returns the count of records using the authority"""
+    def in_use(self, *, usage_type=None):
+        """Returns the count of records using the authority.
+        
+        Parameters
+        ---------
+        usage_type : ("bib"|"auth"), None
+            If None, counts total use in both
+        
+        Returns
+        -------
+        int
+        """
         
         if not self.id:
             return
         
-        if usage_type == 'bib':
-            lookup_class = Bib
-            amap = Config.bib_authority_controlled
-        elif usage_type == 'auth':
-            lookup_class = Auth
-            amap = Config.auth_authority_controlled
-        else:
-            raise Exception('Invalid usage_type')
-        
-        this_tag, total = self.heading_field.tag, 0
-        
-        for check_tag in amap.keys():
-            seen = {}
+        def count(lookup_class, xref):
+            tags = list(Config.bib_authority_controlled.keys()) if lookup_class == Bib else list(Config.auth_authority_controlled.keys())
             
-            for code in amap[check_tag].keys():
-                sourced_tag = amap[check_tag][code]
-
-                if this_tag == sourced_tag and seen.get(sourced_tag) is None:
-                    seen[sourced_tag] = True
-                    total += lookup_class.count_documents({f'{check_tag}.subfields.xref': self.id})
-
-        return total
-
+            total = 0
+            
+            for tag in tags:
+                total += lookup_class.count_documents({f'{tag}.subfields.xref': xref})
+                
+            return total
+        
+        if usage_type is None:
+            total = 0
+            
+            for cls in (Bib, Auth):
+                total += count(cls, self.id)
+                
+            return total
+        if usage_type == 'bib':
+            return count(Bib, self.id)
+        elif usage_type == 'auth':
+            return count(Auth, self.id)          
+        else:    
+            raise Exception('Invalid usage_type')
+            
 class Diff():
     """Compare two Marc objects.
 
@@ -1306,7 +1345,7 @@ class Datafield(Field):
     def get_values(self, *codes):
         subs = filter(lambda sub: sub.code in codes, self.subfields)
 
-        return [sub.value for sub in subs]
+        return list(filter(None, [sub.value for sub in subs]))
 
     def get_xrefs(self):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
@@ -1386,7 +1425,7 @@ class Datafield(Field):
     def to_dict(self):
         d = {}        
         d['indicators'] = [self.ind1, self.ind2]
-        d['subfields'] = [sub.to_dict() for sub in self.subfields]
+        d['subfields'] = [sub.to_dict() for sub in filter(lambda x: x.value, self.subfields)]
 
         return d
 
@@ -1475,7 +1514,12 @@ class Linked(Subfield):
 
     @property
     def value(self):
-        return Auth.lookup(self.xref, self.code)
+        value = Auth.lookup(self.xref, self.code)
+        
+        if not value:
+            warn(f'Linked authority {self.xref} not found')
+            
+        return value
 
     def translated(self, language):
         return Auth.lookup(self.xref, self.code, language)
