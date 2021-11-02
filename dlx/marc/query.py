@@ -77,7 +77,6 @@ class Query():
                 elif self.record_type == 'auth':
                     tags = list(Config.auth_authority_controlled.keys())
                 else:
-                    print(record_type)
                     raise Exception('"Query().record_type" must be set to "bib" or "auth" to do xref search')
                     
                 conditions = []

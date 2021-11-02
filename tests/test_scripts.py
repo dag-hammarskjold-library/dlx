@@ -25,7 +25,7 @@ def test_build_logical_fields(db):
     from dlx.marc import Bib
     from dlx.scripts import build_logical_fields
     
-    sys.argv[1:] = ['--connect=mongomock://localhost']
+    sys.argv[1:] = ['--connect=mongomock://localhost', '--type=bib']
     
     bib = Bib().set('245', 'a', 'Title:') \
         .set('245', 'b', 'subtitle') \
