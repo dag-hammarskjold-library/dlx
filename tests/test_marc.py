@@ -235,6 +235,10 @@ def test_querystring(db):
     query = Query.from_string(f'xref:{auth.id}', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
+    # string with wildcard
+    query = Query.from_string(f'245:Th*s', record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+    
     # logical fields
     bib = Bib().set('246', 'a', 'This title:').set('246', 'b', 'is a title').commit()
     assert len(list(BibSet.from_query(query.compile()))) == 1

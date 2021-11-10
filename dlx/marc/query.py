@@ -21,7 +21,22 @@ class Query():
             return tokens
             
         def check_regex(string):
-            return Regex(string[1:-1]) if string[0] == string[-1] == '/' else string
+            if string[0] == string[-1] == '/':
+                return Regex(string[1:-1])
+                
+            # "right truncation"
+            match = re.match('(.*)\*$', string)
+            
+            if match:
+                val = match.group(1)
+                
+                return Regex(f'^{val}')
+                
+            # wildcard
+            if '*' in string:
+                return Regex(string.replace('*', '.*?'))
+
+            return string
                 
         def parse(token):
             # fully qualified syntax
@@ -92,6 +107,8 @@ class Query():
             if match:
                 logical_fields = list(Config.bib_logical_fields.keys()) + list(Config.auth_logical_fields.keys())
                 field, value = match.group(1, 2)
+                
+                field = 'symbol' if field == 's' else field #todo: make aliases config
                 
                 if field in logical_fields:
                     return Raw({field: check_regex(value)})    
