@@ -1,5 +1,3 @@
-
-
 # DLX
 APIs for performing ETL operations on MARC and file data
 
@@ -31,24 +29,24 @@ query = Query(
 
 for bib in BibSet.from_query(query):
 	bib.set('245', 'a', 'New title')
-	bib.commit(user='you')
+	bib.commit(user='<username>')
 
 ### File
 
 from dlx.file import File, Identifier, S3
 
-S3.connect(aws_key='<AWS key>', aws_key_id='<AWS key ID>', bucket='<bucket name>')
+S3.connect(bucket='<bucket name>')
 
 fileobj = open('file.txt', 'r')
 
 File.import_from_handle(
-	fileobj, 
+	fileobj,
 	identifiers=[Identifier('isbn', '1')], 
-	filename='fn.txt', languages=['EN'], 
-	mimetype='text/plain', 
+	filename='fn.txt', languages=['EN'],
+	mimetype='text/plain',
 	source='demo'
 )
 
-xfile = File.latest_by_identifier_language(Identifier('isbn', '1'), 'EN')
-print(xfile.url)
+f = File.latest_by_identifier_language(Identifier('isbn', '1'), 'EN')
+print(f.url)
 ```
