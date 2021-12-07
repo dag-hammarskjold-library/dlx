@@ -267,6 +267,9 @@ class Marc(object):
         result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
 
         if result:
+            if result['count'] <= cls.max_id():
+                raise Exception('The ID incrementer is out of sync')
+            
             return result['count']
         else:
             # this should only happen once
