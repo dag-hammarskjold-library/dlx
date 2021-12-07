@@ -16,7 +16,7 @@ class Query():
         self.record_type = record_type
         
         def tokenize(string):
-            tokens = re.split(' ?AND ?', string)
+            tokens = re.split(' ?(AND|OR) ?', string)
             
             return tokens
             
@@ -39,6 +39,8 @@ class Query():
             return string
                 
         def parse(token):
+            '''Returns: dlx.query.Condition'''
+            
             # fully qualified syntax
             match = re.match('(\d{3})(.)(.)([a-z0-9]):(.*)', token)
             
@@ -62,6 +64,8 @@ class Query():
                         raise InvalidQueryString(f'ID must be a number')
                 elif tag[:2] == '00':
                     return Raw({tag: value})
+                    
+                # todo: handle auth controlled fields
                 
                 return Raw({f'{tag}.subfields.value': check_regex(value)})
                 
@@ -118,8 +122,21 @@ class Query():
             # free text
             return Wildcard(token)
         
-        for token in tokenize(string):
-            self.conditions.append(parse(token))
+        tokens = tokenize(string)
+        
+        if len(tokens) == 1:
+            self.conditions.append(parse(tokens[0]))
+        else:
+            for i, token in enumerate(tokens):
+                if token == 'AND':
+                    self.conditions.append(parse(tokens[i-1]))
+                    self.conditions.append(parse(tokens[i+1]))
+                elif token == 'OR':
+                    condition = Or(parse(tokens[i-1]), parse(tokens[i+1]))
+                    self.conditions.append(condition)
+                    
+        if len(tokens) > 3:
+            print(json.dumps(self.compile(), indent=2))
 
         return self
         

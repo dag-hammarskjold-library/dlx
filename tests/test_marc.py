@@ -206,6 +206,12 @@ def test_querystring(db):
     query = Query.from_string('245__a:This AND 650__a:Header')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
+    query = Query.from_string('245__a:This OR 245__a:Another')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    query = Query.from_string('245__a:This OR 245__a:Another AND 650:Header')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
+    
     query = Query.from_string('110__a:Another header')
     assert Auth.from_query(query.compile()).id == 2
     
