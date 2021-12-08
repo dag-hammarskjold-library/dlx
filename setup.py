@@ -28,6 +28,7 @@ setup(
     entry_points = {
         'console_scripts': [
             'excel-marc=dlx.scripts.excel_marc:run',
+            'clear-incrementers=dlx.scripts.clear_incrementers:run',
             'init-indexes=dlx.scripts.init_indexes:run',
             'build-logical-fields=dlx.scripts.build_logical_fields:run'
         ]

@@ -2,9 +2,14 @@ import sys, os, pytest
 
 def test_init_db(db):
     from dlx import DB, Config
-    from dlx.scripts import init_indexes
     
     sys.argv[1:] = ['--connect=mongomock://localhost']
+    
+    from dlx.scripts import clear_incrementers
+    
+    assert clear_incrementers.run() is None # runs the function, no return value
+    
+    from dlx.scripts import init_indexes
     
     assert init_indexes.run() is None # runs the function, no return value
 
