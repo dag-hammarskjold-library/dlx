@@ -215,13 +215,17 @@ def test_querystring(db):
     query = Query.from_string('245__a:This OR 245__a:Another')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     
-    query = Query.from_string('245__a:This OR 245__a:Another AND 650:Header')
-    assert len(list(BibSet.from_query(query.compile()))) == 2
+    # todo: how to handle mixed conjunctions
+    #query = Query.from_string('245__a:This OR 245__a:Another AND 650:Header')
+    #assert len(list(BibSet.from_query(query.compile()))) == 2
     
-    query = Query.from_string('110__a:Another header')
+    query = Query.from_string('110__a:another header')
     assert Auth.from_query(query.compile()).id == 2
     
     query = Query.from_string('650__a:/[Hh]eader/')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    query = Query.from_string('650__a:/header/i')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     
     # all fields
@@ -232,10 +236,11 @@ def test_querystring(db):
         assert len(list(BibSet.from_query(query.compile()))) == 2
         
     assert query.compile() == {'$text': {'$search': 'Another header'}}
-    
+
     # tag no subfield
-    query = Query.from_string('245:This')
-    assert len(list(BibSet.from_query(query.compile()))) == 1
+    query = Query.from_string('245:is the')
+    results = list(BibSet.from_query(query.compile()))
+    assert len(results) == 2
     
     # id
     query = Query.from_string('id:1')
@@ -248,11 +253,12 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     # string with wildcard
-    query = Query.from_string(f'245:Th*s', record_type='bib')
-    assert len(list(BibSet.from_query(query.compile()))) == 1
+    query = Query.from_string(f'245:*i*l*', record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
     
     # logical fields
     bib = Bib().set('246', 'a', 'This title:').set('246', 'b', 'is a title').commit()
+    query = Query.from_string(f'title:This title: is a title', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     from dlx.marc.query import Query, InvalidQueryString

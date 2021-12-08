@@ -19,24 +19,25 @@ class Query():
             tokens = re.split(' ?(AND|OR) ?', string)
             
             return tokens
-            
-        def check_regex(string):
-            if string[0] == string[-1] == '/':
-                return Regex(string[1:-1])
-                
-            # "right truncation"
-            match = re.match('(.*)\*$', string)
-            
-            if match:
-                val = match.group(1)
-                
-                return Regex(f'^{val}')
-                
-            # wildcard
-            if '*' in string:
-                return Regex(string.replace('*', '.*?'))
+        
+        def is_regex(string):
+            pairs = [('/', '/'), ('\\', '\\'), ('`', '`')]
 
-            return string
+            for p in pairs:
+                if string[0] == p[0] and (string[-1] == p[1] or (string[-2] == p[1] and string[-1] == 'i')):
+                    return True
+                
+        def process_string(string):
+            if is_regex(string):
+                if string[-1] == 'i':
+                    # case insensitive
+                    return Regex(string[1:-2], 'i')
+                else:
+                    return Regex(string[1:-1])
+            elif '*' in string:
+                return Regex('^' + string.replace('*', '.*') + '$')
+            else:
+                return string
                 
         def parse(token):
             '''Returns: dlx.query.Condition'''
@@ -47,7 +48,7 @@ class Query():
             if match:
                 tag, ind1, ind2, code, value = match.group(1, 2, 3, 4, 5)
                 
-                return Condition(tag, {code: check_regex(value)})
+                return Condition(tag, {code: process_string(value)})
                 
             # tag only syntax 
             # matches a single subfield only
@@ -67,7 +68,7 @@ class Query():
                     
                 # todo: handle auth controlled fields
                 
-                return Raw({f'{tag}.subfields.value': check_regex(value)})
+                return Raw({f'{tag}.subfields.value': process_string(value)})
                 
             # id search
             match = re.match('id:(.*)', token)
@@ -115,7 +116,7 @@ class Query():
                 field = 'symbol' if field == 's' else field #todo: make aliases config
                 
                 if field in logical_fields:
-                    return Raw({field: check_regex(value)})    
+                    return Raw({field: process_string(value)})    
                 else:
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
                     
@@ -134,9 +135,6 @@ class Query():
                 elif token == 'OR':
                     condition = Or(parse(tokens[i-1]), parse(tokens[i+1]))
                     self.conditions.append(condition)
-                    
-        if len(tokens) > 3:
-            print(json.dumps(self.compile(), indent=2))
 
         return self
         
