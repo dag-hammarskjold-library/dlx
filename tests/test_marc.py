@@ -98,10 +98,16 @@ def test_commit(db, bibs, auths):
     assert Bib.max_id() == 3
     
     Bib().commit()
-    Bib().commit()
-    assert Bib.max_id() == 5
+    bib = Bib().commit()
+    assert bib.id == Bib.max_id() == 5
+    
+    # don't reuse id
+    bib.delete()
+    bib = Bib().commit()
+    assert bib.id == 6
     
     DB.bibs.drop()
+    DB.handle['bib_history'].drop()
     DB.handle['bib_id_counter'].drop()
     Bib().commit()
     assert Bib.max_id() == 1

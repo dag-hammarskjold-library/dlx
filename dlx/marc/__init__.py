@@ -267,6 +267,9 @@ class Marc(object):
         result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
 
         if result:
+            if result['count'] <= cls.max_id():
+                raise Exception('The ID incrementer is out of sync')
+            
             return result['count']
         else:
             # this should only happen once
@@ -278,8 +281,13 @@ class Marc(object):
     @classmethod
     def max_id(cls):
         max_dict = next(cls.handle().aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}]), {})
-
-        return max_dict.get('_id') or 0
+        
+        history_collection = DB.handle[cls.record_type + '_history']
+        deleted_dict = next(history_collection.aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}]), {})
+        
+        m, d = max_dict.get('_id') or 0, deleted_dict.get('_id') or 0
+            
+        return m if m > d else d
 
     @classmethod
     @Decorators.check_connected
