@@ -1,4 +1,5 @@
-# work in progress
+# This script (re)builds the logical fields in the database. Run time is approx
+# 15 minutes at this time.
 
 import sys
 from bson import Regex
