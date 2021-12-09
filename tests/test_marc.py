@@ -219,7 +219,7 @@ def test_querystring(db):
     #query = Query.from_string('245__a:This OR 245__a:Another AND 650:Header')
     #assert len(list(BibSet.from_query(query.compile()))) == 2
     
-    query = Query.from_string('110__a:another header')
+    query = Query.from_string('110__a:Another header')
     assert Auth.from_query(query.compile()).id == 2
     
     query = Query.from_string('650__a:/[Hh]eader/')
@@ -239,6 +239,10 @@ def test_querystring(db):
 
     # tag no subfield
     query = Query.from_string('245:is the')
+    results = list(BibSet.from_query(query.compile()))
+    assert len(results) == 2
+    
+    query = Query.from_string('650:Header')
     results = list(BibSet.from_query(query.compile()))
     assert len(results) == 2
     

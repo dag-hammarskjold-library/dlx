@@ -10,7 +10,7 @@ class InvalidQueryString(Exception):
     
 class Query():
     @classmethod
-    def from_string(cls, string, *, record_type=None):
+    def from_string(cls, string, *, record_type='bib'):
         # todo: indicators, OR, NOT, all-subfield
         self = cls()
         self.record_type = record_type
@@ -66,10 +66,8 @@ class Query():
                 elif tag[:2] == '00':
                     return Raw({tag: value})
                     
-                # todo: handle auth controlled fields
-                
-                return Raw({f'{tag}.subfields.value': process_string(value)})
-                
+                return Any(tag, process_string(value))
+
             # id search
             match = re.match('id:(.*)', token)
 
@@ -149,11 +147,7 @@ class Query():
         compiled = []
 
         for condition in self.conditions:
-            if isinstance(condition, Or):
-                ors = [c.compile() for c in condition.conditions]
-                compiled.append({'$or': ors})
-            else:
-                compiled.append(condition.compile())
+            compiled.append(condition.compile())
 
         if len(compiled) == 1:
             return compiled[0]
@@ -186,6 +180,9 @@ class AuthQuery(Query):
 class Or(object):
     def __init__(self, *conditions):
         self.conditions = conditions
+        
+    def compile(self):
+        return {'$or': [c.compile() for c in self.conditions]}
 
 class Condition(object):
     valid_modifiers = ['not', 'exists', 'not_exists']
@@ -308,3 +305,30 @@ class Raw():
     def compile(self):
         return self.condition
          
+class Any():
+    """Tag and value condition"""
+    
+    def __init__(self, tag, value, *, record_type=None):
+        if not record_type:
+            warn('Record type is not set for query condition. Defaulting to bib')
+            self.record_type = 'bib'
+            
+        auth_ctrl = Config.bib_authority_controlled if self.record_type == 'bib' else Config.auth_authority_controlled
+        
+        if tag in auth_ctrl:
+            source_tag = list(auth_ctrl[tag].values())[0]
+            
+            xrefs = map(
+                lambda x: x['_id'], 
+                DB.auths.find({f'{source_tag}.subfields.value': value}, {'_id': 1})
+            )
+            
+            self.condition = Or(
+                Raw({f'{tag}.subfields.value': value}),
+                Raw({f'{tag}.subfields.xref': {'$in': list(xrefs)}})
+            )
+        else:
+            self.condition = Raw({f'{tag}.subfields.value': value})
+        
+    def compile(self):
+        return self.condition.compile()
