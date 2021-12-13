@@ -9,7 +9,7 @@ idna==3.2
 Jinja2==3.0.1
 jmespath==0.10.0
 jsonschema==3.2.0
-lxml==4.6.4
+lxml==4.6.5
 MarkupSafe==2.0.1
 mongomock==3.23.0
 more-itertools==8.8.0
