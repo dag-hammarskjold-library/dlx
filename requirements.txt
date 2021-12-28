@@ -2,14 +2,14 @@ attrs==21.2.0
 boto3==1.18.9
 botocore==1.21.9
 certifi==2021.5.30
-cffi==1.14.6
+cffi==1.15.0
 charset-normalizer==2.0.3
 cryptography==3.4.7
 idna==3.2
 Jinja2==3.0.1
 jmespath==0.10.0
 jsonschema==3.2.0
-lxml==4.6.3
+lxml==4.7.1
 MarkupSafe==2.0.1
 mongomock==3.23.0
 more-itertools==8.8.0

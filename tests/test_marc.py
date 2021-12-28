@@ -84,13 +84,13 @@ def test_commit(db, bibs, auths):
     from jsonschema.exceptions import ValidationError
 
     for bib in [Bib(x) for x in bibs]:
-        assert bib.commit().acknowledged
+        assert bib.commit() == bib
         
     for auth in [Auth(x) for x in auths]:
-        assert auth.commit().acknowledged
+        assert auth.commit() == auth
         
     bib = Bib({'_id': 3})
-    assert bib.commit().acknowledged
+    assert bib.commit() == bib
     assert isinstance(bib.updated, datetime)
     assert bib.user == 'admin'
     assert bib.history()[0].to_dict() == bib.to_dict()
@@ -98,10 +98,16 @@ def test_commit(db, bibs, auths):
     assert Bib.max_id() == 3
     
     Bib().commit()
-    Bib().commit()
-    assert Bib.max_id() == 5
+    bib = Bib().commit()
+    assert bib.id == Bib.max_id() == 5
+    
+    # don't reuse id
+    bib.delete()
+    bib = Bib().commit()
+    assert bib.id == 6
     
     DB.bibs.drop()
+    DB.handle['bib_history'].drop()
     DB.handle['bib_id_counter'].drop()
     Bib().commit()
     assert Bib.max_id() == 1
@@ -196,19 +202,7 @@ def test_querydocument(db):
     )
     assert len(list(Auth.find(query.compile()))) == 1
     assert Auth.find_one(query.compile()).id == 2
-    
-def test_bug(db):
-    from dlx.marc import Bib, Auth, AuthSet, Query, Condition, Or
-    
-    a = Auth()
-    a.set('191', 'b', '58')
-    a.commit()
-    
-    q = Query(Condition('191', {'b': '58'}))
-    
-    for a in AuthSet.from_query(q):
-        print(a.to_mrk())
-    
+
 def test_querystring(db):
     from dlx.marc import BibSet, Bib, Auth, Query
 
@@ -218,10 +212,20 @@ def test_querystring(db):
     query = Query.from_string('245__a:This AND 650__a:Header')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
+    query = Query.from_string('245__a:This OR 245__a:Another')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    # todo: how to handle mixed conjunctions
+    #query = Query.from_string('245__a:This OR 245__a:Another AND 650:Header')
+    #assert len(list(BibSet.from_query(query.compile()))) == 2
+    
     query = Query.from_string('110__a:Another header')
     assert Auth.from_query(query.compile()).id == 2
     
     query = Query.from_string('650__a:/[Hh]eader/')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    query = Query.from_string('650__a:/header/i')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     
     # all fields
@@ -232,15 +236,39 @@ def test_querystring(db):
         assert len(list(BibSet.from_query(query.compile()))) == 2
         
     assert query.compile() == {'$text': {'$search': 'Another header'}}
-    
+
     # tag no subfield
-    query = Query.from_string('245:This')
+    query = Query.from_string('245:is the')
+    results = list(BibSet.from_query(query.compile()))
+    assert len(results) == 2
+    
+    query = Query.from_string('650:Header')
+    results = list(BibSet.from_query(query.compile()))
+    assert len(results) == 2
+    
+    # id
+    query = Query.from_string('id:1')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
-    # logical fields
-    Bib().set('246', 'a', 'This').commit()
-    query = Query.from_string('title:This')
+    # xref
+    auth = Auth().set('100', 'a', 'x').commit()
+    bib = Bib().set('700', 'a', auth.id).commit()
+    query = Query.from_string(f'xref:{auth.id}', record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+    
+    # string with wildcard
+    query = Query.from_string(f'245:*i*l*', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    # logical fields
+    bib = Bib().set('246', 'a', 'This title:').set('246', 'b', 'is a title').commit()
+    query = Query.from_string(f'title:This title: is a title', record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+    
+    from dlx.marc.query import Query, InvalidQueryString
+
+    with pytest.raises(InvalidQueryString):
+        q = Query.from_string('invalid_field:value')
     
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
@@ -588,16 +616,49 @@ def test_auth_in_use(db, bibs, auths):
     assert not auth.in_use()
     
 def test_catch_delete_auth(db, bibs, auths):
-    from dlx.marc import Auth, AuthInUse
+    from dlx.marc import Bib, Auth, AuthInUse
     
-    auth = Auth.from_id(1)
+    auth = Auth().set('100', 'a', 'x').commit()
+    Bib().set('600', 'a', 'x').commit()
     
     with pytest.raises(AuthInUse):
         auth.delete()
-        
+
+    auth = Auth().set('100', 'a', 'y').commit()
+    Auth().set('500', 'a', 'y').commit()
+    
+    with pytest.raises(AuthInUse):
+        auth.delete()
+
 def test_from_xml():
     from dlx.marc import Bib
     
     bib = Bib.from_xml('<record><controlfield tag="001">1</controlfield><datafield tag="245" ind1=" " ind2=" "><subfield code="a">Title</subfield></datafield></record>')        
     assert bib.get_value('001', None) == '1'
     assert bib.get_value('245', 'a') == 'Title'
+        
+def test_auth_use_count(db, bibs, auths):
+    from dlx.marc import Bib, Auth
+    
+    auth = Auth.from_id(1)
+    assert auth.in_use(usage_type='bib') == 2
+
+    Auth().set("550", "a", 1).commit()
+    assert auth.in_use(usage_type='auth') == 1
+    
+    auth = Auth().set('100', 'a', 't').commit()
+    Bib().set('700', 'a', 't').commit()
+    
+    assert auth.in_use() == 1
+    
+def test_logical_fields(db):
+    from dlx import DB, Config
+    from dlx.marc import Bib
+
+    Config.bib_logical_fields.update({'test_field': {'867': ['a', 'z']}})
+    bib = Bib().set('867', 'a', 'logical value 1').set('867', 'z', 'logical value 2').commit()
+    assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['logical value 1', 'logical value 2']
+    
+    Config.bib_logical_fields.update({'test_field': {'867': ['abc']}})
+    bib.set('867', 'a', 'part 1,').set('867', 'b', 'part 2 +').set('867', 'c', 'part 3').commit()
+    assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['part 1, part 2 + part 3']

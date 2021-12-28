@@ -2,9 +2,14 @@ import sys, os, pytest
 
 def test_init_db(db):
     from dlx import DB, Config
-    from dlx.scripts import init_indexes
     
     sys.argv[1:] = ['--connect=mongomock://localhost']
+    
+    from dlx.scripts import clear_incrementers
+    
+    assert clear_incrementers.run() is None # runs the function, no return value
+    
+    from dlx.scripts import init_indexes
     
     assert init_indexes.run() is None # runs the function, no return value
 
@@ -20,3 +25,17 @@ def test_excel_marc():
     assert os.path.exists(out)
     
     os.remove(os.path.dirname(__file__) + '/out.mrc')
+    
+def test_build_logical_fields(db):
+    from dlx.marc import Bib
+    from dlx.scripts import build_logical_fields
+    
+    sys.argv[1:] = ['--connect=mongomock://localhost', '--type=bib']
+    
+    bib = Bib().set('245', 'a', 'Title:') \
+        .set('245', 'b', 'subtitle') \
+        .set('246', 'a', 'Alt title') \
+        .commit()
+    
+    # interim
+    assert build_logical_fields.run() is None

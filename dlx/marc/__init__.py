@@ -97,7 +97,7 @@ class MarcSet():
                 if not isinstance(cond, Or):
                     cond.record_type = self.record_type
 
-            query = QueryDocument(*conditions).compile()
+            query = Query(*conditions).compile()
         else:
             query = args[0]
             
@@ -281,6 +281,9 @@ class Marc(object):
         result = col.find_one_and_update({'_id': 1}, {'$inc': {'count': 1}}, return_document=ReturnDocument.AFTER)
 
         if result:
+            if result['count'] <= cls.max_id():
+                raise Exception('The ID incrementer is out of sync')
+            
             return result['count']
         else:
             # this should only happen once
@@ -292,8 +295,13 @@ class Marc(object):
     @classmethod
     def max_id(cls):
         max_dict = next(cls.handle().aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}]), {})
-
-        return max_dict.get('_id') or 0
+        
+        history_collection = DB.handle[cls.record_type + '_history']
+        deleted_dict = next(history_collection.aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}]), {})
+        
+        m, d = max_dict.get('_id') or 0, deleted_dict.get('_id') or 0
+            
+        return m if m > d else d
 
     @classmethod
     @Decorators.check_connected
@@ -393,7 +401,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.MarcSet.count instead')
+        warn('dlx.marc.Marc.count_documents() is deprecated. Use dlx.marc.MarcSet.count instead')
 
         return cls.handle().count_documents(*args, **kwargs)
 
@@ -446,8 +454,10 @@ class Marc(object):
     def get_values(self, tag, *codes, **kwargs):
         if tag[:2] == '00':
             return [field.value for field in self.get_fields(tag)]
+            
+        values = [sub.value for sub in self.get_subfields(tag, *codes, place=kwargs.get('place'))]
 
-        return [sub.value for sub in self.get_subfields(tag, *codes, place=kwargs.get('place'))]
+        return list(filter(None, values))
 
     def get_value(self, tag, code=None, address=[0, 0], language=None):
         field = self.get_field(tag, place=address[0])    
@@ -616,36 +626,29 @@ class Marc(object):
 
     @Decorators.check_connected
     def commit(self, user='admin'):
-        # clear the caches in case there is a new auth value
-        if isinstance(self, Auth):
-            for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
-                setattr(Auth, cache, {})
+        new_record = True if self.id is None else False
 
-        new_flag = False
-
-        if self.id is None:
-            # this is a new record
-            new_flag = True
-            cls = type(self)
-            self.id = cls._increment_ids()
-
-        for field in filter(lambda x: isinstance(x, Datafield), self.fields):
-            for sub in field.subfields:
-                if Config.is_authority_controlled(self.record_type, field.tag, sub.code):
-                    if not hasattr(sub, 'xref'):
-                       raise InvalidAuthField(self.record_type, field.tag, sub.code) 
-
-                    if not Auth.lookup(sub.xref, sub.code):
-                        raise InvalidAuthXref(self.record_type, field.tag, sub.code, sub.xref)
-
+        if new_record:
+            self.id = type(self)._increment_ids()
+        
         self.validate()
         data = self.to_bson()
-        data['updated'] = datetime.utcnow()
-        data['user'] = user
-        self.updated = data['updated']
-        self.user = data['user']
+        self.updated = data['updated'] = datetime.utcnow()
+        self.user = data['user'] = user
+        logical_fields = {}
+        
+        # scan fields
+        for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
+            for subfield in field.subfields:
+                # auth control
+                if Config.is_authority_controlled(self.record_type, field.tag, subfield.code):
+                    if not hasattr(subfield, 'xref'):
+                       raise InvalidAuthField(self.record_type, field.tag, subfield.code) 
 
-        # save a copy of self in history
+                    if not Auth.lookup(subfield.xref, subfield.code):
+                        raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
+
+        # history
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
 
@@ -655,18 +658,33 @@ class Marc(object):
             record_history = SON()
             record_history['_id'] = self.id
 
-            if new_flag:
+            if new_record:
                 record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
 
             record_history['history'] = [data]
 
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
+        
+        # add logical fields
+        for logical_field, values in self.logical_fields().items():
+            data[logical_field] = values
 
-        return type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
+        # commit
+        result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
+        
+        if result.acknowledged:
+            # clear the caches in case there is a new auth value
+            if isinstance(self, Auth):
+                for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
+                    setattr(Auth, cache, {})
+            
+            return self
+            
+        raise Exception('Commit failed')
 
     def delete(self, user='admin'):
         if isinstance(self, Auth):
-            if self.in_use():
+            if self.in_use(usage_type='bib') or self.in_use(usage_type='auth'):
                 raise AuthInUse()
         
             for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
@@ -687,6 +705,27 @@ class Marc(object):
             return [type(self)(x) for x in record_history['history']]
         else:
             return []
+
+    def logical_fields(self, *names):
+        """Returns a dict of the record's logical fields"""
+        
+        self._logical_fields = {}
+        logical_fields = getattr(Config, self.record_type + '_logical_fields') 
+        
+        for logical_field, tags in logical_fields.items():
+            if names and logical_field not in names:
+                continue
+                
+            for tag, subfield_groups in tags.items():
+                for group in subfield_groups:
+                    for field in self.get_fields(tag):
+                        value = ' '.join(field.get_values(*group) or [])
+                        
+                        if value:
+                            self._logical_fields.setdefault(logical_field, [])
+                            self._logical_fields[logical_field].append(value)
+                            
+        return self._logical_fields
 
     #### utlities
 
@@ -785,7 +824,10 @@ class Marc(object):
             d[tag] = [f.value for f in self.get_fields(tag)]
 
         for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
-            d[tag] = [f.to_dict() for f in self.get_fields(tag)]
+            fields = list(filter(lambda x: x.get('subfields'), [f.to_dict() for f in self.get_fields(tag)]))
+            
+            if fields:
+                d[tag] = fields
 
         return d
 
@@ -1138,6 +1180,13 @@ class Auth(Marc):
 
     @property    
     def heading_field(self):
+        """Returns the heading field of the authority record.
+        
+        Returns
+        -------
+        dlx.marc.Datafield
+        """
+        
         if self._heading_field:
             return self._heading_field
             
@@ -1146,6 +1195,19 @@ class Auth(Marc):
         return self._heading_field
 
     def heading_value(self, code, language=None):
+        """Returns the value of the specified subfield of the heading field of 
+        the authority record.
+        
+        Parameters
+        ----------
+        code : str
+            The code of the subfield of the heading field to get.
+        
+        Returns
+        -------
+        str
+        """
+        
         if language:
             tag = self.heading_field.tag
             lang_tag = Config.language_source_tag(tag, language)
@@ -1162,22 +1224,46 @@ class Auth(Marc):
         for sub in filter(lambda sub: sub.code == code, source_field.subfields):
             return sub.value
 
-    def in_use(self):
+    def in_use(self, *, usage_type=None):
+        """Returns the count of records using the authority.
+        
+        Parameters
+        ---------
+        usage_type : ("bib"|"auth"), None
+            If None, counts total use in both
+        
+        Returns
+        -------
+        int
+        """
+        
         if not self.id:
             return
-            
-        this_tag = self.heading_field.tag
-        bac, aac = Config.bib_authority_controlled, Config.auth_authority_controlled
         
-        for d in bac, aac:
-            for check_tag in d.keys():
-                for code in d[check_tag].keys():
-                    sourced_tag = d[check_tag][code]
-
-                    if this_tag == sourced_tag:
-                        if Bib.from_query({f'{check_tag}.subfields.xref': self.id}, projection={'_id': 1}):
-                            return True
-
+        def count(lookup_class, xref):
+            tags = list(Config.bib_authority_controlled.keys()) if lookup_class == Bib else list(Config.auth_authority_controlled.keys())
+            
+            total = 0
+            
+            for tag in tags:
+                total += lookup_class.count_documents({f'{tag}.subfields.xref': xref})
+                
+            return total
+        
+        if usage_type is None:
+            total = 0
+            
+            for cls in (Bib, Auth):
+                total += count(cls, self.id)
+                
+            return total
+        if usage_type == 'bib':
+            return count(Bib, self.id)
+        elif usage_type == 'auth':
+            return count(Auth, self.id)          
+        else:    
+            raise Exception('Invalid usage_type')
+            
 class Diff():
     """Compare two Marc objects.
 
@@ -1305,7 +1391,7 @@ class Datafield(Field):
     def get_values(self, *codes):
         subs = filter(lambda sub: sub.code in codes, self.subfields)
 
-        return [sub.value for sub in subs]
+        return list(filter(None, [sub.value for sub in subs]))
 
     def get_xrefs(self):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
@@ -1385,7 +1471,7 @@ class Datafield(Field):
     def to_dict(self):
         d = {}        
         d['indicators'] = [self.ind1, self.ind2]
-        d['subfields'] = [sub.to_dict() for sub in self.subfields]
+        d['subfields'] = [sub.to_dict() for sub in filter(lambda x: x.value, self.subfields)]
 
         return d
 
@@ -1474,7 +1560,12 @@ class Linked(Subfield):
 
     @property
     def value(self):
-        return Auth.lookup(self.xref, self.code)
+        value = Auth.lookup(self.xref, self.code)
+        
+        if not value:
+            warn(f'Linked authority {self.xref} not found')
+            
+        return value
 
     def translated(self, language):
         return Auth.lookup(self.xref, self.code, language)
