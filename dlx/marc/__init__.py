@@ -3,7 +3,7 @@
 import re, json
 from datetime import datetime
 from warnings import warn
-from xml.etree import ElementTree as XML
+from xml.etree import ElementTree
 import jsonschema
 from bson import SON, Regex
 from pymongo import ReturnDocument
@@ -180,6 +180,20 @@ class MarcSet():
 
         return cls.from_table(table, auth_control=auth_control, field_check=field_check)
 
+    @classmethod
+    def from_xml_raw(cls, root, *, auth_control=False):
+        assert isinstance(root, ElementTree.Element)
+        self = cls()
+        
+        for r in root.findall('record'):
+            self.records.append(self.record_class.from_xml_raw(r, auth_control=auth_control))
+            
+        return self
+        
+    @classmethod
+    def from_xml(cls, string):
+        return cls.from_xml_raw(ElementTree.fromstring(string))
+    
     # instance
 
     def __iter__(self): return self
@@ -221,12 +235,12 @@ class MarcSet():
 
     def to_xml(self, xref_prefix=''):
         # todo: stream instead of queue in memory
-        root = XML.Element('collection')
+        root = ElementTree.Element('collection')
 
         for record in self.records:
             root.append(record.to_xml_raw(xref_prefix=xref_prefix))
 
-        return XML.tostring(root, encoding='utf-8').decode('utf-8')
+        return ElementTree.tostring(root, encoding='utf-8').decode('utf-8')
 
     def to_mrk(self):
         return '\n'.join([r.to_mrk() for r in self.records])
@@ -894,15 +908,15 @@ class Marc(object):
 
     def to_xml_raw(self, *tags, language=None, xref_prefix=''):
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
-        root = XML.Element('record')
+        root = ElementTree.Element('record')
 
         for field in self.get_fields(*tags):
             if isinstance(field, Controlfield):
-                node = XML.SubElement(root, 'controlfield')
+                node = ElementTree.SubElement(root, 'controlfield')
                 node.set('tag', field.tag)
                 node.text = field.value
             else:
-                node = XML.SubElement(root, 'datafield')
+                node = ElementTree.SubElement(root, 'datafield')
                 node.set('tag', field.tag)
                 node.set('ind1', field.ind1)
                 node.set('ind2', field.ind2)
@@ -918,7 +932,7 @@ class Marc(object):
                     if hasattr(sub, 'xref'):
                         xref = sub.xref
 
-                    subnode = XML.SubElement(node, 'subfield')
+                    subnode = ElementTree.SubElement(node, 'subfield')
                     subnode.set('code', sub.code)
 
                     if language and Config.linked_language_source_tag(self.record_type, field.tag, sub.code, language):
@@ -928,14 +942,14 @@ class Marc(object):
                     subnode.text = val
 
                 if xref:
-                    subnode = XML.SubElement(node, 'subfield')
+                    subnode = ElementTree.SubElement(node, 'subfield')
                     subnode.set('code', '0')
                     subnode.text = xref_prefix + str(xref)
 
         return root
 
     def to_xml(self, *tags, language=None, xref_prefix=''):
-        return XML.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix), encoding='utf-8').decode('utf-8')
+        return ElementTree.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix), encoding='utf-8').decode('utf-8')
 
     def to_jmarcnx(self):
         xrec = type(self)()
@@ -984,9 +998,33 @@ class Marc(object):
             record.fields.append(field)
 
         return record
-
-    def from_xml(self, string):
-        raise
+    
+    @classmethod
+    def from_xml_raw(cls, root, *, auth_control=False):
+        assert isinstance(root, ElementTree.Element)
+        self = cls()
+        
+        for c in root.findall('controlfield'):
+            self.set(c.attrib['tag'], None, c.text)
+            
+        for d in root.findall('datafield'):
+            field = Datafield(record_type=cls.record_type, tag=d.attrib['tag'], ind1=d.attrib['ind1'], ind2=d.attrib['ind2'])
+            
+            for s in d.findall('subfield'):
+                try:
+                    field.set(s.attrib['code'], s.text, auth_control=auth_control)
+                except AmbiguousAuthValue:
+                    field.set(s.attrib['code'], int(field.get_value('0')))
+                except:
+                    raise
+                
+            self.fields.append(field)
+            
+        return self
+        
+    @classmethod
+    def from_xml(cls, string):
+        return cls.from_xml_raw(ElementTree.fromstring(string))
 
     @classmethod
     def from_json(cls, string, auth_control=False):

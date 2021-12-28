@@ -623,12 +623,19 @@ def test_catch_delete_auth(db, bibs, auths):
     
     with pytest.raises(AuthInUse):
         auth.delete()
-        
+
     auth = Auth().set('100', 'a', 'y').commit()
     Auth().set('500', 'a', 'y').commit()
     
     with pytest.raises(AuthInUse):
         auth.delete()
+
+def test_from_xml():
+    from dlx.marc import Bib
+    
+    bib = Bib.from_xml('<record><controlfield tag="001">1</controlfield><datafield tag="245" ind1=" " ind2=" "><subfield code="a">Title</subfield></datafield></record>')        
+    assert bib.get_value('001', None) == '1'
+    assert bib.get_value('245', 'a') == 'Title'
         
 def test_auth_use_count(db, bibs, auths):
     from dlx.marc import Bib, Auth
