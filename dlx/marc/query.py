@@ -48,7 +48,7 @@ class Query():
             if match:
                 tag, ind1, ind2, code, value = match.group(1, 2, 3, 4, 5)
                 
-                return Condition(tag, {code: process_string(value)})
+                return Condition(tag, {code: process_string(value)}, record_type=record_type)
                 
             # tag only syntax 
             # matches a single subfield only
@@ -64,9 +64,9 @@ class Query():
                     except ValueError:
                         raise InvalidQueryString(f'ID must be a number')
                 elif tag[:2] == '00':
-                    return Raw({tag: value})
+                    return Raw({tag: value}, record_type=record_type)
                     
-                return Any(tag, process_string(value))
+                return Any(tag, process_string(value), record_type=record_type)
 
             # id search
             match = re.match('id:(.*)', token)
@@ -75,7 +75,7 @@ class Query():
                 value = match.group(1)
                 
                 try:
-                    return Raw({'_id': int(value)})
+                    return Raw({'_id': int(value)}, record_type=record_type)
                 except ValueError:
                     raise InvalidQueryString(f'ID must be a number')
                     
@@ -114,12 +114,12 @@ class Query():
                 field = 'symbol' if field == 's' else field #todo: make aliases config
                 
                 if field in logical_fields:
-                    return Raw({field: process_string(value)})    
+                    return Raw({field: process_string(value)}, record_type=record_type)    
                 else:
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
                     
             # free text
-            return Wildcard(token)
+            return Wildcard(token, record_type=record_type)
         
         tokens = tokenize(string)
         
@@ -290,8 +290,9 @@ class AuthCondition(Condition):
 class Wildcard():
     """Wildcard text condition"""
     
-    def __init__(self, string=''):
+    def __init__(self, string='', *, record_type=None):
         self.string = string
+        self.record_type = record_type
     
     def compile(self):
         return {'$text': {'$search': f'{self.string}'}}
@@ -299,8 +300,9 @@ class Wildcard():
 class Raw():
     """Raw MongoDB query document condition"""
     
-    def __init__(self, doc):
+    def __init__(self, doc, *, record_type=None):
         self.condition = doc
+        self.record_type = record_type
         
     def compile(self):
         return self.condition
@@ -309,7 +311,9 @@ class Any():
     """Tag and value condition"""
     
     def __init__(self, tag, value, *, record_type=None):
-        if not record_type:
+        if record_type:
+            self.record_type = record_type
+        else:
             warn('Record type is not set for query condition. Defaulting to bib')
             self.record_type = 'bib'
             
