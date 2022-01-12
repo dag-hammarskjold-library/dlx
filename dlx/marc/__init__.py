@@ -83,9 +83,10 @@ class MarcSet():
         
         if isinstance(args[0], Query):
             for cond in args[0].conditions:
-                if not isinstance(cond, Or):
-                    cond.record_type = self.record_type
-                
+                #if not isinstance(cond, Or):
+                cond.record_type = self.record_type
+
+            args[0].record_type = self.record_type
             query = args[0].compile()
         elif isinstance(args[0], Condition):
             args[0].record_type = self.record_type
@@ -204,7 +205,9 @@ class MarcSet():
 
     @property
     def count(self):
-        if isinstance(self.records, map):
+        import types
+        
+        if isinstance(self.records, (map, types.GeneratorType)):
             args, kwargs = self.query_params
             self._count = self.handle.count_documents(*args, **kwargs)
             return self._count
