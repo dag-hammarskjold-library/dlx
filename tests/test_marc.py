@@ -662,3 +662,25 @@ def test_logical_fields(db):
     Config.bib_logical_fields.update({'test_field': {'867': ['abc']}})
     bib.set('867', 'a', 'part 1,').set('867', 'b', 'part 2 +').set('867', 'c', 'part 3').commit()
     assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['part 1, part 2 + part 3']
+    
+def test_history(db):
+    from datetime import datetime
+    from dlx.marc import Bib
+    
+    # from_history
+    bib = Bib().set('245', 'a', 'to delete').commit()
+    bib.delete()
+    assert Bib.from_id(bib.id) is None
+    
+    restored = Bib.from_history(bib.id)
+    assert restored.get_value('245', 'a') == 'to delete'
+    
+    restored.commit()
+    assert Bib.from_id(bib.id).id == restored.id
+    assert len(restored.history()) == 2
+    
+    # data
+    assert restored.created()['time'] > datetime.min
+    assert restored.deleted()['time'] > datetime.min
+    assert restored.restored()['time'] > datetime.min
+    

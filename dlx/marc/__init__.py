@@ -657,6 +657,9 @@ class Marc(object):
 
         if record_history:
             record_history['history'].append(data)
+            
+            if record_history.get('deleted'):
+                record_history['restored'] = SON({'user': user, 'time': datetime.utcnow()})
         else:
             record_history = SON()
             record_history['_id'] = self.id
@@ -699,6 +702,18 @@ class Marc(object):
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
 
         return type(self).handle().delete_one({'_id': self.id})
+    
+    @classmethod
+    def from_history(cls, record_id=None, instance=0, *, user='admin'):
+        history_collection = DB.handle[cls.record_type + '_history']
+        record_history = history_collection.find_one({'_id': record_id})
+        
+        if not record_history or not record_history.get('history'):
+            raise(Exception(f'History not found for record {record_id}'))
+        
+        self = cls(record_history['history'][instance])
+        
+        return self
 
     def history(self):
         history_collection = DB.handle[self.record_type + '_history']
@@ -708,7 +723,34 @@ class Marc(object):
             return [type(self)(x) for x in record_history['history']]
         else:
             return []
+    
+    def created(self):
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
 
+        if record_history and record_history.get('created'):
+            return record_history.get('created')
+        else:
+            return None
+
+    def deleted(self):
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+
+        if record_history and record_history.get('deleted'):
+            return record_history.get('deleted')
+        else:
+            return None
+            
+    def restored(self):
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+
+        if record_history and record_history.get('restored'):
+            return record_history.get('restored')
+        else:
+            return None
+            
     def logical_fields(self, *names):
         """Returns a dict of the record's logical fields"""
         
