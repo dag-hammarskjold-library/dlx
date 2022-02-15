@@ -1,5 +1,6 @@
-# This script (re)builds the logical fields in the database. Run time is approx
-# 15 minutes at this time.
+# This script (re)builds the logical fields and browse indexes in the database. 
+# Run time is approx 15 minutes at this time. This can be run at any time, even 
+# if the fields are already built, without detrmiment to the data.
 
 import sys
 from bson import Regex
@@ -21,7 +22,9 @@ def run():
 
     build_literal_logical_fields(args)
     build_auth_controlled_logical_fields(args)
-    calculate_auth_use()
+    
+    if args.type == 'auth':
+        calculate_auth_use()
 
 def build_literal_logical_fields(args):
     cls = BibSet if args.type == 'bib' else AuthSet
@@ -29,12 +32,12 @@ def build_literal_logical_fields(args):
     logical_fields = Config.bib_logical_fields if cls == BibSet else Config.auth_logical_fields
     tags, literals = [], []
     
-    for field, x in list(logical_fields.items()):
-        for tag in x.keys():
-            if tag not in auth_controlled:
-                tags.append(tag)
-                literals.append(field)
-                
+    for field, d in list(logical_fields.items()):
+        if field not in Config.auth_controlled_bib_logical_fields():
+            tags += list(d.keys())
+            literals.append(field)
+    
+    tags = set(tags)            
     literals = set(literals)
     
     print(f'building {list(literals)}')
@@ -44,12 +47,17 @@ def build_literal_logical_fields(args):
     query = {}
     end = cls.from_query(query).count
     
+    z = 0
+    
     for i in range(start, end, inc):
-        updates = []
+        updates, browse_updates = [], {}
         
         for record in cls.from_query(query, sort=[('_id', DESC)], skip=i, limit=inc, projection=dict.fromkeys(tags, 1)):
             for field, values in record.logical_fields(*list(literals)).items():
                 updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))
+                
+                for val in values:
+                    browse_updates.setdefault(val, UpdateOne({'_id': val}, {'$set': {'_id': val}}, upsert=True))
                 
             last_r = r
             r += 1
@@ -58,6 +66,9 @@ def build_literal_logical_fields(args):
         if updates:
             cls().handle.bulk_write(updates)
             c += len(updates)
+            
+        if browse_updates:
+            DB.handle[f'{field}_index'].bulk_write(list(browse_updates.values()))
 
     print(f'\nupdated {c} logical fields')
 
@@ -67,12 +78,12 @@ def build_auth_controlled_logical_fields(args):
         return
 
     for field, tags in Config.bib_logical_fields.items():
-        values, updates = {}, []
+        if field not in Config.auth_controlled_bib_logical_fields():
+            continue
         
-        for tag, groups in tags.items():
-            if tag not in Config.bib_authority_controlled.keys(): 
-                continue
-                
+        values, updates, browse_updates = {}, [], {}
+        
+        for tag, groups in tags.items():                
             print(f'building: {field}, {tag}')
             
             codes = []
@@ -108,12 +119,30 @@ def build_auth_controlled_logical_fields(args):
             for field, vals in d.items():
                 updates.append(UpdateOne({'_id': rid}, {'$set': {field: vals}}))
                 
+                for val in vals:
+                    browse_updates.setdefault(val, (UpdateOne({'_id': val}, {'$set': {'_id': val}}, upsert=True)))
+                
         print(f'updates for {field}: {len(updates)}')
+        
+        start, end, inc = 0, len(updates), 1000
+        
+        for i in range(start, end, inc):
+            result = DB.bibs.bulk_write(updates[i:i+inc])
+                
+            print('\b' * (len(str(i)) + len(str(end)) + 3) + f'{i+inc} / {end}', end='', flush=True)
+            
+        if end:
+            print('\n') 
+        
+        print(f'updating {field} browse indexes')
+        
+        updates = list(browse_updates.values())
         
         start, end, inc = 0, len(updates), 1000 
         
         for i in range(start, end, inc):
-            result = DB.bibs.bulk_write(updates[i:i+inc])
+            DB.handle[f'{field}_index'].bulk_write(updates[i:i+inc])
+                
             print('\b' * (len(str(i)) + len(str(end)) + 3) + f'{i+inc} / {end}', end='', flush=True)
             
         if end:
@@ -137,7 +166,7 @@ def calculate_auth_use():
         
         for r in results:
             xref = r['_id']
-            count.setdefault(xref, 0)                
+            count.setdefault(xref, 0)
             count[xref] += r['count']
             i += 1
         

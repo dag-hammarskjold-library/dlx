@@ -252,3 +252,29 @@ class Config():
                 r.append(tag[lang])
         
         return list(set(r))
+    
+    @staticmethod
+    def auth_controlled_bib_logical_fields():
+        fields = []
+
+        for field, d in Config.bib_logical_fields.items():
+            for tag, codes in d.items():
+                for codeset in codes:
+                    for code in codeset:
+                        if flag := Config.is_authority_controlled('bib', tag, code):
+                            fields.append(field)
+
+        return list(set(fields))
+        
+    @staticmethod
+    def auth_controlled_auth_logical_fields():
+        fields = []
+
+        for field, d in Config.auth_logical_fields.items():
+            for tag, codes in d.items():
+                for codeset in codes:
+                    for code in codeset:
+                        if flag := Config.is_authority_controlled('auth', tag, code):
+                            fields.append(field)
+
+        return list(set(fields))
