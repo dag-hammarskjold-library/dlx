@@ -261,7 +261,9 @@ class Config():
             for tag, codes in d.items():
                 for codeset in codes:
                     for code in codeset:
-                        if flag := Config.is_authority_controlled('bib', tag, code):
+                        flag = Config.is_authority_controlled('bib', tag, code)
+                        
+                        if flag:
                             fields.append(field)
 
         return list(set(fields))
@@ -274,7 +276,9 @@ class Config():
             for tag, codes in d.items():
                 for codeset in codes:
                     for code in codeset:
-                        if flag := Config.is_authority_controlled('auth', tag, code):
+                        flag = Config.is_authority_controlled('auth', tag, code)
+                        
+                        if flag:
                             fields.append(field)
 
         return list(set(fields))
