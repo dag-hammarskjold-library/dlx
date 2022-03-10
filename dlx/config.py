@@ -52,9 +52,20 @@ class Config():
     
     bib_index = ['269', '930', '998'] + list(bib_authority_controlled.keys())
     bib_index_case_insensitive = ['191']  
+    bib_index_logical_numeric = ['symbol']
+    bib_text_index_weights = {
+        'title': 5,
+        'notes': 3,
+        'author': 2,
+        'subject': 1
+    }
     
     auth_index = ['100', '110', '111', '130', '150', '190', '998'] + list(auth_authority_controlled.keys())
     auth_index_case_insensitive = ['100', '110', '111']
+    auth_index_logical_numeric = []
+    auth_text_index_weights = {
+        'heading': 2
+    }
     
     bib_logical_fields = {
         'symbol': {
@@ -252,3 +263,33 @@ class Config():
                 r.append(tag[lang])
         
         return list(set(r))
+    
+    @staticmethod
+    def auth_controlled_bib_logical_fields():
+        fields = []
+
+        for field, d in Config.bib_logical_fields.items():
+            for tag, codes in d.items():
+                for codeset in codes:
+                    for code in codeset:
+                        flag = Config.is_authority_controlled('bib', tag, code)
+                        
+                        if flag:
+                            fields.append(field)
+
+        return list(set(fields))
+        
+    @staticmethod
+    def auth_controlled_auth_logical_fields():
+        fields = []
+
+        for field, d in Config.auth_logical_fields.items():
+            for tag, codes in d.items():
+                for codeset in codes:
+                    for code in codeset:
+                        flag = Config.is_authority_controlled('auth', tag, code)
+                        
+                        if flag:
+                            fields.append(field)
+
+        return list(set(fields))

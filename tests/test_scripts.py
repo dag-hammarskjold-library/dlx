@@ -35,6 +35,7 @@ def test_build_logical_fields(db):
     bib = Bib().set('245', 'a', 'Title:') \
         .set('245', 'b', 'subtitle') \
         .set('246', 'a', 'Alt title') \
+        .set('650', 'a', 1) \
         .commit()
     
     # interim

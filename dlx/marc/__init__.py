@@ -671,6 +671,10 @@ class Marc(object):
         # add logical fields
         for logical_field, values in self.logical_fields().items():
             data[logical_field] = values
+            
+            # browse index
+            for val in values:
+                DB.handle[f'{logical_field}_index'].update_one({'_id': val}, {'$set': {'_id': val}}, upsert=True)
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
@@ -693,6 +697,13 @@ class Marc(object):
             for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                 setattr(Auth, cache, {})
 
+        # update browse index if necessary
+        for field, values in self.logical_fields().items():
+            for val in values:
+                if type(self).handle().count_documents({field: val}) == 1:
+                    # this record is the only instance of the value
+                    DB.handle[f'{field}_index'].delete_one({'_id': val})
+        
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id}) or SON()
         record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
