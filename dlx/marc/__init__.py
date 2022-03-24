@@ -462,7 +462,10 @@ class Marc(object):
 
         return list(filter(None, values))
 
-    def get_value(self, tag, code=None, address=[0, 0], language=None):
+    def get_value(self, tag, code=None, *, address=[0, 0], language=None):
+        if len(address) != 2:
+            raise Exception('Keyword agrgument "address" must be an iterable containing two ints')
+            
         field = self.get_field(tag, place=address[0])    
 
         if isinstance(field, Controlfield):
@@ -1025,12 +1028,7 @@ class Marc(object):
             field = Datafield(record_type=cls.record_type, tag=d.attrib['tag'], ind1=d.attrib['ind1'], ind2=d.attrib['ind2'])
             
             for s in d.findall('subfield'):
-                try:
-                    field.set(s.attrib['code'], s.text, auth_control=auth_control)
-                except AmbiguousAuthValue:
-                    field.set(s.attrib['code'], int(field.get_value('0')))
-                except:
-                    raise
+                field.set(s.attrib['code'], s.text, auth_control=auth_control)
                 
             self.fields.append(field)
             
@@ -1397,7 +1395,7 @@ class Datafield(Field):
     def indicators(self):
         return [self.ind1, self.ind2]
 
-    def get_value(self, code, place=0):
+    def get_value(self, code, *, place=0):
         sub = self.get_subfield(code, place=place)
 
         return sub.value if sub else ''
@@ -1456,14 +1454,15 @@ class Datafield(Field):
             i, j = 0, 0
             
             for i, sub in enumerate(self.subfields):
+                
                 if sub.code == code:
                     if j == place:
-                        self.subfields[j] = Linked(code, new_val) if auth_control else Literal(code, new_val)
+                        self.subfields[i] = Linked(code, new_val) if auth_control else Literal(code, new_val)
             
                         return self
-            
+                    
                     j += 1
-            
+
             # new subfield
             if place in ('+', 0):
                 self.subfields.append(Linked(code, new_val) if auth_control else Literal(code, new_val))

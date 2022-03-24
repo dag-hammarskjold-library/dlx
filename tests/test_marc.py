@@ -303,6 +303,17 @@ def test_field_get_value(bibs):
     assert field.get_value('a') == 'This'
     assert field.get_values('a', 'b') == ['This', 'is the']
 
+def test_set_field(bibs):
+    from dlx.marc import Bib
+    
+    bib = Bib(bibs[0])
+    field = bib.get_field('245')
+    field.set('a', 'Changed')
+    assert field.get_value('a') == 'Changed'
+    
+    field.set('x', 'Extra subfield').set('x', 'Another extra', place='+')
+    assert field.get_value('x', place=1) == 'Another extra'
+
 def test_get_value(db, bibs):
     from dlx.marc import Bib
     
@@ -338,6 +349,10 @@ def test_set(db):
     
     bib.set('245', 'a', 'Repeated subfield', address=[1, '+'])
     assert bib.get_value('245', 'a', address=[1, 1]) == 'Repeated subfield'
+    
+    bib.set('245', 'x', 'Other field', address=['+']).set('245', 'x', 'Yet another', address=[2, 0])
+    print(bib.to_mrk())
+    assert bib.get_value('245', 'x', address=[2, 0]) == 'Yet another'
     
     # indicators
     bib.set('520', 'a', 'Field with inds', ind1='0', ind2='9')
