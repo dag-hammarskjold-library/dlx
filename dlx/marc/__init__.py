@@ -1020,15 +1020,15 @@ class Marc(object):
     def from_xml_raw(cls, root, *, auth_control=False):
         assert isinstance(root, ElementTree.Element)
         self = cls()
-        
-        for c in root.findall('controlfield'):
-            self.set(c.attrib['tag'], None, c.text)
             
-        for d in root.findall('datafield'):
+        for c in filter(lambda x: re.search('controlfield$', x.tag), root):
+            self.set(c.attrib['tag'], None, c.text)
+
+        for d in filter(lambda x: re.search('datafield$', x.tag), root):
             field = Datafield(record_type=cls.record_type, tag=d.attrib['tag'], ind1=d.attrib['ind1'], ind2=d.attrib['ind2'])
             
-            for s in d.findall('subfield'):
-                field.set(s.attrib['code'], s.text, auth_control=auth_control)
+            for s in filter(lambda x: re.search('subfield$', x.tag), d):
+                field.set(s.attrib['code'], s.text, auth_control=auth_control, place='+')
                 
             self.fields.append(field)
             

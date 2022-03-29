@@ -648,9 +648,10 @@ def test_catch_delete_auth(db, bibs, auths):
 def test_from_xml():
     from dlx.marc import Bib
     
-    bib = Bib.from_xml('<record><controlfield tag="001">1</controlfield><datafield tag="245" ind1=" " ind2=" "><subfield code="a">Title</subfield></datafield></record>')        
+    bib = Bib.from_xml('<record><controlfield tag="001">1</controlfield><datafield tag="245" ind1=" " ind2=" "><subfield code="a">Title</subfield><subfield code="a">Repeated</subfield></datafield></record>')        
     assert bib.get_value('001', None) == '1'
     assert bib.get_value('245', 'a') == 'Title'
+    assert bib.get_value('245', 'a', address=[0, 1]) == 'Repeated'
         
 def test_auth_use_count(db, bibs, auths):
     from dlx.marc import Bib, Auth

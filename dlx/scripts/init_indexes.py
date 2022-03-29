@@ -11,8 +11,8 @@ parser.add_argument('--connect')
 parser.add_argument('--verbose', action='store_true')
 
 def run():
-    args = parser.parse_args()
     
+    args = parser.parse_args()
     DB.connect(args.connect)
 
     print('creating file indexes...')
@@ -27,7 +27,7 @@ def run():
         collation=Collation(locale='en', strength=2)
     )
     
-    for _ in ['auths']:
+    for _ in ['bibs', 'auths']:
         col = DB.handle[_]
         auth_ctrl = getattr(Config, _[:-1] + '_authority_controlled')
         index_fields = getattr(Config, _[:-1] + '_index')
@@ -41,16 +41,11 @@ def run():
         col.create_index('updated')
         col.create_index(f'{_}_use_count')
         
+        for tag in auth_ctrl:
+            col.create_index(f'{tag}.subfields.xref')
+
         for tag in index_fields:
-            for name in col.index_information().keys():
-                if re.search('code', name):
-                    # deprecated indexes
-                    col.drop_index(name)
-        
             col.create_index(f'{tag}.subfields.value')
-        
-            if tag in auth_ctrl:
-                col.create_index(f'{tag}.subfields.xref')
         
         print('creating case-insenstive indexes...')
         for tag in case_ins:
