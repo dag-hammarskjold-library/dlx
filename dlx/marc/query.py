@@ -11,12 +11,12 @@ class InvalidQueryString(Exception):
 class Query():
     @classmethod
     def from_string(cls, string, *, record_type='bib'):
-        # todo: indicators, OR, NOT, all-subfield
+        # todo: indicators, NOT, all-subfield
         self = cls()
         self.record_type = record_type
         
         def tokenize(string):
-            tokens = re.split(' ?(AND|OR) ?', string)
+            tokens = re.split('\s+(AND|OR)\s+', string)
             
             return tokens
         
@@ -119,7 +119,8 @@ class Query():
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
                     
             # free text
-            return Wildcard(token, record_type=record_type)
+            token = ' '.join('"{}"'.format(word) for word in filter(lambda x: '"' not in x, re.split('\s+', token)))
+            return Text(token, record_type=record_type)
         
         tokens = tokenize(string)
         
@@ -287,15 +288,18 @@ class AuthCondition(Condition):
         kwargs['record_type'] = 'auth'
         super().__init__(*args, **kwargs)
 
-class Wildcard():
-    """Wildcard text condition"""
-    
+class Text():   
     def __init__(self, string='', *, record_type=None):
         self.string = string
         self.record_type = record_type
     
     def compile(self):
         return {'$text': {'$search': f'{self.string}'}}
+
+class Wildcard(Text):
+    # Deprecated
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         
 class Raw():
     """Raw MongoDB query document condition"""
