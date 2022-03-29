@@ -1,4 +1,4 @@
-import json, re
+import json, re, copy
 from warnings import warn
 from bson import SON, Regex
 from bson.json_util import dumps
@@ -35,6 +35,10 @@ class Query():
                 else:
                     return Regex(string[1:-1])
             elif '*' in string:
+                string = string.replace('(', '\(')
+                string = string.replace(')', '\)')
+                string = string.replace('[', '\]')
+                string = string.replace(']', '\[')
                 return Regex('^' + string.replace('*', '.*') + '$')
             else:
                 return string
@@ -119,21 +123,46 @@ class Query():
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
                     
             # free text
-            token = ' '.join('"{}"'.format(word) for word in filter(lambda x: '"' not in x, re.split('\s+', token)))
+            # enclose words in dbl quotes unless they already contain quotes or begin with hyphen
+            unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split('\s+', token)))
+            token = ' '.join(
+                [f'"{word}"' for word in unquoted] \
+                + list(filter(lambda x: x not in unquoted, re.split('\s+', token)))
+            )
+            
             return Text(token, record_type=record_type)
         
+        string = re.sub('^\s+', '', string)
+        string = re.sub('\s+$', '', string)
         tokens = tokenize(string)
         
         if len(tokens) == 1:
             self.conditions.append(parse(tokens[0]))
         else:
+            # take out the ors
+            for i, token in enumerate(tokens):
+                if token == 'OR':
+                    start, inc, ors = i, 0, []
+                    ors.append(copy.copy(tokens[start-1]))
+                    tokens[i-1] = None
+
+                    while len(tokens) > start+inc and tokens[start+inc] == 'OR':
+                        ors.append(copy.copy(tokens[start+inc+1]))
+                        tokens[start+inc], tokens[start+inc+1] = None, None
+                        inc += 2
+
+                    ors = [parse(x) for x in ors]
+                    condition = Or(*ors)
+                    self.conditions.append(condition)
+
+            # add the rest as ands
             for i, token in enumerate(tokens):
                 if token == 'AND':
-                    self.conditions.append(parse(tokens[i-1]))
-                    self.conditions.append(parse(tokens[i+1]))
-                elif token == 'OR':
-                    condition = Or(parse(tokens[i-1]), parse(tokens[i+1]))
-                    self.conditions.append(condition)
+                    if tokens[i-1]:
+                        self.conditions.append(parse(tokens[i-1]))
+                    
+                    if tokens[i+1]:
+                        self.conditions.append(parse(tokens[i+1]))
 
         return self
         
@@ -157,7 +186,11 @@ class Query():
 
     def to_json(self):
         return dumps(self.compile())
-        
+
+    def to_string(self):
+        for c in self.conditions:
+            pass
+
 class QueryDocument(Query):
     def __init__(self, *args, **kwargs):
         warn('dlx.marc.QueryDocument is deprecated. Use dlx.marc.Query instead')
