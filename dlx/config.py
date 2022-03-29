@@ -50,22 +50,17 @@ class Config():
         '151': {'fr': '993', 'es': '994', 'ar': '995', 'zh': '996', 'ru': '997'},
     }
     
-    bib_index = ['269', '930', '998'] + list(bib_authority_controlled.keys())
+     # auth-controlled fields are automatically indexed
+    bib_index = ['191', '269', '930', '998'] 
     bib_index_case_insensitive = ['191']  
     bib_index_logical_numeric = ['symbol']
-    bib_text_index_weights = {
-        'title': 5,
-        'notes': 3,
-        'author': 2,
-        'subject': 1
-    }
+    bib_text_index_weights = {}
     
-    auth_index = ['100', '110', '111', '130', '150', '190', '998'] + list(auth_authority_controlled.keys())
+    # auth-controlled fields are automatically indexed
+    auth_index = ['100', '110', '111', '130', '150', '190', '998']
     auth_index_case_insensitive = ['100', '110', '111']
     auth_index_logical_numeric = []
-    auth_text_index_weights = {
-        'heading': 2
-    }
+    auth_text_index_weights = {}
     
     bib_logical_fields = {
         'symbol': {
