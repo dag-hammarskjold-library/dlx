@@ -174,7 +174,7 @@ def test_from_id(db, bibs, auths):
     assert Bib.from_id(2).id == 2
     
 def test_querydocument(db):
-    from dlx.marc import Bib, Auth, Query, Condition, Or
+    from dlx.marc import Bib, Auth, Query, Condition, Or, TagOnly
     from bson import SON
     from json import loads
     import re
@@ -202,6 +202,16 @@ def test_querydocument(db):
     )
     assert len(list(Auth.find(query.compile()))) == 1
     assert Auth.find_one(query.compile()).id == 2
+
+    query = Query(
+        TagOnly('245', 'This')
+    )
+    assert len(list(Bib.find(query.compile()))) == 1
+
+    query = Query(
+        TagOnly('245', 'This', modifier='not')
+    )
+    assert len(list(Bib.find(query.compile()))) == 1
 
 def test_querystring(db):
     from dlx.marc import BibSet, Bib, Auth, Query
@@ -234,8 +244,9 @@ def test_querystring(db):
     with pytest.raises(NotImplementedError):
         # $text operator not implemented in mongomock
         assert len(list(BibSet.from_query(query.compile()))) == 2
-        
-    assert query.compile() == {'$text': {'$search': 'Another header'}}
+
+    # quotes automatically added by dlx    
+    assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
 
     # tag no subfield
     query = Query.from_string('245:is the')
@@ -266,9 +277,16 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     from dlx.marc.query import Query, InvalidQueryString
-
     with pytest.raises(InvalidQueryString):
         q = Query.from_string('invalid_field:value')
+
+    # not
+    for bib in BibSet.from_query({}):
+        bib.delete()
+
+    bib = Bib().set('246', 'a', 'This').commit()
+    query = Query.from_string(f'NOT 246:This', record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 0
     
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
@@ -351,7 +369,6 @@ def test_set(db):
     assert bib.get_value('245', 'a', address=[1, 1]) == 'Repeated subfield'
     
     bib.set('245', 'x', 'Other field', address=['+']).set('245', 'x', 'Yet another', address=[2, 0])
-    print(bib.to_mrk())
     assert bib.get_value('245', 'x', address=[2, 0]) == 'Yet another'
     
     # indicators
@@ -678,3 +695,14 @@ def test_logical_fields(db):
     Config.bib_logical_fields.update({'test_field': {'867': ['abc']}})
     bib.set('867', 'a', 'part 1,').set('867', 'b', 'part 2 +').set('867', 'c', 'part 3').commit()
     assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['part 1, part 2 + part 3']
+
+def test_bib_files(db, bibs):
+    from datetime import datetime
+    from dlx import DB
+    from dlx.file import File
+    from dlx.marc import Bib
+
+    DB.files.insert_one({'_id': '1', 'identifiers': [{'type': 'symbol', 'value': 'A/TEST'}], 'languages': ['FR'], 'uri': 'www.test.com/fr', 'mimetype': 'text/plain', 'size': 1, 'source': 'test', 'timestamp': datetime.now()})
+    DB.files.insert_one({'_id': '2', 'identifiers': [{'type': 'symbol', 'value': 'A/TEST'}], 'languages': ['ES'], 'uri': 'www.test.com/es', 'mimetype': 'text/plain', 'size': 1, 'source': 'test', 'timestamp': datetime.now()})
+    bib = Bib().set('191', 'a', 'A/TEST')
+    assert bib.files() == ['www.test.com/fr', 'www.test.com/es']
