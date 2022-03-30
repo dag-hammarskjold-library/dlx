@@ -695,3 +695,14 @@ def test_logical_fields(db):
     Config.bib_logical_fields.update({'test_field': {'867': ['abc']}})
     bib.set('867', 'a', 'part 1,').set('867', 'b', 'part 2 +').set('867', 'c', 'part 3').commit()
     assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['part 1, part 2 + part 3']
+
+def test_bib_files(db, bibs):
+    from datetime import datetime
+    from dlx import DB
+    from dlx.file import File
+    from dlx.marc import Bib
+
+    DB.files.insert_one({'_id': '1', 'identifiers': [{'type': 'symbol', 'value': 'A/TEST'}], 'languages': ['FR'], 'uri': 'www.test.com/fr', 'mimetype': 'text/plain', 'size': 1, 'source': 'test', 'timestamp': datetime.now()})
+    DB.files.insert_one({'_id': '2', 'identifiers': [{'type': 'symbol', 'value': 'A/TEST'}], 'languages': ['ES'], 'uri': 'www.test.com/es', 'mimetype': 'text/plain', 'size': 1, 'source': 'test', 'timestamp': datetime.now()})
+    bib = Bib().set('191', 'a', 'A/TEST')
+    assert bib.files() == ['www.test.com/fr', 'www.test.com/es']

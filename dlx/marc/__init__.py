@@ -10,7 +10,7 @@ from pymongo import ReturnDocument
 from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
-from dlx.query import jfile as FQ
+from dlx.file import File, Identifier
 from dlx.marc.query import QueryDocument, Query, Condition, Or, TagOnly
 from dlx.util import Table
 
@@ -1067,22 +1067,21 @@ class Bib(Marc):
     #### files
 
     def files(self, *langs):
+        if langs:
+            langs = [langs]
+        else:
+            langs = ['AR', 'ZH', 'EN', 'FR', 'ES', 'RU', 'DE']
+
         symbol = self.symbol()
-        cursor = DB.files.find(FQ.latest_by_id('symbol', symbol))
+        
+        files = [File.latest_by_identifier_language(Identifier('symbol', symbol), lang) for lang in langs]
 
-        ret_vals = []
-
-        for doc in cursor:
-            for lang in langs:
-                if lang in doc['languages']:
-                    ret_vals.append(doc['uri'])
-
-        return ret_vals
+        return [f.uri for f in filter(None, files)]
 
     def file(self, lang):
         symbol = self.symbol()
 
-        return DB.files.find_one(FQ.latest_by_id_lang('symbol', symbol, lang))['uri']
+        return File.latest_by_identifier_language(Identifier('symbol', symbol), lang).uri
 
 class Auth(Marc):
     record_type = 'auth'
