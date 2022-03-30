@@ -174,7 +174,7 @@ def test_from_id(db, bibs, auths):
     assert Bib.from_id(2).id == 2
     
 def test_querydocument(db):
-    from dlx.marc import Bib, Auth, Query, Condition, Or
+    from dlx.marc import Bib, Auth, Query, Condition, Or, TagOnly
     from bson import SON
     from json import loads
     import re
@@ -202,6 +202,16 @@ def test_querydocument(db):
     )
     assert len(list(Auth.find(query.compile()))) == 1
     assert Auth.find_one(query.compile()).id == 2
+
+    query = Query(
+        TagOnly('245', 'This')
+    )
+    assert len(list(Bib.find(query.compile()))) == 1
+
+    query = Query(
+        TagOnly('245', 'This', modifier='not')
+    )
+    assert len(list(Bib.find(query.compile()))) == 1
 
 def test_querystring(db):
     from dlx.marc import BibSet, Bib, Auth, Query
@@ -267,9 +277,16 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     from dlx.marc.query import Query, InvalidQueryString
-
     with pytest.raises(InvalidQueryString):
         q = Query.from_string('invalid_field:value')
+
+    # not
+    for bib in BibSet.from_query({}):
+        bib.delete()
+
+    bib = Bib().set('246', 'a', 'This').commit()
+    query = Query.from_string(f'NOT 246:This', record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 0
     
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
@@ -352,7 +369,6 @@ def test_set(db):
     assert bib.get_value('245', 'a', address=[1, 1]) == 'Repeated subfield'
     
     bib.set('245', 'x', 'Other field', address=['+']).set('245', 'x', 'Yet another', address=[2, 0])
-    print(bib.to_mrk())
     assert bib.get_value('245', 'x', address=[2, 0]) == 'Yet another'
     
     # indicators

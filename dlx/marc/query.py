@@ -10,15 +10,16 @@ class InvalidQueryString(Exception):
     
 class Query():
     @classmethod
-    def from_string(cls, string, *, record_type='bib'):
-        # todo: indicators, NOT, all-subfield
+    def from_string(cls, string, *, record_type='bib', modifier=None):
+        # todo: indicators, all-subfield
         self = cls()
         self.record_type = record_type
         
         def tokenize(string):
-            tokens = re.split('\s+(AND|OR)\s+', string)
-            
-            return tokens
+            tokens = re.split(r'\s*(AND|OR|NOT)\s+', string)
+            tokens = list(filter(None, tokens))
+
+            return list(filter(None, tokens))
         
         def is_regex(string):
             pairs = [('/', '/'), ('\\', '\\'), ('`', '`')]
@@ -35,28 +36,28 @@ class Query():
                 else:
                     return Regex(string[1:-1])
             elif '*' in string:
-                string = string.replace('(', '\(')
-                string = string.replace(')', '\)')
-                string = string.replace('[', '\]')
-                string = string.replace(']', '\[')
+                string = string.replace('(', r'\(')
+                string = string.replace(')', r'\)')
+                string = string.replace('[', r'\]')
+                string = string.replace(']', r'\[')
                 return Regex('^' + string.replace('*', '.*') + '$')
             else:
                 return string
                 
-        def parse(token):
+        def parse(token, modifier=None):
             '''Returns: dlx.query.Condition'''
             
             # fully qualified syntax
-            match = re.match('(\d{3})(.)(.)([a-z0-9]):(.*)', token)
+            match = re.match(r'(\d{3})(.)(.)([a-z0-9]):(.*)', token)
             
             if match:
                 tag, ind1, ind2, code, value = match.group(1, 2, 3, 4, 5)
                 
-                return Condition(tag, {code: process_string(value)}, record_type=record_type)
+                return Condition(tag, {code: process_string(value)}, record_type=record_type, modifier=modifier)
                 
             # tag only syntax 
             # matches a single subfield only
-            match = re.match('(\d{3}):(.*)', token)
+            match = re.match(r'(\d{3}):(.*)', token)
             
             if match:
                 tag, value = match.group(1, 2)
@@ -70,12 +71,15 @@ class Query():
                 elif tag[:2] == '00':
                     return Raw({tag: value}, record_type=record_type)
                     
-                return Any(tag, process_string(value), record_type=record_type)
+                return TagOnly(tag, process_string(value), record_type=record_type, modifier=modifier)
 
             # id search
             match = re.match('id:(.*)', token)
 
             if match:
+                if modifier:
+                    raise Exception(f'modifier "{modifier}" not valid for ID search')
+
                 value = match.group(1)
                 
                 try:
@@ -109,7 +113,7 @@ class Query():
                 return Or(*conditions)
             
             # logical field
-            match = re.match(f'(\w+):(.*)', token)
+            match = re.match(f'(\\w+):(.*)', token)
             
             if match:
                 logical_fields = list(Config.bib_logical_fields.keys()) + list(Config.auth_logical_fields.keys())
@@ -118,51 +122,65 @@ class Query():
                 field = 'symbol' if field == 's' else field #todo: make aliases config
                 
                 if field in logical_fields:
-                    return Raw({field: process_string(value)}, record_type=record_type)    
+                    if modifier == 'not':
+                        return Raw({field: {'$not': process_string(value)}}, record_type=record_type)
+                    else:
+                        return Raw({field: process_string(value)}, record_type=record_type)    
                 else:
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
                     
             # free text
             # enclose words in dbl quotes unless they already contain quotes or begin with hyphen
-            unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split('\s+', token)))
+            unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', token)))
             token = ' '.join(
                 [f'"{word}"' for word in unquoted] \
-                + list(filter(lambda x: x not in unquoted, re.split('\s+', token)))
+                + list(filter(lambda x: x not in unquoted, re.split(r'\s+', token)))
             )
             
             return Text(token, record_type=record_type)
         
-        string = re.sub('^\s+', '', string)
-        string = re.sub('\s+$', '', string)
+        string = re.sub(r'^\s+', '', string) # leading
+        string = re.sub(r'\s+$', '', string) # trailing
         tokens = tokenize(string)
+
+        # parse tokens
+        for i, token in enumerate(tokens):
+            if token == 'NOT':
+                tokens[i] = None
+            elif i > 0 and tokens[i-1] == None:
+                tokens[i] = parse(token, modifier='not')
+                continue
+            elif token not in ('AND', 'OR'): 
+                tokens[i] = parse(token)
+
+        tokens = list(filter(None, tokens))
         
-        if len(tokens) == 1:
-            self.conditions.append(parse(tokens[0]))
-        else:
-            # take out the ors
-            for i, token in enumerate(tokens):
-                if token == 'OR':
-                    start, inc, ors = i, 0, []
-                    ors.append(copy.copy(tokens[start-1]))
-                    tokens[i-1] = None
+        # take out the ors
+        for i, token in enumerate(tokens):
+            if token == 'OR':
+                start, inc, ors = i, 0, []
+                ors.append(copy.copy(tokens[start-1]))
+                tokens[i-1] = None
 
-                    while len(tokens) > start+inc and tokens[start+inc] == 'OR':
-                        ors.append(copy.copy(tokens[start+inc+1]))
-                        tokens[start+inc], tokens[start+inc+1] = None, None
-                        inc += 2
+                while len(tokens) > start+inc and tokens[start+inc] == 'OR':
+                    ors.append(copy.copy(tokens[start+inc+1]))
+                    tokens[start+inc], tokens[start+inc+1] = None, None
+                    inc += 2
 
-                    ors = [parse(x) for x in ors]
-                    condition = Or(*ors)
-                    self.conditions.append(condition)
+                condition = Or(*ors)
+                self.conditions.append(condition)
 
-            # add the rest as ands
-            for i, token in enumerate(tokens):
-                if token == 'AND':
-                    if tokens[i-1]:
-                        self.conditions.append(parse(tokens[i-1]))
-                    
-                    if tokens[i+1]:
-                        self.conditions.append(parse(tokens[i+1]))
+        # add the rest as ands
+        for i, token in enumerate(tokens):
+            if token == 'AND':
+                if tokens[i-1]:
+                    self.conditions.append(tokens[i-1])
+                
+                if tokens[i+1]:
+                    self.conditions.append(tokens[i+1])
+
+        if not self.conditions:
+            self.conditions = [tokens[0]]
 
         return self
         
@@ -175,6 +193,8 @@ class Query():
 
     def compile(self):
         compiled = []
+
+        print(self.conditions)
 
         for condition in self.conditions:
             compiled.append(condition.compile())
@@ -261,7 +281,7 @@ class Condition(object):
 
         self.modifier = ''
 
-        if 'modifier' in kwargs:
+        if kwargs.get('modifier'):
             mod = kwargs['modifier'].lower()
 
             if mod in Condition.valid_modifiers:
@@ -322,7 +342,7 @@ class AuthCondition(Condition):
         super().__init__(*args, **kwargs)
 
 class Text():   
-    def __init__(self, string='', *, record_type=None):
+    def __init__(self, string='', *, record_type=None, modifier=None):
         self.string = string
         self.record_type = record_type
     
@@ -343,11 +363,11 @@ class Raw():
         
     def compile(self):
         return self.condition
-         
-class Any():
+
+class TagOnly():
     """Tag and value condition"""
     
-    def __init__(self, tag, value, *, record_type=None):
+    def __init__(self, tag, value, *, record_type=None, modifier=None):
         if record_type:
             self.record_type = record_type
         else:
@@ -364,12 +384,31 @@ class Any():
                 DB.auths.find({f'{source_tag}.subfields.value': value}, {'_id': 1})
             )
             
-            self.condition = Or(
-                Raw({f'{tag}.subfields.value': value}),
-                Raw({f'{tag}.subfields.xref': {'$in': list(xrefs)}})
-            )
+            if modifier is None:
+                self.condition = Or(
+                    Raw({f'{tag}.subfields.value': value}),
+                    Raw({f'{tag}.subfields.xref': {'$in': list(xrefs)}})
+                )
+            elif modifier == 'not':
+                self.condition = Raw(
+                    {
+                        '$and': [
+                            {f'{tag}.subfields.value': {'$not': {'$eq': value}}},
+                            {f'{tag}.subfields.xref': {'$not': {'$in': list(xrefs)}}}
+                        ]
+                    }
+                )
         else:
-            self.condition = Raw({f'{tag}.subfields.value': value})
+            if modifier is None:
+                self.condition = Raw({f'{tag}.subfields.value': value})
+            elif modifier == 'not':
+                self.condition = Raw({f'{tag}.subfields.value': {'$not': {'$eq': value}}})
         
     def compile(self):
         return self.condition.compile()
+
+class Any(TagOnly):
+    # deprecated
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)    
+    

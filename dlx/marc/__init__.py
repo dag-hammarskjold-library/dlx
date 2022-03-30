@@ -11,7 +11,7 @@ from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
 from dlx.query import jfile as FQ
-from dlx.marc.query import QueryDocument, Query, Condition, Or
+from dlx.marc.query import QueryDocument, Query, Condition, Or, TagOnly
 from dlx.util import Table
 
 ### Exceptions
