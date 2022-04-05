@@ -70,7 +70,10 @@ def run():
                 col.drop_index(k)
 
         col.create_index([(x, 'text') for x in logical_fields.keys()], weights=text_weights)
-            
+
+        for f in logical_fields.keys():
+            DB.handle[f'{f}_index'].create_index([('_id', 'text')])
+
     total = sum(
         [
             len(list(DB.bibs.list_indexes())),

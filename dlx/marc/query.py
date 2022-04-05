@@ -1,5 +1,6 @@
-import json, re, copy
+import sys, json, re, copy
 from warnings import warn
+from nltk import PorterStemmer
 from bson import SON, Regex
 from bson.json_util import dumps
 from dlx.db import DB
@@ -52,7 +53,71 @@ class Query():
             
             if match:
                 tag, ind1, ind2, code, value = match.group(1, 2, 3, 4, 5)
+                value = process_string(value)
+
+                # regex
+                if isinstance(value, Regex):
+                    return Condition(tag, {code: value}, modifier=modifier)
+
+                # exact match
+                if value[0] == '\'' and value[-1] == '\'':
+                    return Condition(tag, {code: value[1:-1]}, modifier=modifier)
+
+                # text
+                unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', value)))
+                og_value = value
                 
+                value = ' '.join(
+                    [f'"{word}"' for word in unquoted] \
+                    + list(filter(lambda x: x not in unquoted, re.split(r'\s+', value)))
+                )
+
+                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
+                matched_subfield_values = []
+
+                for m in matches:
+                    matched_subfield_values += [x['value'] for x in m['subfields']]
+
+                stemmer, filtered = PorterStemmer(), []
+            
+                for val in matched_subfield_values:
+                    stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
+                    stemmed_val_words = list(filter(None, stemmed_val_words))
+                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', og_value)]
+                    stemmed_terms = list(filter(None, stemmed_terms))
+
+                    if all(x in stemmed_val_words for x in stemmed_terms):
+                        filtered.append(val)
+
+                matched_subfield_values = filtered
+
+                if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
+                    raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
+
+                if modifier == 'not':
+                    q = {
+                        '$or': [
+                            {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$not': {'$in': matched_subfield_values}}}}},
+                            {f'{tag}.subfields': {'$not': {'$elemMatch': {'code': {'code': code}}}}}
+                        ]
+                    }
+                else:
+                    q = {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}
+
+                auth_ctrl = Config.bib_authority_controlled if self.record_type == 'bib' else Config.auth_authority_controlled
+
+                if tag in auth_ctrl:
+                    source_tag = list(auth_ctrl[tag].values())[0]
+
+                    xrefs = map(
+                        lambda x: x['_id'], 
+                        DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
+                    )
+
+                    q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': list(xrefs)}}]}
+
+                return Raw(q)
+
                 return Condition(tag, {code: process_string(value)}, record_type=record_type, modifier=modifier)
                 
             # tag only syntax 
@@ -61,6 +126,7 @@ class Query():
             
             if match:
                 tag, value = match.group(1, 2)
+                value = process_string(value)
                 
                 if tag == '001':
                     # interpret 001 as id
@@ -70,8 +136,64 @@ class Query():
                         raise InvalidQueryString(f'ID must be a number')
                 elif tag[:2] == '00':
                     return Raw({tag: value}, record_type=record_type)
-                    
-                return TagOnly(tag, process_string(value), record_type=record_type, modifier=modifier)
+
+                # regex
+                if isinstance(value, Regex):
+                    return TagOnly(tag, value, modifier=modifier)
+
+                # exact match
+                if value[0] == '\'' and value[-1] == '\'':
+                    return TagOnly(tag, value[1:-1], modifier=modifier)
+                
+                # text
+                unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', value)))
+                og_value = value
+                
+                value = ' '.join(
+                    [f'"{word}"' for word in unquoted] \
+                    + list(filter(lambda x: x not in unquoted, re.split(r'\s+', value)))
+                )
+
+                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
+                matched_subfield_values = []
+
+                for m in matches:
+                    matched_subfield_values += [x['value'] for x in m['subfields']]
+
+                stemmer, filtered = PorterStemmer(), []
+            
+                for val in matched_subfield_values:
+                    stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
+                    stemmed_val_words = list(filter(None, stemmed_val_words))
+                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', og_value)]
+                    stemmed_terms = list(filter(None, stemmed_terms))
+
+                    if all(x in stemmed_val_words for x in stemmed_terms):
+                        filtered.append(val)
+
+                matched_subfield_values = filtered
+
+                if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
+                    raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
+
+                if modifier == 'not':
+                    q = {f'{tag}.subfields.value': {'$not': {'$in': matched_subfield_values}}}
+                else:
+                    q = {f'{tag}.subfields.value': {'$in': matched_subfield_values}}
+
+                auth_ctrl = Config.bib_authority_controlled if self.record_type == 'bib' else Config.auth_authority_controlled
+
+                if tag in auth_ctrl:
+                    source_tag = list(auth_ctrl[tag].values())[0]
+
+                    xrefs = map(
+                        lambda x: x['_id'], 
+                        DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
+                    )
+
+                    q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': list(xrefs)}}]}
+
+                return Raw(q)
 
             # id search
             match = re.match('id:(.*)', token)
@@ -117,18 +239,41 @@ class Query():
             
             if match:
                 logical_fields = list(Config.bib_logical_fields.keys()) + list(Config.auth_logical_fields.keys())
-                field, value = match.group(1, 2)
+                tag, value = match.group(1, 2)
+                #todo: make aliases config
+                tag = 'symbol' if tag == 's' else tag
                 
-                field = 'symbol' if field == 's' else field #todo: make aliases config
-                
-                if field in logical_fields:
-                    if modifier == 'not':
-                        return Raw({field: {'$not': process_string(value)}}, record_type=record_type)
-                    else:
-                        return Raw({field: process_string(value)}, record_type=record_type)    
-                else:
-                    raise InvalidQueryString(f'Unrecognized query field "{field}"')
+                if tag in logical_fields:
+                    # exact match
+                    if value[0] == '\'' and value[-1] == '\'':
+                        return Raw({tag: value[1:-1] }, record_type=record_type)
+
+                    # regex
+                    if isinstance(process_string(value), Regex):
+                        if modifier == 'not':
+                            return Raw({tag: {'$not': process_string(value)}}, record_type=record_type)
+                        else:
+                            return Raw({tag: process_string(value)}, record_type=record_type)
                     
+                    # text
+                    unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', value)))
+                    value = ' '.join(
+                        [f'"{word}"' for word in unquoted] \
+                        + list(filter(lambda x: x not in unquoted, re.split(r'\s+', token)))
+                    )
+                    matches = DB.handle[f'{tag}_index'].find({'$text': {'$search': value}})
+                    matched_subfield_values = [x['_id'] for x in matches]
+
+                    if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
+                        raise Exception(f'Text search "{value}" is too broad on field "{tag}"')
+
+                    if modifier == 'not':
+                        return Raw({tag: {'$not': {'$in': matched_subfield_values}}}, record_type=record_type)
+                    else:
+                        return Raw({tag: {'$in': matched_subfield_values}}, record_type=record_type)
+                else:
+                    raise InvalidQueryString(f'Unrecognized query field "{tag}"')
+
             # free text
             # enclose words in dbl quotes unless they already contain quotes or begin with hyphen
             unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', token)))
@@ -173,7 +318,7 @@ class Query():
         # add the rest as ands
         for i, token in enumerate(tokens):
             if token == 'AND':
-                if tokens[i-1]:
+                if tokens[i-1] and tokens[i-1] not in self.conditions:
                     self.conditions.append(tokens[i-1])
                 
                 if tokens[i+1]:
@@ -196,6 +341,10 @@ class Query():
 
         for condition in self.conditions:
             compiled.append(condition.compile())
+
+        # TODO serialize data
+        #if sys.getsizeof(json.dumps(compiled)) > 4e6: # 4 MB
+        #   raise Exception("Text search is too broad")
 
         if len(compiled) == 1:
             return compiled[0]
@@ -391,7 +540,7 @@ class TagOnly():
                 self.condition = Raw(
                     {
                         '$and': [
-                            {f'{tag}.subfields.value': {'$not': {'$eq': value}}},
+                            {f'{tag}.subfields.value': {'$not': value if isinstance(value, Regex) else {'$eq': value}}},
                             {f'{tag}.subfields.xref': {'$not': {'$in': list(xrefs)}}}
                         ]
                     }
@@ -400,7 +549,7 @@ class TagOnly():
             if modifier is None:
                 self.condition = Raw({f'{tag}.subfields.value': value})
             elif modifier == 'not':
-                self.condition = Raw({f'{tag}.subfields.value': {'$not': {'$eq': value}}})
+                self.condition = Raw({f'{tag}.subfields.value': {'$not': value if isinstance(value, Regex) else {'$eq': value}}})
         
     def compile(self):
         return self.condition.compile()

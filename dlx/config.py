@@ -51,7 +51,7 @@ class Config():
     }
     
      # auth-controlled fields are automatically indexed
-    bib_index = ['191', '269', '930', '998'] 
+    bib_index = ['191', '245', '269', '930', '991', '998'] 
     bib_index_case_insensitive = ['191']  
     bib_index_logical_numeric = ['symbol']
     bib_text_index_weights = {}
