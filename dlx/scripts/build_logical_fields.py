@@ -45,7 +45,7 @@ def build_literal_logical_fields(args):
     c = r = start = int(args.start)
     inc = 10000
     query = {}
-    end = cls.from_query(query).count
+    end = cls().handle.estimated_document_count() #cls.from_query(query).count
     
     z = 0
     
@@ -56,8 +56,10 @@ def build_literal_logical_fields(args):
             for field, values in record.logical_fields(*list(literals)).items():
                 updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))
                 
+                browse_updates.setdefault(field, {})
+
                 for val in values:
-                    browse_updates.setdefault(val, UpdateOne({'_id': val}, {'$set': {'_id': val}}, upsert=True))
+                    browse_updates[field].setdefault(val, UpdateOne({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True))
                 
             last_r = r
             r += 1
@@ -68,7 +70,8 @@ def build_literal_logical_fields(args):
             c += len(updates)
             
         if browse_updates:
-            DB.handle[f'{field}_index'].bulk_write(list(browse_updates.values()))
+            for field in record.logical_fields(*list(literals)).keys():
+                DB.handle[f'{field}_index'].bulk_write(list(browse_updates[field].values()))
 
     print(f'\nupdated {c} logical fields')
 
@@ -120,7 +123,7 @@ def build_auth_controlled_logical_fields(args):
                 updates.append(UpdateOne({'_id': rid}, {'$set': {field: vals}}))
                 
                 for val in vals:
-                    browse_updates.setdefault(val, (UpdateOne({'_id': val}, {'$set': {'_id': val}}, upsert=True)))
+                    browse_updates.setdefault(val, (UpdateOne({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True)))
                 
         print(f'updates for {field}: {len(updates)}')
         

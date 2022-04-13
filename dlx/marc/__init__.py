@@ -6,7 +6,7 @@ from warnings import warn
 from xml.etree import ElementTree
 import jsonschema
 from bson import SON, Regex
-from pymongo import ReturnDocument
+from pymongo import ReturnDocument, UpdateOne
 from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
@@ -654,6 +654,23 @@ class Marc(object):
                     if not Auth.lookup(subfield.xref, subfield.code):
                         raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
 
+            # field indexes
+            col = DB.handle[f'_index_{field.tag}']
+            text = ' '.join([subfield.value for subfield in field.subfields])
+            col.update_one({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True)
+
+            updates = []
+
+            for subfield in field.subfields:
+                updates.append(
+                    UpdateOne(
+                        {'_id': text},
+                        {'$addToSet': {'subfields': {'code': subfield.code, 'value': subfield.value}}}
+                    )
+                )
+
+            col.bulk_write(updates)
+
         # history
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
@@ -675,9 +692,9 @@ class Marc(object):
         for logical_field, values in self.logical_fields().items():
             data[logical_field] = values
             
-            # browse index
+            # browse indexes
             for val in values:
-                DB.handle[f'{logical_field}_index'].update_one({'_id': val}, {'$set': {'_id': val}}, upsert=True)
+                DB.handle[f'{logical_field}_index'].update_one({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True)
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
