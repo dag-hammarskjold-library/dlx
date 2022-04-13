@@ -1,6 +1,7 @@
 jsonschema==4.0.0 # maximum version working on Python 3.6    
 mongomock==3.23.0
 moto==2.3.1
+nltk=3.7
 pymongo==3.12.3
 xlrd==1.2.0
 xmldiff==2.4
