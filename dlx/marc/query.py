@@ -77,7 +77,6 @@ class Query():
                     return Condition(tag, {code: value[1:-1]}, modifier=modifier)
 
                 # text
-                og_value = value
                 value = add_quotes(value)
 
                 matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
@@ -87,11 +86,13 @@ class Query():
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
                 stemmer, filtered = PorterStemmer(), []
-            
+                take_words = re.sub('\B-\S+', '', value) # remove dashed words
+                take_words = list(filter(lambda x: x[0] != '-', re.split('\s+', value)))
+
                 for val in matched_subfield_values:
                     stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
                     stemmed_val_words = list(filter(None, stemmed_val_words))
-                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', og_value)]
+                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in take_words]
                     stemmed_terms = list(filter(None, stemmed_terms))
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
@@ -154,7 +155,6 @@ class Query():
                     return TagOnly(tag, value[1:-1], modifier=modifier)
                 
                 # text
-                og_value = value
                 value = add_quotes(value)
 
                 matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
@@ -164,11 +164,12 @@ class Query():
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
                 stemmer, filtered = PorterStemmer(), []
-            
+                take_words = list(filter(lambda x: x[0] != '-', re.split('\s+', value)))
+
                 for val in matched_subfield_values:
                     stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
                     stemmed_val_words = list(filter(None, stemmed_val_words))
-                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', og_value)]
+                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in take_words]
                     stemmed_terms = list(filter(None, stemmed_terms))
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
@@ -264,7 +265,7 @@ class Query():
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
-                        raise Exception(f'Text search "{value}" is too broad on field "{field}"')
+                        raise Exception(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
 
                     if modifier == 'not':
                         return Raw({field: {'$not': {'$in': values}}}, record_type=record_type)
