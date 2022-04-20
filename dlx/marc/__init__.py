@@ -654,10 +654,10 @@ class Marc(object):
                     if not Auth.lookup(subfield.xref, subfield.code):
                         raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
 
-            # field indexes
-            col = DB.handle[f'_index_{field.tag}']
+            # tag indexes
+            tag_col = DB.handle[f'_index_{field.tag}']
             text = ' '.join([subfield.value for subfield in field.subfields])
-            col.update_one({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True)
+            tag_col.update_one({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True)
 
             updates = []
 
@@ -669,7 +669,14 @@ class Marc(object):
                     )
                 )
 
-            col.bulk_write(updates)
+            tag_col.bulk_write(updates)
+
+            # create text index if it doesn't exist
+            for k, v in tag_col.index_information().items():
+                if v['key'][0][0] == '_fts':
+                    pass #col.drop(k)
+                else:
+                    tag_col.create_index([('subfields.value', 'text')])
 
         # history
         history_collection = DB.handle[self.record_type + '_history']
@@ -694,7 +701,7 @@ class Marc(object):
             
             # browse indexes
             for val in values:
-                DB.handle[f'{logical_field}_index'].update_one({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True)
+                DB.handle[f'_index_{logical_field}'].update_one({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True)
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)

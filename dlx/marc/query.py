@@ -30,6 +30,7 @@ class Query():
                     return True
                 
         def process_string(string):
+            # convert to regex object if regex
             if is_regex(string):
                 if string[-1] == 'i':
                     # case insensitive
@@ -44,6 +45,18 @@ class Query():
                 return Regex('^' + string.replace('*', '.*?') + '$')
             else:
                 return string
+
+        def add_quotes(string):
+            # add double quotes to unquoted words
+            quoted = re.findall('(".*?")', string)
+            dashed = re.findall('\B(-\S+)', string)
+
+            for _ in quoted + dashed:
+                string = string.replace(_, '')
+
+            rest = [f'"{x}"' for x in filter(None, re.split('\s+', string))]
+
+            return ' '.join(rest + quoted + dashed)
                 
         def parse(token, modifier=None):
             '''Returns: dlx.query.Condition'''
@@ -64,13 +77,7 @@ class Query():
                     return Condition(tag, {code: value[1:-1]}, modifier=modifier)
 
                 # text
-                unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', value)))
-                og_value = value
-                
-                value = ' '.join(
-                    [f'"{word}"' for word in unquoted] \
-                    + list(filter(lambda x: x not in unquoted, re.split(r'\s+', value)))
-                )
+                value = add_quotes(value)
 
                 matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
                 matched_subfield_values = []
@@ -79,11 +86,13 @@ class Query():
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
                 stemmer, filtered = PorterStemmer(), []
-            
+                take_words = re.sub('\B-\S+', '', value) # remove dashed words
+                take_words = list(filter(lambda x: x[0] != '-', re.split('\s+', value)))
+
                 for val in matched_subfield_values:
                     stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
                     stemmed_val_words = list(filter(None, stemmed_val_words))
-                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', og_value)]
+                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in take_words]
                     stemmed_terms = list(filter(None, stemmed_terms))
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
@@ -146,13 +155,7 @@ class Query():
                     return TagOnly(tag, value[1:-1], modifier=modifier)
                 
                 # text
-                unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', value)))
-                og_value = value
-                
-                value = ' '.join(
-                    [f'"{word}"' for word in unquoted] \
-                    + list(filter(lambda x: x not in unquoted, re.split(r'\s+', value)))
-                )
+                value = add_quotes(value)
 
                 matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
                 matched_subfield_values = []
@@ -161,11 +164,12 @@ class Query():
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
                 stemmer, filtered = PorterStemmer(), []
-            
+                take_words = list(filter(lambda x: x[0] != '-', re.split('\s+', value)))
+
                 for val in matched_subfield_values:
                     stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
                     stemmed_val_words = list(filter(None, stemmed_val_words))
-                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', og_value)]
+                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in take_words]
                     stemmed_terms = list(filter(None, stemmed_terms))
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
@@ -239,48 +243,39 @@ class Query():
             
             if match:
                 logical_fields = list(Config.bib_logical_fields.keys()) + list(Config.auth_logical_fields.keys())
-                tag, value = match.group(1, 2)
+                field, value = match.group(1, 2)
                 #todo: make aliases config
-                tag = 'symbol' if tag == 's' else tag
+                field = 'symbol' if field == 's' else field
                 
-                if tag in logical_fields:
+                if field in logical_fields:
                     # exact match
                     if value[0] == '\'' and value[-1] == '\'':
-                        return Raw({tag: value[1:-1] }, record_type=record_type)
+                        return Raw({field: value[1:-1] }, record_type=record_type)
 
                     # regex
                     if isinstance(process_string(value), Regex):
                         if modifier == 'not':
-                            return Raw({tag: {'$not': process_string(value)}}, record_type=record_type)
+                            return Raw({field: {'$not': process_string(value)}}, record_type=record_type)
                         else:
-                            return Raw({tag: process_string(value)}, record_type=record_type)
+                            return Raw({field: process_string(value)}, record_type=record_type)
                     
                     # text
-                    unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', value)))
-                    value = ' '.join(
-                        [f'"{word}"' for word in unquoted] \
-                        + list(filter(lambda x: x not in unquoted, re.split(r'\s+', token)))
-                    )
-                    matches = DB.handle[f'{tag}_index'].find({'$text': {'$search': value}})
-                    matched_subfield_values = [x['_id'] for x in matches]
+                    value = add_quotes(value)
+                    matches = DB.handle[f'_index_{field}'].find({'$text': {'$search': value}})
+                    values = [x['_id'] for x in matches]
 
-                    if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
-                        raise Exception(f'Text search "{value}" is too broad on field "{tag}"')
+                    if sys.getsizeof(values) > 1e6: # 1 MB
+                        raise Exception(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
 
                     if modifier == 'not':
-                        return Raw({tag: {'$not': {'$in': matched_subfield_values}}}, record_type=record_type)
+                        return Raw({field: {'$not': {'$in': values}}}, record_type=record_type)
                     else:
-                        return Raw({tag: {'$in': matched_subfield_values}}, record_type=record_type)
+                        return Raw({field: {'$in': values}}, record_type=record_type)
                 else:
-                    raise InvalidQueryString(f'Unrecognized query field "{tag}"')
+                    raise InvalidQueryString(f'Unrecognized query field "{field}"')
 
             # free text
-            # enclose words in dbl quotes unless they already contain quotes or begin with hyphen
-            unquoted = list(filter(lambda x: '"' not in x and x[0] != '-', re.split(r'\s+', token)))
-            token = ' '.join(
-                [f'"{word}"' for word in unquoted] \
-                + list(filter(lambda x: x not in unquoted, re.split(r'\s+', token)))
-            )
+            token = add_quotes(token)
             
             return Text(token, record_type=record_type)
         
