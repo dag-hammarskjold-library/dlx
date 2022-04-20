@@ -1,4 +1,4 @@
-version = '1.2.7.5'
+version = '1.2.7.6'
 
 import sys
 from setuptools import setup, find_packages
@@ -29,7 +29,8 @@ setup(
             'excel-marc=dlx.scripts.excel_marc:run',
             'clear-incrementers=dlx.scripts.clear_incrementers:run',
             'init-indexes=dlx.scripts.init_indexes:run',
-            'build-logical-fields=dlx.scripts.build_logical_fields:run'
+            'build-logical-fields=dlx.scripts.build_logical_fields:run',
+            'build-text-collections=dlx.scripts.build_text_collections:run'
         ]
     }
 )

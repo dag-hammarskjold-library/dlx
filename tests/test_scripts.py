@@ -40,3 +40,12 @@ def test_build_logical_fields(db):
     
     # interim
     assert build_logical_fields.run() is None
+
+def test_build_text_collections(db):
+    from dlx.marc import Bib
+    from dlx.scripts import build_text_collections
+    
+    sys.argv[1:] = ['--connect=mongomock://localhost', '--type=bib']
+    
+    # interim
+    assert build_text_collections.run() is None
