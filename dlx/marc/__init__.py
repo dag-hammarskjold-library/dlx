@@ -671,6 +671,13 @@ class Marc(object):
 
             col.bulk_write(updates)
 
+            # create text index if it doesn't exist
+            for k, v in col.index_information().items():
+                if v['key'][0][0] == '_fts':
+                    pass #col.drop(k)
+                else:
+                    col.create_index([('subfields.value', 'text')])
+
         # history
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
