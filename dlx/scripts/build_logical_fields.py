@@ -1,6 +1,6 @@
 # This script (re)builds the logical fields and browse indexes in the database. 
 # Run time is approx 15 minutes at this time. This can be run at any time, even 
-# if the fields are already built, without detrmiment to the data.
+# if the fields are already built, without detriment to the data.
 
 import sys
 from bson import Regex
@@ -10,7 +10,7 @@ from dlx import DB, Config
 from dlx.marc import BibSet, Bib, AuthSet, Auth, Query
 
 parser = ArgumentParser()
-parser.add_argument('--connect')
+parser.add_argument('--connect', required=True)
 parser.add_argument('--type', required=True, choices=['bib', 'auth'])
 parser.add_argument('--start', default=0)
   
@@ -47,8 +47,6 @@ def build_literal_logical_fields(args):
     query = {}
     end = cls().handle.estimated_document_count() #cls.from_query(query).count
     
-    z = 0
-    
     for i in range(start, end, inc):
         updates, browse_updates = [], {}
         
@@ -71,7 +69,7 @@ def build_literal_logical_fields(args):
             
         if browse_updates:
             for field in record.logical_fields(*list(literals)).keys():
-                DB.handle[f'{field}_index'].bulk_write(list(browse_updates[field].values()))
+                DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field].values()))
 
     print(f'\nupdated {c} logical fields')
 
@@ -144,7 +142,7 @@ def build_auth_controlled_logical_fields(args):
         start, end, inc = 0, len(updates), 1000 
         
         for i in range(start, end, inc):
-            DB.handle[f'{field}_index'].bulk_write(updates[i:i+inc])
+            DB.handle[f'_index_{field}'].bulk_write(updates[i:i+inc])
                 
             print('\b' * (len(str(i)) + len(str(end)) + 3) + f'{i+inc} / {end}', end='', flush=True)
             

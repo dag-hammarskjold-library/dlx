@@ -261,7 +261,7 @@ class Query():
                     
                     # text
                     value = add_quotes(value)
-                    matches = DB.handle[f'{field}_index'].find({'$text': {'$search': value}})
+                    matches = DB.handle[f'_index_{field}'].find({'$text': {'$search': value}})
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB

@@ -100,9 +100,9 @@ def run():
             col.create_index([(x, 'text') for x in logical_fields.keys()], weights=text_weights)
         )
 
-        for f in logical_fields.keys():
+        for field in logical_fields.keys():
             indexes.append(
-                DB.handle[f'{f}_index'].create_index([('_id', 'text')])
+                DB.handle[f'_index_{field}'].create_index([('_id', 'text')])
             )
         
         print('creating special indexes: ', end='')
