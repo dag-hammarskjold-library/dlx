@@ -260,6 +260,11 @@ def test_querystring(db):
     # id
     query = Query.from_string('id:1')
     assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    # updated
+    Bib().commit()
+    query = Query.from_string('updated>1900-01-01')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
     
     # xref
     auth = Auth().set('100', 'a', 'x').commit()

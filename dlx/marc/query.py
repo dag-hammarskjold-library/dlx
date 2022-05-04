@@ -1,3 +1,4 @@
+from datetime import datetime
 import sys, json, re, copy
 from warnings import warn
 from nltk import PorterStemmer
@@ -212,7 +213,19 @@ class Query():
                     return Raw({'_id': int(value)}, record_type=record_type)
                 except ValueError:
                     raise InvalidQueryString(f'ID must be a number')
-                    
+
+            # udpated 
+            match = re.match('updated([<>])(.*)', token)
+
+            if match:
+                operator, value = match.group(1, 2)
+                date = datetime.fromisoformat(value)
+
+                if operator == '<':
+                    return Raw({'updated': {'$lte': date}})
+                else:
+                    return Raw({'updated': {'$gte': date}})
+
             # xref (records that reference a given auth#)
             match = re.match(f'xref:(.*)', token)
 
