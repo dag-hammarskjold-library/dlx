@@ -8,7 +8,7 @@
 import sys, os, time
 from pymongo import UpdateOne
 from argparse import ArgumentParser
-from dlx import DB
+from dlx import DB, Config
 from dlx.marc import BibSet, AuthSet
 
 parser = ArgumentParser()
@@ -21,17 +21,19 @@ def run():
     DB.connect(args.connect)
     cls = BibSet if args.type == 'bib' else AuthSet
 
-    start = args.start
-    end = DB.auths.estimated_document_count()
+    start = int(args.start)
+    end = cls.from_query({}).count
     inc = 1000
     tags = set()
+    exclude_fields = list(Config.bib_logical_fields.keys() if args.type == 'bibs' else Config.auth_logical_fields.keys()) \
+        + ['user', 'updated']
 
     for i in range(start, end, inc):
         print(f'{i+1}-{i+inc}', end='', flush=True)
 
         updates, start_time = {}, time.time()
 
-        for record in cls.from_query({}, skip=i, limit=inc):
+        for record in cls.from_query({}, skip=i, limit=inc, projection=dict.fromkeys(exclude_fields, 0)):
             for field in record.datafields:
                 tags.add(field.tag)
 

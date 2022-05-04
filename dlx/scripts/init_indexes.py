@@ -133,7 +133,7 @@ def run():
         print('Dropping extraneous indexes...')
         for index in col.index_information().keys():
             if index != '_id_' and index not in indexes:
-                # drop any existing wildcard index as the excluded fields may have changed
+                # drop any other indexes on collection
                 col.drop_index(index)
 
     total = len(indexes)
