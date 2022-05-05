@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys, json, re, copy
 from warnings import warn
 from nltk import PorterStemmer
@@ -215,7 +215,7 @@ class Query():
                     raise InvalidQueryString(f'ID must be a number')
 
             # udpated 
-            match = re.match('updated([<>])(.*)', token)
+            match = re.match('updated([:<>])(.*)', token)
 
             if match:
                 operator, value = match.group(1, 2)
@@ -223,8 +223,10 @@ class Query():
 
                 if operator == '<':
                     return Raw({'updated': {'$lte': date}})
-                else:
+                elif operator == '>':
                     return Raw({'updated': {'$gte': date}})
+                else:
+                    return Raw({'$and': [{'updated': {'$gte': date}}, {'updated': {'$lte': date + timedelta(days=1)}}]})
 
             # xref (records that reference a given auth#)
             match = re.match(f'xref:(.*)', token)
