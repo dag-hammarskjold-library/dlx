@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta
 import sys, json, re, copy
+from datetime import datetime, timedelta
 from warnings import warn
 from nltk import PorterStemmer
 from bson import SON, Regex
@@ -216,6 +216,7 @@ class Query():
 
             # udpated 
             match = re.match('updated([:<>])(.*)', token)
+
 
             if match:
                 operator, value = match.group(1, 2)
