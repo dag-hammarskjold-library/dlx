@@ -219,7 +219,7 @@ class Query():
 
             if match:
                 operator, value = match.group(1, 2)
-                date = datetime.fromisoformat(value)
+                date = datetime.strptime(value, '%Y-%m-%d')
 
                 if operator == '<':
                     return Raw({'updated': {'$lte': date}})
