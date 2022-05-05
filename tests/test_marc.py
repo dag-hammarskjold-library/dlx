@@ -214,6 +214,7 @@ def test_querydocument(db):
     assert len(list(Bib.find(query.compile()))) == 1
 
 def test_querystring(db):
+    from datetime import datetime
     from dlx.marc import BibSet, Bib, Auth, Query
 
     query = Query.from_string('245__c:\'title\'')
@@ -264,6 +265,9 @@ def test_querystring(db):
     # updated
     Bib().commit()
     query = Query.from_string('updated>1900-01-01')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    query = Query.from_string(f'updated:{(datetime.now()).strftime("%Y-%m-%d")}')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     # xref
