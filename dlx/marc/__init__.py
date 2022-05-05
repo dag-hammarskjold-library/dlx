@@ -209,7 +209,12 @@ class MarcSet():
         
         if isinstance(self.records, (map, types.GeneratorType)):
             args, kwargs = self.query_params
-            self._count = self.handle.count_documents(*args, **kwargs)
+
+            if args[0] or kwargs.get('skip') or kwargs.get('limit'):
+                self._count = self.handle.count_documents(*args, **kwargs)
+            else:
+                self._count = self.handle.estimated_document_count()
+
             return self._count
         else:
             return len(self.records)
@@ -732,7 +737,12 @@ class Marc(object):
                     DB.handle[f'{field}_index'].delete_one({'_id': val})
         
         history_collection = DB.handle[self.record_type + '_history']
-        record_history = history_collection.find_one({'_id': self.id}) or SON()
+        record_history = history_collection.find_one({'_id': self.id})
+
+        if record_history is None:
+            record_history = SON()
+            record_history['history'] = [self.to_bson()]
+
         record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
 
