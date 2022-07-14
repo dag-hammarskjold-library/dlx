@@ -67,7 +67,10 @@ class Config():
             '079': ['a'],
             '767': ['o'],
             '191': ['a', 'z'],
-            '791': ['a', 'z']
+            '791': ['a']
+        },
+        'body': {
+            '191': ['bc']
         },
         'subject': {
             '600': ['abcdq'],
@@ -110,7 +113,7 @@ class Config():
             '490': ['a'],
             '495': ['a'],
             '500': ['a'],
-            '505': ['a'],
+            #'505': ['a'],
             '598': ['a'],
             '501': ['a'],
             '502': ['a'],
@@ -147,7 +150,7 @@ class Config():
             '593': ['a'],
             '513': ['ab'],
             '555': ['ad'],
-            '505': ['rgt'],
+            '505': ['argt'],
         },
         'author': {
             '111': ['acdgtxyz'],
@@ -174,11 +177,25 @@ class Config():
         'date': {
             '269': ['a'],
             '992': ['a']
+        },
+        'agenda': {
+            '991': ['abcd']
+        },
+        'series': {
+            '440': ['a'],
+            '490': ['a'],
+            '830': ['a']
+        },
+        'speaker': {
+            '700': 'a'
+        },
+        'country_org': {
+            '710': ['a']
         }
     }
     
     auth_logical_fields = {
-        'heading': {
+        'subject': {
             '100': ['abcdq'],
             '110': ['abcdfgkn'],
             '111': ['acdegknq'],
@@ -192,6 +209,24 @@ class Config():
         'agenda_subject': {
             '191': ['d']
         },
+        'series': {
+            '130': ['adfgklnp']
+        },
+        'author': {
+            '100': ['abcdgq'],
+            '110': ['abcdfgkn'],
+            '111': ['acdegknq'],
+            '130': ['adfgklnp']
+        },
+        'thesaurus': {
+            '150': ['a']
+        },
+        'body': {
+            '190': ['bc']
+        },
+        'states': {
+            '110': ['a'] #todo: {'requires': ['b', 'ms']}]
+        }
     }
 
     @staticmethod
