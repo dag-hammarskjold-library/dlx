@@ -31,11 +31,10 @@ def build_literal_logical_fields(args):
     auth_controlled = Config.bib_authority_controlled if cls == BibSet else Config.auth_authority_controlled
     logical_fields = Config.bib_logical_fields if cls == BibSet else Config.auth_logical_fields
     tags, literals = [], []
-    
+
     for field, d in list(logical_fields.items()):
-        if field not in Config.auth_controlled_bib_logical_fields():
-            tags += list(d.keys())
-            literals.append(field)
+        tags += list(d.keys())
+        literals.append(field)
     
     tags = set(tags)            
     literals = set(literals)
