@@ -1,4 +1,4 @@
-import os
+import os, pytest
 from unittest import TestCase
 from dlx.util import Table
 
@@ -8,7 +8,8 @@ class Data(object):
         ['title','subtitle','1999-12-31','repeated'],
         ['title2','subtitle2','2000-01-01','repeated'],
     ]
-    
+
+@pytest.mark.skip(reason='xlrd is obsolete. needs review')    
 class TestTable(TestCase):
     def setUp(self):
 	    pass

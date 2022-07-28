@@ -97,7 +97,8 @@ def test_from_table(db):
 
     with pytest.raises(Exception):
         bibset = BibSet.from_table(Table([['650a'], ['Invalid']]), auth_control=True)
-        
+
+@pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
     from dlx.marc import BibSet
     
