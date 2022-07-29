@@ -701,6 +701,9 @@ class Marc(object):
         
         # add logical fields
         for logical_field, values in self.logical_fields().items():
+            if logical_field == '_record_type':
+                continue
+
             data[logical_field] = values
             
             # browse indexes
@@ -708,7 +711,7 @@ class Marc(object):
                 DB.handle[f'_index_{logical_field}'].update_one(
                     {'_id': val},
                     {
-                        '$setOnInsert': {'_id': val, '_record_type': self.logical_fields()['_record_type']},
+                        '$setOnInsert': {'_id': val}, # ? is this an optimization?
                         '$addToSet': {'_record_type': self.logical_fields()['_record_type']}
                     },
                     upsert=True
@@ -782,12 +785,13 @@ class Marc(object):
                             self._logical_fields.setdefault(logical_field, [])
                             self._logical_fields[logical_field].append(value)
 
-        self._logical_fields.setdefault('_record_type', [])
+        # there can only be opne type but all logical fields are expected to be arrays
+        self._logical_fields.setdefault('_record_type', ['default'])
 
         if self.record_type == 'bib':
             for type, match in Config.bib_type_map.items():
                 if self.get_value(*match[:2]) == match[2]:
-                    self._logical_fields['_record_type'].append(type)
+                    self._logical_fields['_record_type'] = [type]
                             
         return self._logical_fields
 
