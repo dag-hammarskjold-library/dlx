@@ -705,6 +705,13 @@ def test_logical_fields(db):
     bib.set('867', 'a', 'part 1,').set('867', 'b', 'part 2 +').set('867', 'c', 'part 3').commit()
     assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['part 1, part 2 + part 3']
 
+    # record type special field
+    assert bib.logical_fields()['_record_type'] == ['default']
+
+    Config.bib_type_map.update({'my_test_type': ['900', 'a', 'test type']})
+    bib.set('900', 'a', 'test type')
+    assert bib.logical_fields()['_record_type'] == ['my_test_type']
+
 def test_bib_files(db, bibs):
     from datetime import datetime
     from dlx import DB

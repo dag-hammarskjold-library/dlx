@@ -20,29 +20,31 @@ def run():
     if not DB.connected:
         DB.connect(args.connect)
 
-    build_literal_logical_fields(args)
-    build_auth_controlled_logical_fields(args)
+    build_logical_fields(args)
+    #build_literal_logical_fields(args)
+    #build_auth_controlled_logical_fields(args)
     
     if args.type == 'auth':
         calculate_auth_use()
 
-def build_literal_logical_fields(args):
+def build_logical_fields(args):
     cls = BibSet if args.type == 'bib' else AuthSet
     auth_controlled = Config.bib_authority_controlled if cls == BibSet else Config.auth_authority_controlled
     logical_fields = Config.bib_logical_fields if cls == BibSet else Config.auth_logical_fields
-    tags, literals = [], []
+    tags, names = [], []
 
     for field, d in list(logical_fields.items()):
         tags += list(d.keys())
-        literals.append(field)
+        names.append(field)
+
+    names.append('_record_type')            
+    names = set(names)
+    tags = set(tags)
     
-    tags = set(tags)            
-    literals = set(literals)
-    
-    print(f'building {list(literals)}')
+    print(f'building {list(names)}')
     
     c = r = start = int(args.start)
-    inc = 10000
+    inc = 100
     query = {}
     end = cls().handle.estimated_document_count() #cls.from_query(query).count
     
@@ -50,13 +52,28 @@ def build_literal_logical_fields(args):
         updates, browse_updates = [], {}
         
         for record in cls.from_query(query, sort=[('_id', DESC)], skip=i, limit=inc, projection=dict.fromkeys(tags, 1)):
-            for field, values in record.logical_fields(*list(literals)).items():
+            for field, values in record.logical_fields(*list(names)).items():
+                #print([field, values])
                 updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))
                 
                 browse_updates.setdefault(field, {})
 
+                #print(values)
+
                 for val in values:
-                    browse_updates[field].setdefault(val, UpdateOne({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True))
+                    browse_updates[field].setdefault(
+                        val, 
+                        UpdateOne(
+                            {'_id': val}, 
+                            {
+                                '$setOnInsert': {'_id': val}, # ?
+                                '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]},
+                                #'$pull': {'_record_type': {'$type': 'array'}},
+                                #'$unset': {'_record_type': ""}
+                            },
+                            upsert=True
+                        )
+                    )
                 
             last_r = r
             r += 1
@@ -67,7 +84,7 @@ def build_literal_logical_fields(args):
             c += len(updates)
             
         if browse_updates:
-            for field in record.logical_fields(*list(literals)).keys():
+            for field in record.logical_fields(*list(names)).keys():
                 DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field].values()))
 
     print(f'\nupdated {c} logical fields')
