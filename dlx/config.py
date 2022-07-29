@@ -64,8 +64,8 @@ class Config():
 
     # records with these values will be tagged as such in the special _record_type logical field
     bib_type_map = {
-        'speech': ['089', 'a', 'B22'],
-        'vote': ['089', 'a', 'B23']
+        'speech': ['089', 'b', 'B22'],
+        'vote': ['089', 'b', 'B23']
     }
     
     bib_logical_fields = {
