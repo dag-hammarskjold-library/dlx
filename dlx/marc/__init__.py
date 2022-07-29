@@ -646,7 +646,6 @@ class Marc(object):
         data = self.to_bson()
         self.updated = data['updated'] = datetime.utcnow()
         self.user = data['user'] = user
-        logical_fields = {}
         
         # scan fields
         for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
@@ -702,11 +701,21 @@ class Marc(object):
         
         # add logical fields
         for logical_field, values in self.logical_fields().items():
+            if logical_field == '_record_type':
+                continue
+
             data[logical_field] = values
             
             # browse indexes
             for val in values:
-                DB.handle[f'_index_{logical_field}'].update_one({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True)
+                DB.handle[f'_index_{logical_field}'].update_one(
+                    {'_id': val},
+                    {
+                        '$setOnInsert': {'_id': val}, # ? is this an optimization?
+                        '$addToSet': {'_record_type': self.logical_fields()['_record_type']}
+                    },
+                    upsert=True
+                )
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
@@ -775,6 +784,14 @@ class Marc(object):
                         if value:
                             self._logical_fields.setdefault(logical_field, [])
                             self._logical_fields[logical_field].append(value)
+
+        # there can only be opne type but all logical fields are expected to be arrays
+        self._logical_fields.setdefault('_record_type', ['default'])
+
+        if self.record_type == 'bib':
+            for type, match in Config.bib_type_map.items():
+                if self.get_value(*match[:2]) == match[2]:
+                    self._logical_fields['_record_type'] = [type]
                             
         return self._logical_fields
 
