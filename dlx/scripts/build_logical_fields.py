@@ -20,22 +20,25 @@ def run():
     if not DB.connected:
         DB.connect(args.connect)
 
-    build_logical_fields(args)
-    #build_literal_logical_fields(args)
-    #build_auth_controlled_logical_fields(args)
+    build_literal_logical_fields(args)
+    build_auth_controlled_logical_fields(args)
     
     if args.type == 'auth':
         calculate_auth_use()
 
-def build_logical_fields(args):
+def build_literal_logical_fields(args):
     cls = BibSet if args.type == 'bib' else AuthSet
     auth_controlled = Config.bib_authority_controlled if cls == BibSet else Config.auth_authority_controlled
     logical_fields = Config.bib_logical_fields if cls == BibSet else Config.auth_logical_fields
     tags, names = [], []
 
     for field, d in list(logical_fields.items()):
-        tags += list(d.keys())
-        names.append(field)
+        if field not in Config.auth_controlled_bib_logical_fields():
+            tags += list(d.keys())
+            names.append(field)
+
+        #tags += list(d.keys())
+        #names.append(field)
 
     names.append('_record_type')            
     names = set(names)
@@ -44,7 +47,7 @@ def build_logical_fields(args):
     print(f'building {list(names)}')
     
     c = r = start = int(args.start)
-    inc = 100
+    inc = 10000
     query = {}
     end = cls().handle.estimated_document_count() #cls.from_query(query).count
     
@@ -53,12 +56,8 @@ def build_logical_fields(args):
         
         for record in cls.from_query(query, sort=[('_id', DESC)], skip=i, limit=inc, projection=dict.fromkeys(tags, 1)):
             for field, values in record.logical_fields(*list(names)).items():
-                #print([field, values])
-                updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))
-                
+                updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))                
                 browse_updates.setdefault(field, {})
-
-                #print(values)
 
                 for val in values:
                     browse_updates[field].setdefault(
@@ -67,9 +66,7 @@ def build_logical_fields(args):
                             {'_id': val}, 
                             {
                                 '$setOnInsert': {'_id': val}, # ?
-                                '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]},
-                                #'$pull': {'_record_type': {'$type': 'array'}},
-                                #'$unset': {'_record_type': ""}
+                                '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]}
                             },
                             upsert=True
                         )
