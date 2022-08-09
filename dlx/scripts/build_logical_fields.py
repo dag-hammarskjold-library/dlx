@@ -20,25 +20,28 @@ def run():
     if not DB.connected:
         DB.connect(args.connect)
 
-    #build_literal_logical_fields(args)
-    build_auth_controlled_logical_fields(args)
+    build_logical_fields(args)
+    #build_auth_controlled_logical_fields(args)
     
     if args.type == 'auth':
         calculate_auth_use()
 
-def build_literal_logical_fields(args):
+def build_logical_fields(args):
     cls = BibSet if args.type == 'bib' else AuthSet
     auth_controlled = Config.bib_authority_controlled if cls == BibSet else Config.auth_authority_controlled
     logical_fields = Config.bib_logical_fields if cls == BibSet else Config.auth_logical_fields
     tags, names = [], []
 
     for field, d in list(logical_fields.items()):
-        if field not in auth_controlled: #Config.auth_controlled_bib_logical_fields():
-            tags += list(d.keys())
-            names.append(field)
+        #if field != 'body':
+        #    continue
 
-        #tags += list(d.keys())
-        #names.append(field)
+        #if field not in auth_controlled: #Config.auth_controlled_bib_logical_fields():
+        #    tags += list(d.keys())
+        #    names.append(field)
+
+        tags += list(d.keys()) + (Config.bib_type_map_tags() if cls == BibSet else Config.auth_type_map_tags())
+        names.append(field)
 
     names.append('_record_type')            
     names = set(names)
@@ -141,7 +144,17 @@ def build_auth_controlled_logical_fields(args):
                 updates.append(UpdateOne({'_id': rid}, {'$set': {field: vals}}))
                 
                 for val in vals:
-                    browse_updates.setdefault(val, (UpdateOne({'_id': val}, {'$setOnInsert': {'_id': val}}, upsert=True)))
+                    browse_updates.setdefault(
+                        val, 
+                        UpdateOne(
+                            {'_id': val}, 
+                            {   
+                                '$setOnInsert': {'_id': val},
+                                '$addToSet': {'_record_type': Bib.from_id(rid).logical_fields(['_record_type']).get('_record_type')[0]}
+                            },
+                            upsert=True
+                        )
+                    )
                 
         print(f'updates for {field}: {len(updates)}')
         
@@ -149,6 +162,7 @@ def build_auth_controlled_logical_fields(args):
         
         for i in range(start, end, inc):
             result = DB.bibs.bulk_write(updates[i:i+inc])
+            updates[i:i+inc] = [None for x in range(inc)] # clear some memory
                 
             print('\b' * (len(str(i)) + len(str(end)) + 3) + f'{i+inc} / {end}', end='', flush=True)
             

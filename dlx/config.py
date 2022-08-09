@@ -67,6 +67,8 @@ class Config():
         'speech': ['089', 'b', 'B22'],
         'vote': ['089', 'b', 'B23']
     }
+
+    auth_type_map = {}
     
     bib_logical_fields = {
         'symbol': {
@@ -330,3 +332,12 @@ class Config():
                             fields.append(field)
 
         return list(set(fields))
+
+    @staticmethod
+    def bib_type_map_tags():
+        return list(set([mapping[0] for field, mapping in Config.bib_type_map.items()]))
+
+    @staticmethod
+    def auth_type_map_tags():
+        return list(set([mapping[0] for field, mapping in Config.auth_type_map.items()]))
+
