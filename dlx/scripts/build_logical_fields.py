@@ -20,7 +20,7 @@ def run():
     if not DB.connected:
         DB.connect(args.connect)
 
-    build_literal_logical_fields(args)
+    #build_literal_logical_fields(args)
     build_auth_controlled_logical_fields(args)
     
     if args.type == 'auth':
@@ -33,7 +33,7 @@ def build_literal_logical_fields(args):
     tags, names = [], []
 
     for field, d in list(logical_fields.items()):
-        if field not in Config.auth_controlled_bib_logical_fields():
+        if field not in auth_controlled: #Config.auth_controlled_bib_logical_fields():
             tags += list(d.keys())
             names.append(field)
 
@@ -91,8 +91,15 @@ def build_auth_controlled_logical_fields(args):
         # there are no auth ctrld auth logical fields
         return
 
+    print([x for x in Config.auth_controlled_bib_logical_fields()])
+
+    #exit()
+
     for field, tags in Config.bib_logical_fields.items():
         if field not in Config.auth_controlled_bib_logical_fields():
+            continue
+
+        if field != 'body':
             continue
         
         values, updates, browse_updates = {}, [], {}

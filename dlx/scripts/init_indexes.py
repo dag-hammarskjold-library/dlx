@@ -39,11 +39,12 @@ def run():
         logical_numeric = getattr(Config, _[:-1] + '_index_logical_numeric')
         text_weights = getattr(Config, _[:-1] + '_text_index_weights')
         
-        print(f'creating {_} indexes')
+        print(f'creating {_} indexes...')
         
         indexes.append(col.create_index('updated'))
+        indexes.append(col.create_index('_record_type'))
 
-        print(f'creating tag indexes')
+        print(f'creating tag indexes...')
         
         for tag in index_fields + list(auth_ctrl.keys()):
             indexes.append(col.create_index(f'{tag}.$**'))
@@ -90,7 +91,7 @@ def run():
             )
         )
             
-        print('creating text indexes')
+        print('creating text indexes...')
         for k, v in col.index_information().items():
             if v['key'][0][0] == '_fts':
                 # drop any existing text index as the logical fields may have changed
@@ -103,6 +104,10 @@ def run():
         for field in logical_fields.keys():
             indexes.append(
                 DB.handle[f'_index_{field}'].create_index([('_id', 'text')])
+            )
+
+            indexes.append(
+                DB.handle[f'_index_{field}'].create_index('_record_type')
             )
         
         print('creating special indexes: ', end='')
