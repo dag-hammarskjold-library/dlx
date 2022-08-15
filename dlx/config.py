@@ -233,9 +233,10 @@ class Config():
         'body': {
             '190': ['bc']
         },
-        'states': {
-            '110': ['a'] #todo: {'requires': ['b', 'ms']}]
-        }
+        # disable for now
+        #'states': {
+        #    '110': ['a'] #todo: {'requires': ['b', 'ms']}]
+        #}
     }
 
     @staticmethod
