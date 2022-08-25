@@ -53,13 +53,13 @@ class Config():
      # auth-controlled fields are automatically indexed
     bib_index = ['191', '245', '269', '930', '991', '998'] 
     bib_index_case_insensitive = ['191']  
-    bib_index_logical_numeric = ['symbol']
+    bib_index_logical_numeric = ['symbol', 'body', 'agenda']
     bib_text_index_weights = {}
     
     # auth-controlled fields are automatically indexed
     auth_index = ['100', '110', '111', '130', '150', '190', '998']
     auth_index_case_insensitive = ['100', '110', '111']
-    auth_index_logical_numeric = []
+    auth_index_logical_numeric = ['body']
     auth_text_index_weights = {}
 
     # records with these values will be tagged as such in the special _record_type logical field

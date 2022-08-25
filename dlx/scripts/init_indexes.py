@@ -69,8 +69,7 @@ def run():
                 col.create_index(
                     field, 
                     name=f'{field}_numeric', 
-                    collation=Collation(locale='en', 
-                    numericOrdering=True)
+                    collation=Collation(locale='en', numericOrdering=True)
                 )
             )
 
