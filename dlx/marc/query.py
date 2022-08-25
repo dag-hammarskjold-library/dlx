@@ -262,6 +262,7 @@ class Query():
                 field, value = match.group(1, 2)
                 #todo: make aliases config
                 field = 'symbol' if field == 's' else field
+                field = 'subject' if field == 'heading' else field
                 
                 if field in logical_fields:
                     # exact match
