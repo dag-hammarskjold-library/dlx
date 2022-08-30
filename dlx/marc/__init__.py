@@ -712,7 +712,7 @@ class Marc(object):
                     {'_id': val},
                     {
                         '$setOnInsert': {'_id': val}, # ? is this an optimization?
-                        '$addToSet': {'_record_type': self.logical_fields()['_record_type']}
+                        '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is only one record type in the array
                     },
                     upsert=True
                 )
@@ -785,7 +785,7 @@ class Marc(object):
                             self._logical_fields.setdefault(logical_field, [])
                             self._logical_fields[logical_field].append(value)
 
-        # there can only be opne type but all logical fields are expected to be arrays
+        # there can only be one type but all logical fields are expected to be arrays
         self._logical_fields.setdefault('_record_type', ['default'])
 
         if self.record_type == 'bib':
