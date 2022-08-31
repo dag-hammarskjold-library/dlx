@@ -212,6 +212,9 @@ class Config():
             '150': ['a'],
             '191': ['abcd']
         },
+        'agenda': {
+            '191': ['abcd']
+        },
         'agenda_title': {
             '191': ['c']
         },
