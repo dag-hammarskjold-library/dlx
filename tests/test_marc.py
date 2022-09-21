@@ -246,7 +246,15 @@ def test_querystring(db):
         # $text operator not implemented in mongomock
         assert len(list(BibSet.from_query(query.compile()))) == 2
 
-    # quotes automatically added by dlx    
+    # quotes automatically added by dlx (forces "and" search)
+    assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+
+    # dashes inside double quoated text ignored
+    query = Query.from_string('"Another-header"')
+    assert query.compile() == {'$text': {'$search': '"Another header"'}}
+
+    # dashes without a space before ignored
+    query = Query.from_string('Another-header')
     assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
 
     # tag no subfield
