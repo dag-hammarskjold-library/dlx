@@ -48,6 +48,10 @@ class Query():
                 return string
 
         def add_quotes(string):
+            # these xformations must be done in the correct order
+            # remove dashes if there is no space before
+            string = re.sub('(\w)-', '\\1 ', string)
+
             # add double quotes to unquoted words
             quoted = re.findall('(".*?")', string)
             # don't add double quotes to dashed words

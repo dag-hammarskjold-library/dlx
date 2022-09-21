@@ -253,6 +253,10 @@ def test_querystring(db):
     query = Query.from_string('"Another-header"')
     assert query.compile() == {'$text': {'$search': '"Another header"'}}
 
+    # dashes without a space before ignored
+    query = Query.from_string('Another-header')
+    assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+
     # tag no subfield
     query = Query.from_string('245:\'is the\'')
     results = list(BibSet.from_query(query.compile()))
