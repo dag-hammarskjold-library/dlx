@@ -687,6 +687,7 @@ class Marc(object):
         record_history = history_collection.find_one({'_id': self.id})
 
         if record_history:
+            record_history.setdefault('history', []) # record my not have history if migrated form another db
             record_history['history'].append(data)
         else:
             record_history = SON()
