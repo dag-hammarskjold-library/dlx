@@ -50,12 +50,16 @@ class Query():
         def add_quotes(string):
             # add double quotes to unquoted words
             quoted = re.findall('(".*?")', string)
+            # don't add double quotes to dashed words
             dashed = re.findall('\B(-\S+)', string)
 
             for _ in quoted + dashed:
                 string = string.replace(_, '')
 
             rest = [f'"{x}"' for x in filter(None, re.split('\s+', string))]
+
+            # remove dashes from inside double quoted strings
+            quoted = [x.replace('-', ' ') for x in quoted]
 
             return ' '.join(rest + quoted + dashed)
                 
