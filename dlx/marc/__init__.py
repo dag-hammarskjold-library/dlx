@@ -647,7 +647,7 @@ class Marc(object):
         self.updated = data['updated'] = datetime.utcnow()
         self.user = data['user'] = user
         
-        # scan fields
+        # scan fields: validate auth values; update field text indexes
         for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
             for subfield in field.subfields:
                 # auth control
@@ -682,24 +682,6 @@ class Marc(object):
                 else:
                     tag_col.create_index([('subfields.value', 'text')])
 
-        # history
-        history_collection = DB.handle[self.record_type + '_history']
-        record_history = history_collection.find_one({'_id': self.id})
-
-        if record_history:
-            record_history.setdefault('history', []) # record my not have history if migrated form another db
-            record_history['history'].append(data)
-        else:
-            record_history = SON()
-            record_history['_id'] = self.id
-
-            if new_record:
-                record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
-
-            record_history['history'] = [data]
-
-        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
-        
         # add logical fields
         for logical_field, values in self.logical_fields().items():
             if logical_field == '_record_type':
@@ -717,6 +699,24 @@ class Marc(object):
                     },
                     upsert=True
                 )
+
+        # history
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id})
+
+        if record_history:
+            record_history.setdefault('history', []) # record may not have history if migrated form another db
+            record_history['history'].append(data)
+        else:
+            record_history = SON()
+            record_history['_id'] = self.id
+
+            if new_record:
+                record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
+
+            record_history['history'] = [data]
+
+        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
