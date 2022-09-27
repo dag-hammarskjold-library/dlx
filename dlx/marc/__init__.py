@@ -1,6 +1,6 @@
 """dlx.marc"""
 
-import re, json
+import re, json, threading
 from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree
@@ -636,9 +636,9 @@ class Marc(object):
             raise jsonschema.exceptions.ValidationError(msg)
 
     @Decorators.check_connected
-    def commit(self, user='admin'):
+    def commit(self, user='admin', auth_check=True):
         new_record = True if self.id is None else False
-
+        
         if new_record:
             self.id = type(self)._increment_ids()
         
@@ -646,77 +646,97 @@ class Marc(object):
         data = self.to_bson()
         self.updated = data['updated'] = datetime.utcnow()
         self.user = data['user'] = user
+       
+        def auth_validate():
+            for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
+                for subfield in field.subfields:
+                    # auth control
+                    if Config.is_authority_controlled(self.record_type, field.tag, subfield.code):
+                        if not hasattr(subfield, 'xref'):
+                           raise InvalidAuthField(self.record_type, field.tag, subfield.code) 
+
+                        if not Auth.lookup(subfield.xref, subfield.code):
+                            raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
+
+        if auth_check: auth_validate()
         
-        # scan fields
-        for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
-            for subfield in field.subfields:
-                # auth control
-                if Config.is_authority_controlled(self.record_type, field.tag, subfield.code):
-                    if not hasattr(subfield, 'xref'):
-                       raise InvalidAuthField(self.record_type, field.tag, subfield.code) 
+        # maintenance functions
+        # update field text indexes
+        def index_field_text():
+            for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
+                # tag indexes
+                tag_col = DB.handle[f'_index_{field.tag}']
+                text = ' '.join([subfield.value for subfield in field.subfields])
 
-                    if not Auth.lookup(subfield.xref, subfield.code):
-                        raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
-
-            # tag indexes
-            tag_col = DB.handle[f'_index_{field.tag}']
-            text = ' '.join([subfield.value for subfield in field.subfields])
-            tag_col.update_one({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True)
-
-            updates = []
-
-            for subfield in field.subfields:
-                updates.append(
+                updates = [
                     UpdateOne(
                         {'_id': text},
-                        {'$addToSet': {'subfields': {'code': subfield.code, 'value': subfield.value}}}
-                    )
-                )
+                        {'$addToSet': {'subfields': {'code': subfield.code, 'value': subfield.value}}},
+                        upsert=True
+                    ) for subfield in field.subfields
+                ]
 
-            tag_col.bulk_write(updates)
+                tag_col.bulk_write(updates)
 
-            # create text index if it doesn't exist
-            for k, v in tag_col.index_information().items():
-                if v['key'][0][0] == '_fts':
-                    pass #col.drop(k)
-                else:
-                    tag_col.create_index([('subfields.value', 'text')])
+                # create text index if it doesn't exist
+                for k, v in tag_col.index_information().items():
+                    if v['key'][0][0] == '_fts':
+                        pass #col.drop(k)
+                    else:
+                        tag_col.create_index([('subfields.value', 'text')])
 
-        # history
-        history_collection = DB.handle[self.record_type + '_history']
-        record_history = history_collection.find_one({'_id': self.id})
-
-        if record_history:
-            record_history.setdefault('history', []) # record my not have history if migrated form another db
-            record_history['history'].append(data)
-        else:
-            record_history = SON()
-            record_history['_id'] = self.id
-
-            if new_record:
-                record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
-
-            record_history['history'] = [data]
-
-        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
+        thread1 = threading.Thread(target=index_field_text, args=[])
+        thread1.setDaemon(False) # stop the thread after complete
+        thread1.start()
         
         # add logical fields
-        for logical_field, values in self.logical_fields().items():
-            if logical_field == '_record_type':
-                continue
+        def calculate_logical_fields():
+            for logical_field, values in self.logical_fields().items():
+                if logical_field == '_record_type':
+                    continue
 
-            data[logical_field] = values
-            
-            # browse indexes
-            for val in values:
-                DB.handle[f'_index_{logical_field}'].update_one(
-                    {'_id': val},
-                    {
-                        '$setOnInsert': {'_id': val}, # ? is this an optimization?
-                        '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is only one record type in the array
-                    },
-                    upsert=True
-                )
+                data[logical_field] = values
+
+                # browse indexes
+                updates = [
+                    UpdateOne(
+                        {'_id': val},
+                        {
+                            # '$setOnInsert': {'_id': val}, # ? is this an optimization?
+                            '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is  only one record type in the array
+                        },
+                        upsert=True
+                    ) for val in values
+                ]
+
+                DB.handle[f'_index_{logical_field}'].bulk_write(updates)
+
+        thread2 = threading.Thread(target=calculate_logical_fields, args=[])
+        thread2.setDaemon(False) # stop the thread after complete
+        thread2.start()
+
+        # history
+        def save_history():
+            history_collection = DB.handle[self.record_type + '_history']
+            record_history = history_collection.find_one({'_id': self.id})
+
+            if record_history:
+                record_history.setdefault('history', []) # record may not have history if migrated form another db
+                record_history['history'].append(data)
+            else:
+                record_history = SON()
+                record_history['_id'] = self.id
+
+                if new_record:
+                    record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
+
+                record_history['history'] = [data]
+
+            history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
+
+        thread3 = threading.Thread(target=save_history, args=[])
+        thread3.setDaemon(False) # stop the thread after complete
+        thread3.start()
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
