@@ -259,7 +259,7 @@ class Query():
                 
                 for tag in tags:
                     conditions.append(Raw({f'{tag}.subfields.xref': xref}))
-                
+
                 return Or(*conditions)
             
             # logical field

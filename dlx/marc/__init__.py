@@ -691,14 +691,17 @@ class Marc(object):
         
         # add logical fields
         def calculate_logical_fields():
+            record_updates, text_updates = [], []
+
             for logical_field, values in self.logical_fields().items():
                 if logical_field == '_record_type':
                     continue
 
-                data[logical_field] = values
+                # record logical fields
+                # do outside thread
 
-                # browse indexes
-                updates = [
+                # text/browse indexes
+                text_updates = [
                     UpdateOne(
                         {'_id': val},
                         {
@@ -709,7 +712,11 @@ class Marc(object):
                     ) for val in values
                 ]
 
-                DB.handle[f'_index_{logical_field}'].bulk_write(updates)
+            DB.handle[f'_index_{logical_field}'].bulk_write(text_updates)
+
+        # assign logical fields here
+        for field, vals in self.logical_fields().items(): 
+            data[field] = vals
 
         thread2 = threading.Thread(target=calculate_logical_fields, args=[])
         thread2.setDaemon(False) # stop the thread after complete
@@ -721,7 +728,7 @@ class Marc(object):
             record_history = history_collection.find_one({'_id': self.id})
 
             if record_history:
-                record_history.setdefault('history', []) # record may not have history if migrated form another db
+                record_history.setdefault('history', []) # record may not have history if migrated from another db
                 record_history['history'].append(data)
             else:
                 record_history = SON()
