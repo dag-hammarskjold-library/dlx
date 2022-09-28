@@ -712,7 +712,7 @@ class Marc(object):
                     ) for val in values
                 ]
 
-            DB.handle[f'_index_{logical_field}'].bulk_write(text_updates)
+                DB.handle[f'_index_{logical_field}'].bulk_write(text_updates)
 
         # assign logical fields here
         for field, vals in self.logical_fields().items(): 
