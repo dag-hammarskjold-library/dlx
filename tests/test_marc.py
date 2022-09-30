@@ -174,7 +174,8 @@ def test_from_id(db, bibs, auths):
     assert Bib.from_id(2).id == 2
     
 def test_querydocument(db):
-    from dlx.marc import Bib, Auth, Query, Condition, Or, TagOnly
+    from dlx.marc import Bib, Auth
+    from dlx.marc.query import Query, Condition, Or, TagOnly
     from bson import SON
     from json import loads
     import re
@@ -430,12 +431,12 @@ def test_set(db):
     assert bib.get_values('245', 'a', 'b') == ['yet another', 'title']
     assert bib.get_values('500', 'a') == ['desc', 'desc']
 
-def test_merge():
+def test_zmerge():
     from dlx.marc import Bib
     
     bib1 = Bib().set('000', None, 'leader').set('245', 'a', 'Title')
     bib2 = Bib().set('000', None, '|eade|').set('269', 'a', 'Date')
-    bib1.merge(bib2)
+    bib1.zmerge(bib2)
     assert bib1.get_value('269', 'a') == 'Date'
     assert bib1.get_value('000') ==  'leader'
     
@@ -444,7 +445,7 @@ def test_xmerge():
     
     bib1 = Bib().set('000', None, 'leader').set('245', 'a', 'Title')
     bib2 = Bib().set('000', None, '|eade|').set('269', 'a', 'Date')
-    bib1.merge(bib2)
+    bib1.zmerge(bib2)
     assert bib1.get_value('269', 'a') == 'Date'
     assert bib1.get_value('000') ==  'leader'
     
@@ -700,7 +701,25 @@ def test_auth_use_count(db, bibs, auths):
     Bib().set('700', 'a', 't').commit()
     
     assert auth.in_use() == 1
-    
+
+def test_auth_merge():
+    from dlx.marc import Bib, Auth
+
+    auth1 = Auth().set('100', 'a', 'Will be gaining')
+    auth1.commit()
+    auth2 = Auth().set('100', 'a', 'Will be losing')
+    auth2.commit()
+
+    Bib().set('700', 'a', auth1.id).commit()
+    Bib().set('700', 'a', auth1.id).commit()
+
+    assert auth1.in_use() == 2
+
+    auth2.merge(user='test', losing_record=auth1)
+
+    assert auth1.in_use() == 0
+    assert auth2.in_use() == 2
+
 def test_logical_fields(db):
     from dlx import DB, Config
     from dlx.marc import Bib
