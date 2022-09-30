@@ -1,6 +1,6 @@
 """dlx.marc"""
 
-import re, json, threading
+import time, re, json, threading
 from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree
@@ -11,7 +11,7 @@ from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
 from dlx.file import File, Identifier
-from dlx.marc.query import QueryDocument, Query, Condition, Or, TagOnly
+from dlx.marc.query import QueryDocument, Query, Condition, Or, Raw
 from dlx.util import Table
 
 ### Exceptions
@@ -825,7 +825,7 @@ class Marc(object):
 
     #### utlities
 
-    def merge(self, to_merge):
+    def zmerge(self, to_merge):
             # sets any value from to_merge if the field doesn't exist in self
             # does not overwrite any values
         
@@ -1353,7 +1353,72 @@ class Auth(Marc):
             return count(Auth, self.id)          
         else:    
             raise Exception('Invalid usage_type')
+
+    def merge(self, *, user, losing_record):
+        if not isinstance(losing_record, Auth):
+            raise Exception("Losing record just be of type Auth")
+
+        def update_records(record_type, gaining, losing):
+            authmap = getattr(Config, f'{record_type}_authority_controlled')
             
+            conditions = []
+                 
+            for ref_tag, d in authmap.items():
+                for subfield_code, auth_tag in d.items():
+                    if auth_tag == losing.heading_field.tag:
+                        conditions.append(Raw({f'{ref_tag}.subfields.xref': losing.id}, record_type=record_type))
+
+            if len(conditions) == 0:
+                return 0
+            
+            cls = BibSet if record_type == 'bib' else AuthSet
+            query = Query(Or(*conditions))
+            changed = 0
+            updates = []
+
+            for record in cls.from_query(query):
+                state = record.to_bson()
+                
+                for i, field in enumerate(record.fields):
+                    if isinstance(field, Datafield):
+                        for subfield in field.subfields:
+                            if hasattr(subfield, 'xref') and subfield.xref == losing.id:
+                                subfield.xref = gaining.id
+                        
+                                if field in record.fields[0:i] + record.fields[i+1:]:
+                                    del record.fields[i] # duplicate field
+
+                if record.to_bson() != state:
+                    def do_commit():
+                        # we can skip the auth validation because these records should already be validated
+                        record.commit(user=user, auth_check=False)
+
+                    t = threading.Thread(target=do_commit, args=[])
+                    t.setDaemon(False) # stop the thread after complete
+                    t.start()
+                
+                changed += 1
+
+            return changed
+        
+        changed = 0
+        
+        for record_type in ('bib', 'auth'):
+            changed += update_records(record_type, self, losing_record)    
+        
+        i = 0
+
+        while losing_record.in_use(usage_type='bib') or losing_record.in_use(usage_type='auth'):
+            # wait for all the links to be updated, otherwise the delete fails
+            i += 1
+
+            if i > 1200:
+                raise Exception("The merge is taking too long (> 1200 seconds)")
+
+            time.sleep(1)
+
+        losing_record.delete(user)
+
 class Diff():
     """Compare two Marc objects.
 
