@@ -276,7 +276,7 @@ def test_querystring(db):
     query = Query.from_string('updated>1900-01-01')
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
-    query = Query.from_string(f'updated:{(datetime.now()).strftime("%Y-%m-%d")}')
+    query = Query.from_string(f'updated:{(datetime.utcnow()).strftime("%Y-%m-%d")}')
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     # xref
