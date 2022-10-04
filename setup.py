@@ -1,4 +1,4 @@
-version = '1.2.8.1'
+version = '1.2.8.2'
 
 import sys
 from setuptools import setup, find_packages
@@ -30,7 +30,8 @@ setup(
             'clear-incrementers=dlx.scripts.clear_incrementers:run',
             'init-indexes=dlx.scripts.init_indexes:run',
             'build-logical-fields=dlx.scripts.build_logical_fields:run',
-            'build-text-collections=dlx.scripts.build_text_collections:run'
+            'build-text-collections=dlx.scripts.build_text_collections:run',
+            'auth-merge=dlx.scripts.auth_merge:run'
         ]
     }
 )
