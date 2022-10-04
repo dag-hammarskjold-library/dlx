@@ -56,3 +56,5 @@ def test_auth_merge(db):
     from dlx.scripts import auth_merge
 
     auth_merge.run(connect='mongomock://localhost', gaining_id=1, losing_id=2, user='test', skip_prompt=True)
+    assert Auth.from_id(1).in_use() == 2
+    assert Auth.from_id(2) is None
