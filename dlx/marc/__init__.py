@@ -6,7 +6,7 @@ from warnings import warn
 from xml.etree import ElementTree
 import jsonschema
 from bson import SON, Regex
-from pymongo import ReturnDocument, UpdateOne
+from pymongo import ReturnDocument, UpdateOne, DeleteOne
 from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
@@ -691,17 +691,21 @@ class Marc(object):
         
         # add logical fields
         def calculate_logical_fields():
-            record_updates, text_updates = [], []
+            # get the existing record from the DB and delete all the logical field values from the index
+            previous_state = (Bib if self.record_type == 'bib' else Auth).from_id(self.id)
+    
+            if previous_state:
+                for logical_field, values in previous_state.logical_fields().items():
+                    updates = [DeleteOne({'_id': val}) for val in values]
+                    DB.handle[f'_index_{logical_field}'].bulk_write(updates)
 
+            # insert all the new data's logical fields into the index
             for logical_field, values in self.logical_fields().items():
                 if logical_field == '_record_type':
                     continue
-
-                # record logical fields
-                # do outside thread
-
+                
                 # text/browse indexes
-                text_updates = [
+                updates = [
                     UpdateOne(
                         {'_id': val},
                         {
@@ -712,7 +716,7 @@ class Marc(object):
                     ) for val in values
                 ]
 
-                DB.handle[f'_index_{logical_field}'].bulk_write(text_updates)
+                DB.handle[f'_index_{logical_field}'].bulk_write(updates)
 
         # assign logical fields here
         for field, vals in self.logical_fields().items(): 
@@ -768,10 +772,15 @@ class Marc(object):
 
         # update browse index if necessary
         for field, values in self.logical_fields().items():
+            updates = []
+
             for val in values:
                 if type(self).handle().count_documents({field: val}) == 1:
                     # this record is the only instance of the value
-                    DB.handle[f'{field}_index'].delete_one({'_id': val})
+                    updates.append(DeleteOne({'_id': val}))
+
+            if updates:
+                DB.handle[f'{field}_index'].bulk_write(updates)
         
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
