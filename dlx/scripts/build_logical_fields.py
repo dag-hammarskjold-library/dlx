@@ -21,7 +21,7 @@ def run():
         DB.connect(args.connect)
 
     build_logical_fields(args)
-    #build_auth_controlled_logical_fields(args)
+    #build_auth_controlled_logical_fields(args) # disabled
     
     if args.type == 'auth':
         calculate_auth_use()
@@ -33,9 +33,6 @@ def build_logical_fields(args):
     tags, names = [], []
 
     for field, d in list(logical_fields.items()):
-        #if field != 'body':
-        #    continue
-
         #if field not in auth_controlled: #Config.auth_controlled_bib_logical_fields():
         #    tags += list(d.keys())
         #    names.append(field)
@@ -60,32 +57,36 @@ def build_logical_fields(args):
         for record in cls.from_query(query, sort=[('_id', DESC)], skip=i, limit=inc, projection=dict.fromkeys(tags, 1)):
             for field, values in record.logical_fields(*list(names)).items():
                 updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))                
-                browse_updates.setdefault(field, {})
+                
+                if field == '_record_type': 
+                    continue
+
+                browse_updates.setdefault(field, [])
 
                 for val in values:
-                    browse_updates[field].setdefault(
-                        val, 
+                    browse_updates[field].append(
                         UpdateOne(
                             {'_id': val}, 
                             {
-                                '$setOnInsert': {'_id': val}, # ?
+                                #'$setOnInsert': {'_id': val}, # ?
                                 '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]}
                             },
                             upsert=True
                         )
                     )
-                
+
             last_r = r
             r += 1
             print('\b' * (len(str(last_r)) + len(str(end)) + 3) + f'{r} / {end}', end='', flush=True)
-                
+
         if updates:
             cls().handle.bulk_write(updates)
             c += len(updates)
             
         if browse_updates:
-            for field in record.logical_fields(*list(names)).keys():
-                DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field].values()))
+            for field in logical_fields:
+                if field in browse_updates:
+                    DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field]))
 
     print(f'\nupdated {c} logical fields')
 
