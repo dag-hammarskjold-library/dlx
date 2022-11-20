@@ -826,6 +826,7 @@ class Marc(object):
         self._logical_fields.setdefault('_record_type', ['default'])
 
         if self.record_type == 'bib':
+        # only bibs currently have types other than default 
             for type, match in Config.bib_type_map.items():
                 if self.get_value(*match[:2]) == match[2]:
                     self._logical_fields['_record_type'] = [type]
