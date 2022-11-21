@@ -646,7 +646,7 @@ class Marc(object):
         self.updated = data['updated'] = datetime.utcnow()
         self.user = data['user'] = user
         data['created'] = data['updated'] if new_record else self.created
-        data['created_user'] = data['updated'] if new_record else self.created_user
+        data['created_user'] = self.user if new_record else self.created_user
        
         def auth_validate():
             for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
