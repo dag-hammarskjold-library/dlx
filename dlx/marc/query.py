@@ -222,20 +222,29 @@ class Query():
                 except ValueError:
                     raise InvalidQueryString(f'ID must be a number')
 
-            # udpated 
-            match = re.match('updated([:<>])(.*)', token)
-
+            # audit dates
+            match = re.match('(created|updated)([:<>])(.*)', token)
 
             if match:
-                operator, value = match.group(1, 2)
+                field, operator, value = match.group(1, 2, 3)
                 date = datetime.strptime(value, '%Y-%m-%d')
 
                 if operator == '<':
-                    return Raw({'updated': {'$lte': date}})
+                    return Raw({field: {'$lte': date}})
                 elif operator == '>':
-                    return Raw({'updated': {'$gte': date}})
+                    return Raw({field: {'$gte': date}})
                 else:
-                    return Raw({'$and': [{'updated': {'$gte': date}}, {'updated': {'$lte': date + timedelta(days=1)}}]})
+                    return Raw({'$and': [{field: {'$gte': date}}, {field: {'$lte': date + timedelta(days=1)}}]})
+
+            # audit users
+            match = re.match('(created_user|user):(.*)', token)
+
+            if match:
+                field, value = match.group(1, 2)
+
+                print([field, process_string(value)])
+
+                return Raw({field: process_string(value)})
 
             # xref (records that reference a given auth#)
             match = re.match(f'xref:(.*)', token)

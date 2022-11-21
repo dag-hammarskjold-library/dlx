@@ -9,8 +9,9 @@
     "properties" : {
         "_id" : {"type" : "integer"},
         "updated" : {"bsonType" : "date"},
-        "_id" : {"type" : "integer"},
-        "user" : {"user" : "string"}
+        "user" : {"user" : "string"},
+        "created" : {"bsonType" : "date"},
+        "created_user" : {"bsonType" : "string"}
     },
     "patternProperties" : {
         "^00" :  {

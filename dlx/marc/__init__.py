@@ -417,8 +417,10 @@ class Marc(object):
 
     def __init__(self, doc={}, *, auth_control=False, **kwargs):
         self.id = int(doc['_id']) if '_id' in doc else None
-        self.updated = doc['updated'] if 'updated' in doc else None
-        self.user = doc['user'] if 'user' in doc else None
+        self.created = doc.get('created')
+        self.created_user = doc.get('created_user')
+        self.updated = doc.get('updated')
+        self.user = doc.get('user')
         self.fields = []
         self.parse(doc, auth_control=auth_control)
 
@@ -638,14 +640,13 @@ class Marc(object):
     @Decorators.check_connected
     def commit(self, user='admin', auth_check=True):
         new_record = True if self.id is None else False
-        
-        if new_record:
-            self.id = type(self)._increment_ids()
-        
+        self.id = type(self)._increment_ids() if new_record else self.id
         self.validate()
         data = self.to_bson()
         self.updated = data['updated'] = datetime.utcnow()
         self.user = data['user'] = user
+        data['created'] = data['updated'] if new_record else self.created
+        data['created_user'] = self.user if new_record else self.created_user
        
         def auth_validate():
             for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
@@ -826,6 +827,7 @@ class Marc(object):
         self._logical_fields.setdefault('_record_type', ['default'])
 
         if self.record_type == 'bib':
+        # only bibs currently have types other than default 
             for type, match in Config.bib_type_map.items():
                 if self.get_value(*match[:2]) == match[2]:
                     self._logical_fields['_record_type'] = [type]
