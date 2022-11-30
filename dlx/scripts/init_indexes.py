@@ -50,8 +50,13 @@ def run():
             indexes.append(col.create_index(f'{tag}.$**'))
 
         print('creating logical field indexes...')
-        for field_name in logical_fields.keys():                    
-            indexes.append(col.create_index(field_name))
+        for field_name in logical_fields.keys():
+            indexes.append(
+                col.create_index(
+                    field_name,
+                    collation=Collation(locale='en', strength=1, numericOrdering=True)
+                )
+            )
 
         print('creating case-insenstive indexes...')
         for tag in case_ins:
@@ -60,16 +65,6 @@ def run():
                     f'{tag}.subfields.value',
                     name=f'{tag}.subfields.value_caseinsensitive',
                     collation=Collation(locale='en', strength=2)
-                )
-            )
-            
-        print('creating numeric indexes...')
-        for field in logical_numeric:
-            indexes.append(
-                col.create_index(
-                    field, 
-                    name=f'{field}_numeric', 
-                    collation=Collation(locale='en', numericOrdering=True)
                 )
             )
 
