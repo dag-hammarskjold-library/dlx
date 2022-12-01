@@ -59,7 +59,8 @@ def run():
 
         print('creating logical field indexes...')
         for field_name in logical_fields.keys():
-            col.drop_index(field_name + '_1')
+            if field_name + '_1' in col.index_information().keys():
+                col.drop_index(field_name + '_1')
 
             indexes.append(
                 col.create_index(field_name)
