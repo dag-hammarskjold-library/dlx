@@ -42,6 +42,14 @@ def run():
         print(f'creating {_} indexes...')
         
         indexes.append(col.create_index('updated'))
+        indexes.append(
+            col.create_index(
+                # to allow sorting if the search is using this collation
+                'updated',
+                name='updated_collated',
+                collation=Collation(locale='en', strength=1, numericOrdering=True)
+            )
+        )
         indexes.append(col.create_index('_record_type'))
 
         print(f'creating tag indexes...')
@@ -51,9 +59,17 @@ def run():
 
         print('creating logical field indexes...')
         for field_name in logical_fields.keys():
+            if field_name + '_1' in col.index_information().keys():
+                col.drop_index(field_name + '_1')
+
+            indexes.append(
+                col.create_index(field_name)
+            )
+
             indexes.append(
                 col.create_index(
                     field_name,
+                    name=field_name + '_collated',
                     collation=Collation(locale='en', strength=1, numericOrdering=True)
                 )
             )
