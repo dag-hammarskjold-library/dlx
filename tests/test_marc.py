@@ -89,14 +89,22 @@ def test_commit(db, bibs, auths):
     for auth in [Auth(x) for x in auths]:
         assert auth.commit() == auth
         
-    bib = Bib({'_id': 3})
+    bib = Bib()
     assert bib.commit() == bib
     assert isinstance(bib.updated, datetime)
     assert bib.user == 'admin'
     assert bib.history()[0].to_dict() == bib.to_dict()
     assert bib.history()[0].user == 'admin'
+    # there are two bibs before this in the db from conftest
     assert Bib.max_id() == 3
-    
+
+    # new audit attributes
+    assert bib.created == bib.updated
+    assert bib.created_user == 'admin'
+    bib.commit(user='different user')
+    assert bib.created != bib.updated
+    assert bib.created_user == 'admin'
+
     Bib().commit()
     bib = Bib().commit()
     assert bib.id == Bib.max_id() == 5
