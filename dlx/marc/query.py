@@ -280,6 +280,8 @@ class Query():
                 #todo: make aliases config
                 field = 'symbol' if field == 's' else field
                 field = 'subject' if field == 'heading' else field
+                field = 'date' if field == 'meeting date' else field
+                field = 'symbol' if field == 'meeting record' else field
                 
                 if field in logical_fields:
                     # exact match
