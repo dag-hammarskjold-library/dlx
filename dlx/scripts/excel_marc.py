@@ -9,16 +9,11 @@ parser = ArgumentParser()
 parser.add_argument('--connect')
 parser.add_argument('--file', required=True)
 parser.add_argument('--type', required=True, choices=['bib', 'auth'])
-parser.add_argument('--format', required=True, choices=['mrc', 'xml'])
+parser.add_argument('--format', required=True, choices=['mrc', 'mrk', 'xml'])
 parser.add_argument('--check')
 parser.add_argument('--out')
 parser.add_argument('--defaults')
 
-###
-
-if __name__ == '__main__':
-    run()
-    
 ###
 
 def run():
@@ -51,3 +46,8 @@ def run():
     fh = open(args.out, 'w', encoding='utf-8') if args.out else sys.stdout
     
     fh.write(getattr(data, convert_method)())
+
+###
+
+if __name__ == '__main__':
+    run()
