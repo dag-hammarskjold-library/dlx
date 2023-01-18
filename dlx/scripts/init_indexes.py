@@ -17,7 +17,6 @@ def run():
     indexes = []
 
     print('creating file indexes...')
-    
     indexes.append(DB.files.create_index('timestamp'))
     indexes.append(DB.files.create_index('updated'))
     indexes.append(DB.files.create_index('identifiers.type'))
@@ -40,7 +39,6 @@ def run():
         text_weights = getattr(Config, _[:-1] + '_text_index_weights')
         
         print(f'creating {_} indexes...')
-        
         indexes.append(col.create_index('updated'))
         indexes.append(
             col.create_index(
@@ -53,19 +51,20 @@ def run():
         indexes.append(col.create_index('_record_type'))
 
         print(f'creating tag indexes...')
-        
         for tag in index_fields + list(auth_ctrl.keys()):
-            indexes.append(col.create_index(f'{tag}.$**'))
+            #col.drop_index(f'{tag}.$**_1')
+            indexes.append(col.create_index(f'{tag}.$**', collation=Collation(locale='en', strength=1, numericOrdering=True)))
 
         print('creating logical field indexes...')
         for field_name in logical_fields.keys():
-            if field_name + '_1' in col.index_information().keys():
-                col.drop_index(field_name + '_1')
+            #if field_name + '_1' in col.index_information().keys():
+            #    col.drop_index(field_name + '_1')
 
             indexes.append(
                 col.create_index(field_name)
             )
 
+            #col.drop_index(field_name + '_collated')
             indexes.append(
                 col.create_index(
                     field_name,
@@ -97,29 +96,32 @@ def run():
         indexes.append(
             col.create_index(
                 "$**",
-                wildcardProjection = dict.fromkeys(exclude, 0)
+                wildcardProjection=dict.fromkeys(exclude, 0),
+                collation=Collation(locale='en', strength=1, numericOrdering=True)
             )
         )
             
-        print('creating text indexes...')
+        print('creating logical field text indexes...')
         for k, v in col.index_information().items():
             if v['key'][0][0] == '_fts':
                 # drop any existing text index as the logical fields may have changed
                 col.drop_index(k)
 
         indexes.append(
-            col.create_index([(x, 'text') for x in logical_fields.keys()], weights=text_weights)
+            col.create_index([(x, 'text') for x in logical_fields.keys()], default_language='none', weights=text_weights)
         )
 
+        print('creating logical field text collection indexes...')
         for field in logical_fields.keys():
+            #DB.handle[f'_index_{field}'].drop_index('_id_text')
             indexes.append(
-                DB.handle[f'_index_{field}'].create_index([('_id', 'text')])
+                DB.handle[f'_index_{field}'].create_index([('_id', 'text')], default_language='none')
             )
 
             indexes.append(
                 DB.handle[f'_index_{field}'].create_index('_record_type')
             )
-        
+
         print('creating special indexes: ', end='')
         result = col.aggregate(
             [
@@ -140,11 +142,13 @@ def run():
                 if v['key'][0][0] == '_fts':
                     pass #col.drop(k)
                 else:
+                    #index_col.drop_index('subfields.value_text')
                     indexes.append(
-                        index_col.create_index([('subfields.value', 'text')])
+                        index_col.create_index([('subfields.value', 'text')], default_language='none')
                     )
 
         print('\n')
+
         print('Dropping extraneous indexes...')
         for index in col.index_information().keys():
             if index != '_id_' and index not in indexes:
