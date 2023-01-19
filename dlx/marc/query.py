@@ -101,13 +101,14 @@ class Query():
                 for val in matched_subfield_values:
                     stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
                     stemmed_val_words = list(filter(None, stemmed_val_words))
+                    
                     stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in take_words]
                     stemmed_terms = list(filter(None, stemmed_terms))
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
                         filtered.append(val)
 
-                matched_subfield_values = filtered
+                matched_subfield_values = filtered if filtered else matched_subfield_values
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
@@ -183,8 +184,8 @@ class Query():
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
                         filtered.append(val)
-
-                matched_subfield_values = filtered
+                
+                matched_subfield_values = filtered if filtered else matched_subfield_values
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
@@ -241,8 +242,6 @@ class Query():
 
             if match:
                 field, value = match.group(1, 2)
-
-                print([field, process_string(value)])
 
                 return Raw({field: process_string(value)})
 
