@@ -52,13 +52,18 @@ def run():
 
         for tag in updates.keys():
             col = DB.handle[f'_index_{tag}']
-            
-            for k, v in col.index_information().items():
-                if v['key'][0][0] == '_fts':
-                    pass # index exists
-                else:
-                    col.create_index([('subfields.value', 'text')])
 
+            for index in col.list_indexes():
+                if index['name'] == 'subfields.value_text':
+                    if index['default_language'] != 'none':
+                        # old indexes
+                        col.drop_index('subfields.value_text')
+                    else:
+                        found = True
+
+            if not found:    
+                col.create_index([('subfields.value', 'text')], default_language='none')
+            
             col.bulk_write(updates[tag])
         
         print('\u2713:' + str(int(time.time() - start_time)) + 's', end=' ', flush=True)
