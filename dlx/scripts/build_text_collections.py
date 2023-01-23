@@ -52,6 +52,7 @@ def run():
 
         for tag in updates.keys():
             col = DB.handle[f'_index_{tag}']
+            found = False
 
             for index in col.list_indexes():
                 if index['name'] == 'subfields.value_text':
