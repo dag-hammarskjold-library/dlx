@@ -101,10 +101,10 @@ def run():
             )
         )
             
-        print('creating logical field text indexes...')
+        print('creating logical field text index...')
         for k, v in col.index_information().items():
             if v['key'][0][0] == '_fts':
-                # drop any existing text index as the logical fields may have changed
+                # drop any existing wildcard index as the logical fields may have changed
                 col.drop_index(k)
 
         indexes.append(
@@ -113,16 +113,22 @@ def run():
 
         print('creating logical field text collection indexes...')
         for field in logical_fields.keys():
-            #DB.handle[f'_index_{field}'].drop_index('_id_text')
+            index_col = DB.handle[f'_index_{field}']
+            
+            # debug
+            #for k, v in index_col.index_information().items():
+            #    if v['key'][0][0] == '_fts':
+            #        index_col.drop_index(k)
+            
             indexes.append(
-                DB.handle[f'_index_{field}'].create_index([('_id', 'text')], default_language='none')
+                index_col.create_index([('_id', 'text')], default_language='none')
             )
 
             indexes.append(
-                DB.handle[f'_index_{field}'].create_index('_record_type')
+                index_col.create_index('_record_type')
             )
 
-        print('creating special indexes: ', end='')
+        print('creating tag field text indexes: ', end='')
         result = col.aggregate(
             [
                 {"$project": {"data": {"$objectToArray": "$$ROOT"}}},
@@ -138,14 +144,14 @@ def run():
             print(tag + ' ', flush=True, end='')
             index_col = DB.handle[f'_index_{tag}']
 
-            for k, v in index_col.index_information().items():
-                if v['key'][0][0] == '_fts':
-                    pass #col.drop(k)
-                else:
-                    #index_col.drop_index('subfields.value_text')
-                    indexes.append(
-                        index_col.create_index([('subfields.value', 'text')], default_language='none')
-                    )
+            # debug
+            #for k, v in index_col.index_information().items():
+            #    if v['key'][0][0] == '_fts':
+            #        index_col.drop_index(k)
+
+            indexes.append(
+                index_col.create_index([('subfields.value', 'text')], default_language='none')
+            )
 
         print('\n')
 
