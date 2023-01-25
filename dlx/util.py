@@ -284,4 +284,12 @@ class ISO6391():
     @classmethod
     def language_by_code(cls, code):
         return cls.codes[code]
-        
+
+class Tokenizer:
+	'''Split a string into asciified stem words'''
+	
+	@classmethod
+	def split_words(string):
+		words = []
+
+		words = string.split()
