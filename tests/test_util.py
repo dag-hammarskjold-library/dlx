@@ -31,3 +31,9 @@ class TestTable(TestCase):
     def test_to_html(self):
         data = '<table><tr><td>246a</td><td>246b</td><td>1.269c</td><td>2.269c</td></tr><tr><td>title</td><td>subtitle</td><td>1999-12-31</td><td>repeated</td></tr><tr><td>title2</td><td>subtitle2</td><td>2000-01-01</td><td>repeated</td></tr></table>'
         self.assertEqual(Table(Data.data).to_html(),data)
+
+def test_tokenizer():
+    from dlx.util import Tokenizer
+
+    tokens = Tokenizer.tokenize('!@#first//second third testing İcing Øscar')
+    assert tokens == ['first', 'second', 'third', 'test', 'ice', 'oscar']
