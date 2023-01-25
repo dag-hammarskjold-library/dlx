@@ -28,12 +28,16 @@ def run():
     exclude_fields = list(Config.bib_logical_fields.keys() if args.type == 'bibs' else Config.auth_logical_fields.keys()) \
         + ['user', 'updated']
 
+    # chunks
     for i in range(start, end, inc):
         print(f'{i+1}-{i+inc}', end='', flush=True)
 
+        # records
         updates, start_time = {}, time.time()
 
         for record in cls.from_query({}, skip=i, limit=inc, projection=dict.fromkeys(exclude_fields, 0)):
+            whole_record_text = ''
+
             for field in record.datafields:
                 tags.add(field.tag)
 
@@ -41,12 +45,23 @@ def run():
                     if s.value is None:
                         print(f'\n{record.id}')
 
+                # concatenated subfield text
                 text = ' '.join(filter(None, [x.value for x in field.subfields]))
+                whole_record_text += text
                 updates.setdefault(field.tag, [])
                 updates[field.tag].append(UpdateOne({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True))
                 
+                # individual subfields
                 for s in field.subfields:
-                    updates[field.tag].append(UpdateOne({'_id': text}, {'$addToSet': {'subfields': {'code': s.code, 'value': s.value}}}))
+                    updates[field.tag].append(
+                        UpdateOne(
+                            {'_id': text},
+                            {'$addToSet': {'subfields': {'code': s.code, 'value': s.value, 'tokens': tokenize(s.value)}}}
+                        )
+                    )
+
+            # whole record text
+
 
         print('\u2713', end='', flush=True)
 

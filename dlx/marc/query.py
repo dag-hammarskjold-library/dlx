@@ -86,9 +86,7 @@ class Query():
                     return Condition(tag, {code: value[1:-1]}, modifier=modifier)
 
                 # text
-                value = add_quotes(value)
-
-                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
+                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
                 matched_subfield_values = []
 
                 for m in matches:
@@ -165,9 +163,7 @@ class Query():
                     return TagOnly(tag, value[1:-1], modifier=modifier)
                 
                 # text
-                value = add_quotes(value)
-
-                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': value}})
+                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
                 matched_subfield_values = []
 
                 for m in matches:
@@ -295,8 +291,7 @@ class Query():
                             return Raw({field: process_string(value)}, record_type=record_type)
                     
                     # text
-                    value = add_quotes(value)
-                    matches = DB.handle[f'_index_{field}'].find({'$text': {'$search': value}})
+                    matches = DB.handle[f'_index_{field}'].find({'$text': {'$search': add_quotes(value)}})
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
