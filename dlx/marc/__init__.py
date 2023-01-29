@@ -692,8 +692,6 @@ class Marc(object):
                     else:
                         tag_col.create_index([('subfields.value', 'text')], default_language='none')
 
-                print(field.to_mrk())
-
         thread1 = threading.Thread(target=index_field_text, args=[])
         thread1.setDaemon(False) # stop the thread after complete
         thread1.start()
