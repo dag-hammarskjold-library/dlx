@@ -6,10 +6,12 @@
 # detriment to the data.
 
 import sys, os, time
+from collections import Counter
 from pymongo import UpdateOne
 from argparse import ArgumentParser
 from dlx import DB, Config
 from dlx.marc import BibSet, AuthSet
+from dlx.util import Tokenizer
 
 parser = ArgumentParser()
 parser.add_argument('--connect', required=True)
@@ -36,7 +38,7 @@ def run():
         updates, start_time = {}, time.time()
 
         for record in cls.from_query({}, skip=i, limit=inc, projection=dict.fromkeys(exclude_fields, 0)):
-            whole_record_text = ''
+            all_text = []
 
             for field in record.datafields:
                 tags.add(field.tag)
@@ -47,21 +49,42 @@ def run():
 
                 # concatenated subfield text
                 text = ' '.join(filter(None, [x.value for x in field.subfields]))
-                whole_record_text += text
+                scrubbed = Tokenizer.scrub(text)
+                all_text.append(scrubbed)
                 updates.setdefault(field.tag, [])
-                updates[field.tag].append(UpdateOne({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True))
-                
+                #updates[field.tag].append(UpdateOne({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True))
+
                 # individual subfields
                 for s in field.subfields:
                     updates[field.tag].append(
                         UpdateOne(
                             {'_id': text},
-                            {'$addToSet': {'subfields': {'code': s.code, 'value': s.value, 'tokens': tokenize(s.value)}}}
+                            {'$addToSet': {'subfields': {'code': s.code, 'value': s.value}}},
+                            upsert=True
                         )
                     )
 
-            # whole record text
+                # text
+                words = Tokenizer.tokenize(text)
+                count = Counter(words)
+                updates[field.tag].append(
+                    UpdateOne(
+                        {'_id': text}, 
+                        {'$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
+                    )
+                )
 
+            # all-text collection
+            all_text_col = DB.handle[f'__index_{record.record_type}s']
+            all_text = ' '.join(all_text)
+            all_words = Tokenizer.tokenize(all_text)
+            count = Counter(all_words)
+            
+            all_text_col.update_one(
+                {'_id': record.id},
+                {'$set': {'text': all_text, 'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}}, 
+                upsert=True
+            )
 
         print('\u2713', end='', flush=True)
 

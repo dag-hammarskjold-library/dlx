@@ -699,7 +699,6 @@ class Marc(object):
                 )
 
                 tag_col.bulk_write(updates)
-
                 # create text index if it doesn't exist
                 tag_col.create_index([('subfields.value', 'text')], default_language='none')
 
