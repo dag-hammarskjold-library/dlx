@@ -1,6 +1,7 @@
 """dlx.marc"""
 
 import time, re, json, threading
+from collections import Counter
 from datetime import datetime
 from warnings import warn
 from xml.etree import ElementTree
@@ -12,7 +13,7 @@ from dlx.config import Config
 from dlx.db import DB
 from dlx.file import File, Identifier
 from dlx.marc.query import QueryDocument, Query, Condition, Or, Raw
-from dlx.util import Table
+from dlx.util import Table, Tokenizer
 
 ### Exceptions
 
@@ -670,10 +671,14 @@ class Marc(object):
         # maintenance functions
         # update field text indexes
         def index_field_text():
+            all_text = []
+
             for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
                 # tag indexes
                 tag_col = DB.handle[f'_index_{field.tag}']
                 text = ' '.join([subfield.value for subfield in field.subfields])
+                scrubbed = Tokenizer.scrub(text)
+                all_text.append(scrubbed)
 
                 updates = [
                     UpdateOne(
@@ -683,16 +688,31 @@ class Marc(object):
                     ) for subfield in field.subfields
                 ]
 
+                words = Tokenizer.tokenize(text)
+                count = Counter(words)
+
+                updates.append(
+                    UpdateOne(
+                        {'_id': text}, 
+                        {'$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
+                    )   
+                )
+
                 tag_col.bulk_write(updates)
-
                 # create text index if it doesn't exist
-                for k, v in tag_col.index_information().items():
-                    if v['key'][0][0] == '_fts':
-                        pass #col.drop(k)
-                    else:
-                        tag_col.create_index([('subfields.value', 'text')], default_language='none')
+                tag_col.create_index([('subfields.value', 'text')], default_language='none')
 
-                print(field.to_mrk())
+            # all-text collection
+            all_text_col = DB.handle[f'__index_{self.record_type}s']
+            all_text = ' '.join(all_text)
+            all_words = Tokenizer.tokenize(all_text)
+            count = Counter(all_words)
+            
+            all_text_col.update_one(
+                {'_id': self.id},
+                {'$set': {'text': all_text, 'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}}, 
+                upsert=True
+            )
 
         thread1 = threading.Thread(target=index_field_text, args=[])
         thread1.setDaemon(False) # stop the thread after complete
@@ -714,16 +734,21 @@ class Marc(object):
                     continue
                 
                 # text/browse indexes
-                updates = [
-                    UpdateOne(
-                        {'_id': val},
-                        {
-                            # '$setOnInsert': {'_id': val}, # ? is this an optimization?
-                            '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is  only one record type in the array
-                        },
-                        upsert=True
-                    ) for val in values
-                ]
+                updates = []
+
+                for val in values:
+                    words = Tokenizer.tokenize(val)
+                    count = Counter(words)
+                    updates.append(
+                        UpdateOne(
+                            {'_id': val},
+                            {   
+                                '$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]},
+                                '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is  only one record type in the array
+                            },
+                            upsert=True
+                        )
+                    )
 
                 DB.handle[f'_index_{logical_field}'].bulk_write(updates)
 

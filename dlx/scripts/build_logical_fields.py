@@ -3,11 +3,13 @@
 # if the fields are already built, without detriment to the data.
 
 import sys
+from collections import Counter
 from bson import Regex
 from pymongo import UpdateOne, ASCENDING as ASC, DESCENDING as DESC
 from argparse import ArgumentParser
 from dlx import DB, Config
 from dlx.marc import BibSet, Bib, AuthSet, Auth, Query
+from dlx.util import Tokenizer
 
 parser = ArgumentParser()
 parser.add_argument('--connect', required=True)
@@ -64,11 +66,14 @@ def build_logical_fields(args):
                 browse_updates.setdefault(field, [])
 
                 for val in values:
+                    words = Tokenizer.tokenize(val)
+                    count = Counter(words)
+
                     browse_updates[field].append(
                         UpdateOne(
                             {'_id': val}, 
                             {
-                                #'$setOnInsert': {'_id': val}, # ?
+                                '$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]},
                                 '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]}
                             },
                             upsert=True

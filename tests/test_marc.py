@@ -258,13 +258,17 @@ def test_querystring(db):
     # quotes automatically added by dlx (forces "and" search)
     assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
 
-    # dashes inside double quoated text ignored
+    # hyphenated word inside double quoted text
     query = Query.from_string('"Another-header"')
-    assert query.compile() == {'$text': {'$search': '"Another header"'}}
+    assert query.compile() == {'$text': {'$search': '"Another-header"'}}
 
-    # dashes without a space before ignored
+    # hyphenated free text word
     query = Query.from_string('Another-header')
-    assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+    assert query.compile() == {'$text': {'$search': '"Another-header"'}}
+
+    # negation operator
+    query = Query.from_string('Another -header')
+    assert query.compile() == {'$text': {'$search': '"Another" -header'}}
 
     # tag no subfield
     query = Query.from_string('245:\'is the\'')

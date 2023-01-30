@@ -6,6 +6,7 @@ from bson import SON, Regex
 from bson.json_util import dumps
 from dlx.db import DB
 from dlx.config import Config
+from dlx.util import Tokenizer
 
 class InvalidQueryString(Exception):
     pass
@@ -49,21 +50,16 @@ class Query():
 
         def add_quotes(string):
             # these xformations must be done in the correct order
-            # remove dashes if there is no space before
-            string = re.sub('(\w)-', '\\1 ', string)
 
-            # add double quotes to unquoted words
+            # extract quoted phrases
             quoted = re.findall('(".*?")', string)
-            # don't add double quotes to dashed words
-            dashed = re.findall('\B(-\S+)', string)
+            for _ in quoted: string = string.replace(_, '')
 
-            for _ in quoted + dashed:
-                string = string.replace(_, '')
+            # extract dashed words
+            dashed = re.findall('\B(-\S+)', string)
+            for _ in dashed: string = string.replace(_, '')
 
             rest = [f'"{x}"' for x in filter(None, re.split('\s+', string))]
-
-            # remove dashes from inside double quoted strings
-            quoted = [x.replace('-', ' ') for x in quoted]
 
             return ' '.join(rest + quoted + dashed)
                 
@@ -92,21 +88,15 @@ class Query():
                 for m in matches:
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
-                stemmer, filtered = PorterStemmer(), []
-                take_words = re.sub('\B-\S+', '', value) # remove dashed words
-                take_words = list(filter(lambda x: x[0] != '-', re.split('\s+', value)))
+                stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
                 for val in matched_subfield_values:
-                    stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
-                    stemmed_val_words = list(filter(None, stemmed_val_words))
-                    
-                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in take_words]
-                    stemmed_terms = list(filter(None, stemmed_terms))
+                    stemmed_val_words = Tokenizer.tokenize(val)
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
                         filtered.append(val)
 
-                matched_subfield_values = filtered if filtered else matched_subfield_values
+                matched_subfield_values = filtered       
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
@@ -169,19 +159,15 @@ class Query():
                 for m in matches:
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
-                stemmer, filtered = PorterStemmer(), []
-                take_words = list(filter(lambda x: x[0] != '-', re.split('\s+', value)))
+                stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
                 for val in matched_subfield_values:
-                    stemmed_val_words = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in re.split('[\W\s+]', val)]
-                    stemmed_val_words = list(filter(None, stemmed_val_words))
-                    stemmed_terms = [stemmer.stem(re.sub('[^\w\d]', '', x)) for x in take_words]
-                    stemmed_terms = list(filter(None, stemmed_terms))
+                    stemmed_val_words = Tokenizer.tokenize(val)
 
                     if all(x in stemmed_val_words for x in stemmed_terms):
                         filtered.append(val)
                 
-                matched_subfield_values = filtered if filtered else matched_subfield_values
+                matched_subfield_values = filtered
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')

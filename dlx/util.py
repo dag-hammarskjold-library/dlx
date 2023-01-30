@@ -952,14 +952,14 @@ class AsciiMap:
 	@classmethod
 	def single_byte(cls):
 		'''Returns a dict that can be used with `str.makestrans` (`makestrans` 
-		only accepts) single-byte keys'''
+		only accepts single-byte keys)'''
 
 		return {key: AsciiMap.data[key] for key in filter(lambda x: len(x) == 1, AsciiMap.data.keys())}
 
 	@classmethod
 	def multi_byte(cls):
 		'''Returns a dict of keys that cannot be used by `str.maketrans` (`maketrans`
-		only accepts) single-byte keys'''
+		only accepts single-byte keys)'''
 
 		return {key: AsciiMap.data[key] for key in filter(lambda x: len(x) > 1, AsciiMap.data.keys())}
 
@@ -977,7 +977,7 @@ class Tokenizer:
 	
 	@classmethod
 	def split_words(cls, string):
-		return list(filter(None, [re.sub('[^\w\d]', '', x) for x in re.split('[\W\s+]', string)]))
+		return list(filter(None, re.split('[\W+]', string)))
 		
 	@classmethod
 	def asciify(cls, string):
@@ -991,8 +991,8 @@ class Tokenizer:
 		return Tokenizer.STEMMER.stem(string)
 
 	@classmethod
-	def synonomize(cls, string):
-		return 
+	def scrub(cls, string):
+		return re.sub('\W+', ' ', Tokenizer.asciify(string.upper()).lower())
 
 	@classmethod
 	def tokenize(cls, string):
