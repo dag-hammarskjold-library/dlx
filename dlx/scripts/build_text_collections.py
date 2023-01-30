@@ -52,7 +52,7 @@ def run():
                 scrubbed = Tokenizer.scrub(text)
                 all_text.append(scrubbed)
                 updates.setdefault(field.tag, [])
-                #updates[field.tag].append(UpdateOne({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True))
+                updates[field.tag].append(UpdateOne({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True))
 
                 # individual subfields
                 for s in field.subfields:
@@ -60,7 +60,7 @@ def run():
                         UpdateOne(
                             {'_id': text},
                             {'$addToSet': {'subfields': {'code': s.code, 'value': s.value}}},
-                            upsert=True
+                            #upsert=True
                         )
                     )
 
@@ -74,8 +74,8 @@ def run():
                     )
                 )
 
-            # all-text collection
-            all_text_col = DB.handle[f'__index_{record.record_type}s']
+            # all-text 
+            #all_text_col = DB.handle[f'__index_{record.record_type}s']
             all_text = ' '.join(all_text)
             all_words = Tokenizer.tokenize(all_text)
             count = Counter(all_words)
@@ -83,8 +83,7 @@ def run():
             record_updates.append(
                 UpdateOne(
                     {'_id': record.id},
-                    {'$set': {'text': all_text, 'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}}, 
-                    upsert=True
+                    {'$set': {'text': all_text, 'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
                 )
             )
 
