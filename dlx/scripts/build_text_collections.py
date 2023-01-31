@@ -28,7 +28,7 @@ def run():
     inc = 1000
     tags = set()
     exclude_fields = list(Config.bib_logical_fields.keys() if args.type == 'bibs' else Config.auth_logical_fields.keys()) \
-        + ['user', 'updated']
+        + ['created', 'created_user', 'user', 'updated', 'words', 'text', 'word_count']
 
     # chunks
     for i in range(start, end, inc):
@@ -41,11 +41,12 @@ def run():
             all_text = []
 
             for field in record.datafields:
+                #field.subfields = list(filter(lambda x: not hasattr(x, 'xref'), field.subfields))
                 tags.add(field.tag)
 
-                for s in field.subfields:
-                    if s.value is None:
-                        print(f'\n{record.id}')
+                #for s in field.subfields:
+                #    if s.value is None:
+                #        print(f'\n{record.id}')
 
                 # concatenated subfield text
                 text = ' '.join(filter(None, [x.value for x in field.subfields]))
