@@ -95,191 +95,191 @@ class Table():
         return table
         
 class ISO6391():
-    codes = {	
-    	"aa": "Afar",
-    	"ab": "Abkhazian",
-    	"ae": "Avestan",
-    	"af": "Afrikaans",
-    	"ak": "Akan",
-    	"am": "Amharic",
-    	"an": "Aragonese",
-    	"ar": "Arabic",
-    	"as": "Assamese",
-    	"av": "Avaric",
-    	"ay": "Aymara",
-    	"az": "Azerbaijani",
-    	"ba": "Bashkir",
-    	"be": "Belarusian",
-    	"bg": "Bulgarian",
-    	"bh": "Bihari languages",
-    	"bi": "Bislama",
-    	"bm": "Bambara",
-    	"bn": "Bengali",
-    	"bo": "Tibetan",
-    	"br": "Breton",
-    	"bs": "Bosnian",
-    	"ca": "Catalan; Valencian",
-    	"ce": "Chechen",
-    	"ch": "Chamorro",
-    	"co": "Corsican",
-    	"cr": "Cree",
-    	"cs": "Czech",
-    	"cu": "Church Slavic; Old Slavonic; Church Slavonic; Old Bulgarian; Old Church Slavonic",
-    	"cv": "Chuvash",
-    	"cy": "Welsh",
-    	"da": "Danish",
-    	"de": "German",
-    	"dv": "Divehi; Dhivehi; Maldivian",
-    	"dz": "Dzongkha",
-    	"ee": "Ewe",
-    	"el": "Greek:  Modern (1453-)",
-    	"en": "English",
-    	"eo": "Esperanto",
-    	"es": "Spanish; Castilian",
-    	"et": "Estonian",
-    	"eu": "Basque",
-    	"fa": "Persian",
-    	"ff": "Fulah",
-    	"fi": "Finnish",
-    	"fj": "Fijian",
-    	"fo": "Faroese",
-    	"fr": "French",
-    	"fy": "Western Frisian",
-    	"ga": "Irish",
-    	"gd": "Gaelic; Scottish Gaelic",
-    	"gl": "Galician",
-    	"gn": "Guarani",
-    	"gu": "Gujarati",
-    	"gv": "Manx",
-    	"ha": "Hausa",
-    	"he": "Hebrew",
-    	"hi": "Hindi",
-    	"ho": "Hiri Motu",
-    	"hr": "Croatian",
-    	"ht": "Haitian; Haitian Creole",
-    	"hu": "Hungarian",
-    	"hy": "Armenian",
-    	"hz": "Herero",
-    	"ia": "Interlingua (International Auxiliary Language Association)",
-    	"id": "Indonesian",
-    	"ie": "Interlingue; Occidental",
-    	"ig": "Igbo",
-    	"ii": "Sichuan Yi; Nuosu",
-    	"ik": "Inupiaq",
-    	"io": "Ido",
-    	"is": "Icelandic",
-    	"it": "Italian",
-    	"iu": "Inuktitut",
-    	"ja": "Japanese",
-    	"jv": "Javanese",
-    	"ka": "Georgian",
-    	"kg": "Kongo",
-    	"ki": "Kikuyu; Gikuyu",
-    	"kj": "Kuanyama; Kwanyama",
-    	"kk": "Kazakh",
-    	"kl": "Kalaallisut; Greenlandic",
-    	"km": "Central Khmer",
-    	"kn": "Kannada",
-    	"ko": "Korean",
-    	"kr": "Kanuri",
-    	"ks": "Kashmiri",
-    	"ku": "Kurdish",
-    	"kv": "Komi",
-    	"kw": "Cornish",
-    	"ky": "Kirghiz; Kyrgyz",
-    	"la": "Latin",
-    	"lb": "Luxembourgish; Letzeburgesch",
-    	"lg": "Ganda",
-    	"li": "Limburgan; Limburger; Limburgish",
-    	"ln": "Lingala",
-    	"lo": "Lao",
-    	"lt": "Lithuanian",
-    	"lu": "Luba-Katanga",
-    	"lv": "Latvian",
-    	"mg": "Malagasy",
-    	"mh": "Marshallese",
-    	"mi": "Maori",
-    	"mk": "Macedonian",
-    	"ml": "Malayalam",
-    	"mn": "Mongolian",
-    	"mr": "Marathi",
-    	"ms": "Malay",
-    	"mt": "Maltese",
-    	"my": "Burmese",
-    	"na": "Nauru",
-    	"nb": "Bokmål:  Norwegian; Norwegian Bokmål",
-    	"nd": "Ndebele:  North; North Ndebele",
-    	"ne": "Nepali",
-    	"ng": "Ndonga",
-    	"nl": "Dutch; Flemish",
-    	"nn": "Norwegian Nynorsk; Nynorsk:  Norwegian",
-    	"no": "Norwegian",
-    	"nr": "Ndebele:  South; South Ndebele",
-    	"nv": "Navajo; Navaho",
-    	"ny": "Chichewa; Chewa; Nyanja",
-    	"oc": "Occitan (post 1500); Provençal",
-    	"oj": "Ojibwa",
-    	"om": "Oromo",
-    	"or": "Oriya",
-    	"os": "Ossetian; Ossetic",
-    	"pa": "Panjabi; Punjabi",
-    	"pi": "Pali",
-    	"pl": "Polish",
-    	"ps": "Pushto; Pashto",
-    	"pt": "Portuguese",
-    	"qu": "Quechua",
-    	"rm": "Romansh",
-    	"rn": "Rundi",
-    	"ro": "Romanian; Moldavian; Moldovan",
-    	"ru": "Russian",
-    	"rw": "Kinyarwanda",
-    	"sa": "Sanskrit",
-    	"sc": "Sardinian",
-    	"sd": "Sindhi",
-    	"se": "Northern Sami",
-    	"sg": "Sango",
-    	"si": "Sinhala; Sinhalese",
-    	"sk": "Slovak",
-    	"sl": "Slovenian",
-    	"sm": "Samoan",
-    	"sn": "Shona",
-    	"so": "Somali",
-    	"sq": "Albanian",
-    	"sr": "Serbian",
-    	"ss": "Swati",
-    	"st": "Sotho:  Southern",
-    	"su": "Sundanese",
-    	"sv": "Swedish",
-    	"sw": "Swahili",
-    	"ta": "Tamil",
-    	"te": "Telugu",
-    	"tg": "Tajik",
-    	"th": "Thai",
-    	"ti": "Tigrinya",
-    	"tk": "Turkmen",
-    	"tl": "Tagalog",
-    	"tn": "Tswana",
-    	"to": "Tonga (Tonga Islands)",
-    	"tr": "Turkish",
-    	"ts": "Tsonga",
-    	"tt": "Tatar",
-    	"tw": "Twi",
-    	"ty": "Tahitian",
-    	"ug": "Uighur; Uyghur",
-    	"uk": "Ukrainian",
-    	"ur": "Urdu",
-    	"uz": "Uzbek",
-    	"ve": "Venda",
-    	"vi": "Vietnamese",
-    	"vo": "Volapük",
-    	"wa": "Walloon",
-    	"wo": "Wolof",
-    	"xh": "Xhosa",
-    	"yi": "Yiddish",
-    	"yo": "Yoruba",
-    	"za": "Zhuang; Chuang",
-    	"zh": "Chinese",
-    	"zu": "Zulu",
+    codes = {    
+        "aa": "Afar",
+        "ab": "Abkhazian",
+        "ae": "Avestan",
+        "af": "Afrikaans",
+        "ak": "Akan",
+        "am": "Amharic",
+        "an": "Aragonese",
+        "ar": "Arabic",
+        "as": "Assamese",
+        "av": "Avaric",
+        "ay": "Aymara",
+        "az": "Azerbaijani",
+        "ba": "Bashkir",
+        "be": "Belarusian",
+        "bg": "Bulgarian",
+        "bh": "Bihari languages",
+        "bi": "Bislama",
+        "bm": "Bambara",
+        "bn": "Bengali",
+        "bo": "Tibetan",
+        "br": "Breton",
+        "bs": "Bosnian",
+        "ca": "Catalan; Valencian",
+        "ce": "Chechen",
+        "ch": "Chamorro",
+        "co": "Corsican",
+        "cr": "Cree",
+        "cs": "Czech",
+        "cu": "Church Slavic; Old Slavonic; Church Slavonic; Old Bulgarian; Old Church Slavonic",
+        "cv": "Chuvash",
+        "cy": "Welsh",
+        "da": "Danish",
+        "de": "German",
+        "dv": "Divehi; Dhivehi; Maldivian",
+        "dz": "Dzongkha",
+        "ee": "Ewe",
+        "el": "Greek:  Modern (1453-)",
+        "en": "English",
+        "eo": "Esperanto",
+        "es": "Spanish; Castilian",
+        "et": "Estonian",
+        "eu": "Basque",
+        "fa": "Persian",
+        "ff": "Fulah",
+        "fi": "Finnish",
+        "fj": "Fijian",
+        "fo": "Faroese",
+        "fr": "French",
+        "fy": "Western Frisian",
+        "ga": "Irish",
+        "gd": "Gaelic; Scottish Gaelic",
+        "gl": "Galician",
+        "gn": "Guarani",
+        "gu": "Gujarati",
+        "gv": "Manx",
+        "ha": "Hausa",
+        "he": "Hebrew",
+        "hi": "Hindi",
+        "ho": "Hiri Motu",
+        "hr": "Croatian",
+        "ht": "Haitian; Haitian Creole",
+        "hu": "Hungarian",
+        "hy": "Armenian",
+        "hz": "Herero",
+        "ia": "Interlingua (International Auxiliary Language Association)",
+        "id": "Indonesian",
+        "ie": "Interlingue; Occidental",
+        "ig": "Igbo",
+        "ii": "Sichuan Yi; Nuosu",
+        "ik": "Inupiaq",
+        "io": "Ido",
+        "is": "Icelandic",
+        "it": "Italian",
+        "iu": "Inuktitut",
+        "ja": "Japanese",
+        "jv": "Javanese",
+        "ka": "Georgian",
+        "kg": "Kongo",
+        "ki": "Kikuyu; Gikuyu",
+        "kj": "Kuanyama; Kwanyama",
+        "kk": "Kazakh",
+        "kl": "Kalaallisut; Greenlandic",
+        "km": "Central Khmer",
+        "kn": "Kannada",
+        "ko": "Korean",
+        "kr": "Kanuri",
+        "ks": "Kashmiri",
+        "ku": "Kurdish",
+        "kv": "Komi",
+        "kw": "Cornish",
+        "ky": "Kirghiz; Kyrgyz",
+        "la": "Latin",
+        "lb": "Luxembourgish; Letzeburgesch",
+        "lg": "Ganda",
+        "li": "Limburgan; Limburger; Limburgish",
+        "ln": "Lingala",
+        "lo": "Lao",
+        "lt": "Lithuanian",
+        "lu": "Luba-Katanga",
+        "lv": "Latvian",
+        "mg": "Malagasy",
+        "mh": "Marshallese",
+        "mi": "Maori",
+        "mk": "Macedonian",
+        "ml": "Malayalam",
+        "mn": "Mongolian",
+        "mr": "Marathi",
+        "ms": "Malay",
+        "mt": "Maltese",
+        "my": "Burmese",
+        "na": "Nauru",
+        "nb": "Bokmål:  Norwegian; Norwegian Bokmål",
+        "nd": "Ndebele:  North; North Ndebele",
+        "ne": "Nepali",
+        "ng": "Ndonga",
+        "nl": "Dutch; Flemish",
+        "nn": "Norwegian Nynorsk; Nynorsk:  Norwegian",
+        "no": "Norwegian",
+        "nr": "Ndebele:  South; South Ndebele",
+        "nv": "Navajo; Navaho",
+        "ny": "Chichewa; Chewa; Nyanja",
+        "oc": "Occitan (post 1500); Provençal",
+        "oj": "Ojibwa",
+        "om": "Oromo",
+        "or": "Oriya",
+        "os": "Ossetian; Ossetic",
+        "pa": "Panjabi; Punjabi",
+        "pi": "Pali",
+        "pl": "Polish",
+        "ps": "Pushto; Pashto",
+        "pt": "Portuguese",
+        "qu": "Quechua",
+        "rm": "Romansh",
+        "rn": "Rundi",
+        "ro": "Romanian; Moldavian; Moldovan",
+        "ru": "Russian",
+        "rw": "Kinyarwanda",
+        "sa": "Sanskrit",
+        "sc": "Sardinian",
+        "sd": "Sindhi",
+        "se": "Northern Sami",
+        "sg": "Sango",
+        "si": "Sinhala; Sinhalese",
+        "sk": "Slovak",
+        "sl": "Slovenian",
+        "sm": "Samoan",
+        "sn": "Shona",
+        "so": "Somali",
+        "sq": "Albanian",
+        "sr": "Serbian",
+        "ss": "Swati",
+        "st": "Sotho:  Southern",
+        "su": "Sundanese",
+        "sv": "Swedish",
+        "sw": "Swahili",
+        "ta": "Tamil",
+        "te": "Telugu",
+        "tg": "Tajik",
+        "th": "Thai",
+        "ti": "Tigrinya",
+        "tk": "Turkmen",
+        "tl": "Tagalog",
+        "tn": "Tswana",
+        "to": "Tonga (Tonga Islands)",
+        "tr": "Turkish",
+        "ts": "Tsonga",
+        "tt": "Tatar",
+        "tw": "Twi",
+        "ty": "Tahitian",
+        "ug": "Uighur; Uyghur",
+        "uk": "Ukrainian",
+        "ur": "Urdu",
+        "uz": "Uzbek",
+        "ve": "Venda",
+        "vi": "Vietnamese",
+        "vo": "Volapük",
+        "wa": "Walloon",
+        "wo": "Wolof",
+        "xh": "Xhosa",
+        "yi": "Yiddish",
+        "yo": "Yoruba",
+        "za": "Zhuang; Chuang",
+        "zh": "Chinese",
+        "zu": "Zulu",
     }
     
     @classmethod
@@ -287,8 +287,8 @@ class ISO6391():
         return cls.codes[code]
 
 class AsciiMap:
-	data = {
-		### A
+    data = {
+        ### A
         'Å': 'A',
         'å': 'A',
         'Ǻ': 'A',
@@ -359,8 +359,8 @@ class AsciiMap:
         'A̲': 'A', # MULTIBYTE
         'a̲': 'A', # MULTIBYTE
         'ᶏ': 'A',
-		'Å': 'A', # angstrom
-		### B
+        'Å': 'A', # angstrom
+        ### B
         'Ƀ': 'B',
         'ƀ': 'B',
         'Ḃ': 'B',
@@ -373,8 +373,8 @@ class AsciiMap:
         'ɓ': 'B',
         'ᵬ': 'B',
         'ᶀ': 'B',
-		'Β': 'Β',  # Beta
-		### C
+        'Β': 'Β',  # Beta
+        ### C
         'Ć': 'C',
         'ć': 'C',
         'Ĉ': 'C',
@@ -395,7 +395,7 @@ class AsciiMap:
         'ç': 'C',
         'Ꞓ': 'C',
         'ꞓ': 'C',
-		### D
+        ### D
         'Đ': 'D',
         'đ': 'D',
         'Ɗ': 'D',
@@ -412,10 +412,10 @@ class AsciiMap:
         'ď': 'D',
         'Ḏ': 'D',
         'ḏ': 'D',
-		'Ɖ': 'D', # African D / Eth
-		'ɖ' : 'D', # African D
-		'ð' : 'D', # lowercase Eth 
-		### E
+        'Ɖ': 'D', # African D / Eth
+        'ɖ' : 'D', # African D
+        'ð' : 'D', # lowercase Eth 
+        ### E
         'Ĕ': 'E',
         'ĕ': 'E',
         'Ḝ': 'E',
@@ -486,14 +486,14 @@ class AsciiMap:
         'E̩': 'E', # MULTIBYTE
         'e̩': 'E', # MULTIBYTE
         'ᶒ': 'E',
-		### F
+        ### F
         'Ƒ': 'F',
         'ƒ': 'F',
         'Ḟ': 'F',
         'ḟ': 'F',
         'ᵮ': 'F',
         'ᶂ': 'F',
-		### G
+        ### G
         'Ǵ': 'G',
         'ǵ': 'G',
         'Ǥ': 'G',
@@ -515,7 +515,7 @@ class AsciiMap:
         'Ꞡ': 'G',
         'ꞡ': 'G',
         'ᶃ': 'G',
-		### H
+        ### H
         'Ĥ': 'H',
         'ĥ': 'H',
         'Ȟ': 'H',
@@ -538,7 +538,7 @@ class AsciiMap:
         'ḫ': 'H',
         'Ꜧ': 'H',
         'ꜧ': 'H',
-		### I
+        ### I
         'Ị': 'I',
         'ị': 'I',
         'Ĭ': 'I',
@@ -577,9 +577,9 @@ class AsciiMap:
         'Ḭ': 'I',
         'ḭ': 'I',
         'ᶤ': 'I',
-		'İ': 'I', # dotted
-		'i̇': 'I', # MULTIBYTE
-		### J
+        'İ': 'I', # dotted
+        'i̇': 'I', # MULTIBYTE
+        ### J
         'Ĵ': 'J',
         'ĵ': 'J',
         'J̌': 'J', # MULTIBYTE
@@ -588,7 +588,7 @@ class AsciiMap:
         'ɉ': 'J',
         'J̃': 'J', # MULTIBYTE
         'j̇̃': 'J', # MULTIBYTE
-		### K
+        ### K
         'Ƙ': 'K',
         'ƙ': 'K',
         'Ꝁ': 'K',
@@ -606,7 +606,7 @@ class AsciiMap:
         'ⱪ': 'K',
         'Ḵ': 'K',
         'ḵ': 'K',
-		### L
+        ### L
         'Ĺ': 'L',
         'ĺ': 'L',
         'Ł': 'L',
@@ -631,8 +631,8 @@ class AsciiMap:
         'ƚ': 'L',
         'Ⱡ': 'L',
         'ⱡ': 'L',
-		### M
-		'Ḿ': 'M',
+        ### M
+        'Ḿ': 'M',
         'ḿ': 'M',
         'Ṁ': 'M',
         'ṁ': 'M',
@@ -641,7 +641,7 @@ class AsciiMap:
         'M̃': 'M', # MULTIBYTE
         'm̃': 'M', # MULTIBYTE
         'ᵯ': 'M',
-		### N
+        ### N
         'Ń': 'N',
         'ń': 'N',
         'Ñ': 'N',
@@ -947,54 +947,63 @@ class AsciiMap:
         "ᶎ": "Z",
         "Ⱬ": "Z",
         "ⱬ": "Z",
-	}
+    }
 
-	@classmethod
-	def single_byte(cls):
-		'''Returns a dict that can be used with `str.makestrans` (`makestrans` 
-		only accepts single-byte keys)'''
+    @classmethod
+    def single_byte(cls):
+        '''Returns a dict that can be used with `str.makestrans` (`makestrans` 
+        only accepts single-byte keys)'''
 
-		return {key: AsciiMap.data[key] for key in filter(lambda x: len(x) == 1, AsciiMap.data.keys())}
+        return {key: AsciiMap.data[key] for key in filter(lambda x: len(x) == 1, AsciiMap.data.keys())}
 
-	@classmethod
-	def multi_byte(cls):
-		'''Returns a dict of keys that cannot be used by `str.maketrans` (`maketrans`
-		only accepts single-byte keys)'''
+    @classmethod
+    def multi_byte(cls):
+        '''Returns a dict of keys that cannot be used by `str.maketrans` (`maketrans`
+        only accepts single-byte keys)'''
 
-		return {key: AsciiMap.data[key] for key in filter(lambda x: len(x) > 1, AsciiMap.data.keys())}
+        return {key: AsciiMap.data[key] for key in filter(lambda x: len(x) > 1, AsciiMap.data.keys())}
 
 class SynonymMap():
-	# todo
-	data = [
-		['car', 'automobile']
-	]
+    # todo
+    data = [
+        ['car', 'automobile']
+    ]
 
 class Tokenizer:
-	'''For splitting a string of words into asciified stem words'''
+    '''For splitting a string of words into asciified stem words'''
 
-	from nltk import PorterStemmer
-	STEMMER = PorterStemmer()
-	
-	@classmethod
-	def split_words(cls, string):
-		return list(filter(None, re.split('[\W+]', string)))
-		
-	@classmethod
-	def asciify(cls, string):
-		for k, v in AsciiMap.multi_byte().items():
-			string.replace(k, v)
+    from nltk import PorterStemmer
+    STEMMER = PorterStemmer()
+    
+    @classmethod
+    def split_words(cls, string):
+        return re.compile(r'\w+').findall(string)
+        
+    @classmethod
+    def asciify(cls, string):
+        if all(ord(char) < 128 for char in string):
+            # all chars are ascii
+            return string
 
-		return string.translate(str.maketrans(AsciiMap.single_byte()))
+        if all(char not in string for char in AsciiMap.data.keys()):
+            # none of the chars in the map are in the string
+            return string
 
-	@classmethod
-	def stem(cls, string):
-		return Tokenizer.STEMMER.stem(string)
+        for k, v in filter(lambda x: x[0] in string, AsciiMap.multi_byte().items()):
+            # chars that can't be used in the maketrans table
+            string.replace(k, v)
 
-	@classmethod
-	def scrub(cls, string):
-		return re.sub('\W+', ' ', Tokenizer.asciify(string.upper()).lower())
+        return string.translate(str.maketrans(AsciiMap.single_byte()))
 
-	@classmethod
-	def tokenize(cls, string):
-		return [Tokenizer.stem(Tokenizer.asciify(x.upper())) for x in Tokenizer.split_words(string)]
+    @classmethod
+    def stem(cls, string):
+        return Tokenizer.STEMMER.stem(string)
+
+    @classmethod
+    def scrub(cls, string):
+        return re.sub(r'\W+', ' ', Tokenizer.asciify(string.upper()).lower())
+
+    @classmethod
+    def tokenize(cls, string):
+        return [Tokenizer.stem(Tokenizer.asciify(x.upper())) for x in Tokenizer.split_words(string)]
 
