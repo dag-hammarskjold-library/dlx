@@ -12,7 +12,7 @@ class Data(object):
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')    
 class TestTable(TestCase):
     def setUp(self):
-	    pass
+        pass
         
     def test_init(self):
         d = Data.data

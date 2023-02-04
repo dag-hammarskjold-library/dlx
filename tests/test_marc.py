@@ -105,6 +105,14 @@ def test_commit(db, bibs, auths):
     assert bib.created != bib.updated
     assert bib.created_user == 'admin'
 
+    # new text attributes
+    bib.set('245', 'a', 'TESTING TESTING 1234')
+    bib.commit()
+    assert bib.text == 'testing testing 1234'
+    assert bib.words == ['test', 'test', '1234']
+    assert bib.word_count == [{'stem': 'test', 'count': 2}, {'stem': '1234', 'count': 1}]
+
+    # id incrementer
     Bib().commit()
     bib = Bib().commit()
     assert bib.id == Bib.max_id() == 5
@@ -114,14 +122,16 @@ def test_commit(db, bibs, auths):
     bib = Bib().commit()
     assert bib.id == 6
     
+    # max id resets
     DB.bibs.drop()
     DB.handle['bib_history'].drop()
     DB.handle['bib_id_counter'].drop()
     Bib().commit()
     assert Bib.max_id() == 1
     
+    # json schema validation
     with pytest.raises(ValidationError):
-        bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': None, 'value': 'Subfield code is a space'}]}]})
+        bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': ' ', 'value': 'Subfield code is a space'}]}]})
         bib.commit()
 
 def test_delete(db):
@@ -222,6 +232,12 @@ def test_querydocument(db):
     )
     assert len(list(Bib.find(query.compile()))) == 1
 
+def test_from_query(db):
+    from dlx.marc import Bib, Auth, Query, Condition
+    
+    bib = Bib.from_query(Query(Condition('245', {'a': 'Another'})))
+    assert bib.id == 2
+
 def test_querystring(db):
     from datetime import datetime
     from dlx.marc import BibSet, Bib, Auth, Query
@@ -317,12 +333,6 @@ def test_querystring(db):
     bib = Bib().set('246', 'a', 'This').commit()
     query = Query.from_string(f'NOT 246:\'This\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 0
-    
-def test_from_query(db):
-    from dlx.marc import Bib, Auth, Query, Condition
-    
-    bib = Bib.from_query(Query(Condition('245', {'a': 'Another'})))
-    assert bib.id == 2
     
 def test_get_field(bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield

@@ -422,6 +422,9 @@ class Marc(object):
         self.created_user = doc.get('created_user')
         self.updated = doc.get('updated')
         self.user = doc.get('user')
+        self.text = doc.get('text')
+        self.words = doc.get('words')
+        self.word_count = doc.get('word_count')
         self.fields = []
         self.parse(doc, auth_control=auth_control)
 
@@ -670,7 +673,7 @@ class Marc(object):
         
         # maintenance functions
         # update field text indexes
-        def index_field_text():
+        def index_field_text(*, threaded=True):
             all_text = []
 
             for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
@@ -680,39 +683,37 @@ class Marc(object):
                 scrubbed = Tokenizer.scrub(text)
                 all_text.append(scrubbed)
 
-                updates = [
-                    UpdateOne(
-                        {'_id': text},
-                        {'$addToSet': {'subfields': {'code': subfield.code, 'value': subfield.value}}},
-                        upsert=True
-                    ) for subfield in field.subfields
-                ]
+                if threaded:
+                    updates = [
+                        UpdateOne(
+                            {'_id': text},
+                            {'$addToSet': {'subfields': {'code': subfield.code, 'value': subfield.value}}},
+                            upsert=True
+                        ) for subfield in field.subfields
+                    ]
 
-                words = Tokenizer.tokenize(text)
-                count = Counter(words)
+                    words = Tokenizer.tokenize(text)
+                    count = Counter(words)
 
-                updates.append(
-                    UpdateOne(
-                        {'_id': text}, 
-                        {'$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
-                    )   
-                )
+                    updates.append(
+                        UpdateOne(
+                            {'_id': text}, 
+                            {'$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
+                        )   
+                    )
 
-                tag_col.bulk_write(updates)
-                # create text index if it doesn't exist
-                tag_col.create_index([('subfields.value', 'text')], default_language='none')
+                    tag_col.bulk_write(updates)
+                    # create text index if it doesn't exist
+                    tag_col.create_index([('subfields.value', 'text')], default_language='none')
 
-            # all-text collection
-            all_text_col = DB.handle[f'__index_{self.record_type}s']
-            all_text = ' '.join(all_text)
-            all_words = Tokenizer.tokenize(all_text)
-            count = Counter(all_words)
-            
-            all_text_col.update_one(
-                {'_id': self.id},
-                {'$set': {'text': all_text, 'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}}, 
-                upsert=True
-            )
+            return ' '.join(all_text) 
+
+        # all-text
+        text = index_field_text(threaded=False)
+        data['text'] = self.text = text
+        data['words'] = self.words = Tokenizer.tokenize(text)
+        count = Counter(data['words'])
+        data['word_count'] = self.word_count = [{'stem': k, 'count': v} for k, v in count.items()]
 
         thread1 = threading.Thread(target=index_field_text, args=[])
         thread1.setDaemon(False) # stop the thread after complete
