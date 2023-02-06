@@ -1,4 +1,3 @@
-from cgitb import text
 import sys, json, re, copy
 from datetime import datetime, timedelta
 from warnings import warn
@@ -534,17 +533,11 @@ class Text():
         #elif len(quoted) == 1:
         #    data['text'] = Regex(f'{Tokenizer.scrub(quoted[0])}')
 
-        # use the text index for double-quoted strings and hyphentated words
+        # use the text index for these cases
         text_searches = []
-
-        if quoted:    
-            text_searches += quoted
-
-        if hyphenated:
-            text_searches += [f'"{x}"' for x in hyphenated]
-
-        if negated:
-            text_searches += negated
+        if quoted: text_searches += quoted
+        if hyphenated: text_searches += [f'"{x}"' for x in hyphenated]
+        if negated: text_searches += negated
         
         if text_searches:
             data['$text'] = {'$search': ' '.join(text_searches)}
