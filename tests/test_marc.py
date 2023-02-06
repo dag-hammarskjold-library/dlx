@@ -267,24 +267,31 @@ def test_querystring(db):
     # all fields
     query = Query.from_string('Another header')
    
-    with pytest.raises(NotImplementedError):
-        # $text operator not implemented in mongomock
-        assert len(list(BibSet.from_query(query.compile()))) == 2
+    #with pytest.raises(NotImplementedError):
+    #    # $text operator not implemented in mongomock
+    #    #assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    # text indexes don't exist here until commit
+    for _ in (1, 2):
+        Bib.from_id(_).commit()
+
+    assert len(list(BibSet.from_query(query.compile()))) == 2
 
     # quotes automatically added by dlx (forces "and" search)
-    assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+    #assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+    assert query.compile() == {'words': {'$all': ['anoth', 'header']}}
 
     # hyphenated word inside double quoted text
     query = Query.from_string('"Another-header"')
     assert query.compile() == {'$text': {'$search': '"Another-header"'}}
-
+    
     # hyphenated free text word
     query = Query.from_string('Another-header')
     assert query.compile() == {'$text': {'$search': '"Another-header"'}}
 
     # negation operator
     query = Query.from_string('Another -header')
-    assert query.compile() == {'$text': {'$search': '"Another" -header'}}
+    assert query.compile() == {'words': {'$all': ['anoth']}, '$text': {'$search': '-header'}}
 
     # tag no subfield
     query = Query.from_string('245:\'is the\'')
@@ -300,12 +307,13 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
     # updated
+    # currently 3 records have been updated in this test
     Bib().commit()
     query = Query.from_string('updated>1900-01-01')
-    assert len(list(BibSet.from_query(query.compile()))) == 1
+    assert len(list(BibSet.from_query(query.compile()))) == 3
 
     query = Query.from_string(f'updated:{(datetime.utcnow()).strftime("%Y-%m-%d")}')
-    assert len(list(BibSet.from_query(query.compile()))) == 1
+    assert len(list(BibSet.from_query(query.compile()))) == 3
     
     # xref
     auth = Auth().set('100', 'a', 'x').commit()

@@ -1,3 +1,4 @@
+from cgitb import text
 import sys, json, re, copy
 from datetime import datetime, timedelta
 from warnings import warn
@@ -291,8 +292,7 @@ class Query():
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
 
             # free text
-            token = add_quotes(token)
-            
+            #token = add_quotes(token)
             return Text(token, record_type=record_type)
         
         string = re.sub(r'^\s+', '', string) # leading
@@ -505,7 +505,51 @@ class Text():
         self.record_type = record_type
     
     def compile(self):
-        return {'$text': {'$search': f'{self.string}'}}
+        #return {'$text': {'$search': f'{self.string}'}}
+        
+        # new text search
+        quoted = re.findall(r'(".+?")', self.string)
+        
+        for _ in quoted:
+            self.string = self.string.replace(_, '')
+
+        hyphenated = re.findall(r'(\w+\-\w+)', self.string)
+
+        for _ in hyphenated:
+            self.string = self.string.replace(_, '')
+
+        negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', self.string)]
+
+        for _ in negated:
+            self.string = self.string.replace(_, '')
+
+        words, data = Tokenizer.tokenize(self.string), {}
+        
+        if words:
+            data.update({'words': {'$all': Tokenizer.tokenize(self.string)}})
+        
+        # regex on the text field is too slow
+        #if len(quoted) > 1:
+        #    data['$and'] = [{'text': Regex(f'{Tokenizer.scrub(x)}')} for x in quoted]
+        #elif len(quoted) == 1:
+        #    data['text'] = Regex(f'{Tokenizer.scrub(quoted[0])}')
+
+        # use the text index for double-quoted strings and hyphentated words
+        text_searches = []
+
+        if quoted:    
+            text_searches += quoted
+
+        if hyphenated:
+            text_searches += [f'"{x}"' for x in hyphenated]
+
+        if negated:
+            text_searches += negated
+        
+        if text_searches:
+            data['$text'] = {'$search': ' '.join(text_searches)}
+
+        return data
 
 class Wildcard(Text):
     # Deprecated
