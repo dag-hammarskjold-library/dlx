@@ -7,6 +7,7 @@ from dlx.marc import Auth
 def get_args(**kwargs):
     parser = ArgumentParser()
     parser.add_argument('--connect', required=True)
+    parser.add_argument('--dbname')
     parser.add_argument('--gaining_id', required=True, type=int)
     parser.add_argument('--losing_id', required=True, type=int)
     parser.add_argument('--user', required=True)
@@ -24,7 +25,10 @@ def run(**kwargs):
     args = get_args(**kwargs)
     
     if not DB.connected:
-        DB.connect(args.connect)
+        if args.dbname:
+            DB.connect(args.connect, database=args.dbname)
+        else:
+            DB.connect(args.connect)
 
     print(f'Merging auth {args.losing_id} into {args.gaining_id}')
     started = time()

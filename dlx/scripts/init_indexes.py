@@ -8,11 +8,15 @@ from pymongo.collation import Collation
 
 parser = ArgumentParser()
 parser.add_argument('--connect')
+parser.add_argument('--dbname')
 parser.add_argument('--verbose', action='store_true')
 
 def run():
     args = parser.parse_args()
-    DB.connect(args.connect)
+    if args.dbname:
+        DB.connect(args.connect, database=args.dbname)
+    else:
+        DB.connect(args.connect)
 
     indexes = []
 
