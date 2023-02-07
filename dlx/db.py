@@ -2,7 +2,7 @@
 Provides the DB class for connecting to and accessing the database.
 """
 
-import re
+import re, certifi
 from pymongo import MongoClient
 #from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
 from mongomock import MongoClient as MockClient
@@ -67,7 +67,14 @@ class DB():
             client =  MockClient()
             mock = True
         else:
-            client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+            kwargs = {'serverSelectionTimeoutMS': 5000}
+            
+            if re.match(r'mongodb\+srv', connection_string):
+                # https://pypi.org/project/certifi/ 
+                # https://www.mongodb.com/docs/mongodb-shell/reference/options/#std-option-mongosh.--tlsCAFile
+                kwargs['tlsCAFile'] = certifi.where()
+
+            client = MongoClient(connection_string, **kwargs)
 
         if database:
             DB.database_name = database
