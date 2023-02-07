@@ -1,4 +1,4 @@
-version = '1.2.8.2'
+version = '1.2.9'
 
 import sys
 from setuptools import setup, find_packages
@@ -23,7 +23,7 @@ setup(
     package_data = {'dlx': ['schemas/jmarc.schema.json', 'schemas/jfile.schema.json']},
     test_suite = 'tests',
     install_requires = requirements,
-    python_requires = '>=3.6',
+    python_requires = '>=3.7',
     entry_points = {
         'console_scripts': [
             'excel-marc=dlx.scripts.excel_marc:run',
