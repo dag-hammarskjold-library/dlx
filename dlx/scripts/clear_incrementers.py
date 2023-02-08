@@ -5,15 +5,12 @@ from argparse import ArgumentParser
 from dlx import DB
 
 parser = ArgumentParser()
-parser.add_argument('--connect', required=True)
-parser.add_argument('--dbname')
+parser.add_argument('--connect', required=True, help='MongoDB connection string')
+parser.add_argument('--database', help='The database to use, if it differs from the one in the connection string')
 
 def run():
     args = parser.parse_args()
+    DB.connect(args.connect, database=args.database)
     
-    if args.dbname:
-        DB.connect(args.connect, database=args.dbname)
-    else:
-        DB.connect(args.connect)
     DB.handle['bib_id_counter'].drop()
     DB.handle['auth_id_counter'].drop()
