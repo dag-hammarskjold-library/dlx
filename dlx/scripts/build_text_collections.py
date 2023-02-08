@@ -14,17 +14,15 @@ from dlx.marc import BibSet, AuthSet
 from dlx.util import Tokenizer
 
 parser = ArgumentParser()
-parser.add_argument('--connect', required=True)
-parser.add_argument('--dbname')
+parser.add_argument('--connect', required=True, help='MongoDB connection string')
+parser.add_argument('--database', help='The database to use, if it differs from the one in the connection string')
 parser.add_argument('--type', required=True, choices=['bib', 'auth'])
 parser.add_argument('--start', default=0)
 
 def run():
     args = parser.parse_args()
-    if args.dbname:
-        DB.connect(args.connect, database=args.dbname)
-    else:
-        DB.connect(args.connect)
+    DB.connect(args.connect, database=args.database)
+
     cls = BibSet if args.type == 'bib' else AuthSet
 
     start = int(args.start)

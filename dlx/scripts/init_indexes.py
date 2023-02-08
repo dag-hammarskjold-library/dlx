@@ -7,17 +7,14 @@ from dlx.marc import Bib, Auth
 from pymongo.collation import Collation
 
 parser = ArgumentParser()
-parser.add_argument('--connect')
-parser.add_argument('--dbname')
+parser.add_argument('--connect', required=True, help='MongoDB connection string')
+parser.add_argument('--database', help='The database to use, if it differs from the one in the connection string')
 parser.add_argument('--verbose', action='store_true')
 
 def run():
     args = parser.parse_args()
-    if args.dbname:
-        DB.connect(args.connect, database=args.dbname)
-    else:
-        DB.connect(args.connect)
-
+    DB.connect(args.connect, database=args.database)
+    
     indexes = []
 
     print('creating file indexes...')

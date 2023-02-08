@@ -6,8 +6,8 @@ from dlx.marc import Auth
 
 def get_args(**kwargs):
     parser = ArgumentParser()
-    parser.add_argument('--connect', required=True)
-    parser.add_argument('--dbname')
+    parser.add_argument('--connect', required=True, help='MongoDB connection string')
+    parser.add_argument('--database', help='The database to use, if it differs from the one in the connection string')
     parser.add_argument('--gaining_id', required=True, type=int)
     parser.add_argument('--losing_id', required=True, type=int)
     parser.add_argument('--user', required=True)
@@ -23,21 +23,17 @@ def get_args(**kwargs):
   
 def run(**kwargs):
     args = get_args(**kwargs)
-    
+
     if not DB.connected:
-        if args.dbname:
-            DB.connect(args.connect, database=args.dbname)
-        else:
-            DB.connect(args.connect)
+        # currently necessary for tests
+        DB.connect(args.connect, database=args.database)
 
     print(f'Merging auth {args.losing_id} into {args.gaining_id}')
     started = time()
     gaining_auth = Auth.from_id(args.gaining_id)
-
-    print(args.gaining_id)
     
     if gaining_auth is None:
-        raise Exception(f'Gaining record {args.gaining_id} not found')
+        raise Exception(f'Gaining record with ID {args.gaining_id} not found')
 
     losing_auth = Auth.from_id(args.losing_id)
 
