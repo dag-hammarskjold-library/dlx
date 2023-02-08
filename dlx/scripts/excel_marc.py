@@ -6,7 +6,8 @@ from dlx.marc import BibSet, AuthSet
 ###
 
 parser = ArgumentParser()
-parser.add_argument('--connect')
+parser.add_argument('--connect', required=True, help='MongoDB connection string')
+parser.add_argument('--database', help='The database to use, if it differs from the one in the connection string')
 parser.add_argument('--file', required=True)
 parser.add_argument('--type', required=True, choices=['bib', 'auth'])
 parser.add_argument('--format', required=True, choices=['mrc', 'mrk', 'xml'])
@@ -18,8 +19,8 @@ parser.add_argument('--defaults')
 
 def run():
     args = parser.parse_args()
-
-    DB.connect(args.connect)
+    DB.connect(args.connect, database=args.database)
+  
     Cls = BibSet if args.type == 'bib' else AuthSet
 
     data = Cls.from_excel(args.file, auth_control=False, auth_flag=True, field_check=args.check)
