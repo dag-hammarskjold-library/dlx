@@ -19,10 +19,29 @@ class Query():
         self.record_type = record_type
         
         def tokenize(string):
-            tokens = re.split(r'\s*(AND|OR|NOT)\s+', string)
+            tokens, buffer, in_quotes = [], '', False
+
+            for i, char in enumerate(string):
+                if char in ['"', "'"]:
+                    # toggle
+                    in_quotes = not in_quotes
+
+                buffer += char
+
+                if in_quotes == False:
+                    match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s$', buffer)
+                    
+                    if match:
+                        if not tokens or tokens[-1] != match.group(1):
+                            tokens.append(match.group(1).strip())
+                            
+                        tokens.append(match.group(3))
+                        buffer = ''
+
+            tokens.append(buffer.strip())
             tokens = list(filter(None, tokens))
 
-            return list(filter(None, tokens))
+            return tokens
         
         def is_regex(string):
             pairs = [('/', '/'), ('\\', '\\'), ('`', '`')]
@@ -302,6 +321,12 @@ class Query():
         # parse tokens
         for i, token in enumerate(tokens):
             if token == 'NOT':
+                if not len(tokens) > i + 1:
+                    raise Exception('"NOT" can\'t be at end of search string')
+
+                if not re.match(r'^[^"\']+:', tokens[i + 1]):
+                    raise Exception('"NOT" not valid for whole record text search')
+
                 tokens[i] = None
             elif i > 0 and tokens[i-1] == None:
                 tokens[i] = parse(token, modifier='not')
