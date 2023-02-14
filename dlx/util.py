@@ -1001,7 +1001,7 @@ class Tokenizer:
 
     @classmethod
     def scrub(cls, string):
-        return re.sub(r'\W+', ' ', Tokenizer.asciify(string.upper()).lower())
+        return re.sub(r'\W+', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
 
     @classmethod
     def tokenize(cls, string):

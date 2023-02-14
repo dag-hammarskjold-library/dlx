@@ -507,40 +507,49 @@ class Text():
         #return {'$text': {'$search': f'{self.string}'}}
         
         # new text search
+
+        # capture quotes strings
         quoted = re.findall(r'(".+?")', self.string)
-        
-        for _ in quoted:
-            self.string = self.string.replace(_, '')
-
+        # capture hyphenated words
         hyphenated = re.findall(r'(\w+\-\w+)', self.string)
-
-        for _ in hyphenated:
-            self.string = self.string.replace(_, '')
-
+        # capture words starting with hyphen (denotes "not" search)
         negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', self.string)]
 
-        for _ in negated:
+        for _ in negated + hyphenated:
             self.string = self.string.replace(_, '')
 
+        exclude = ('a', 'the', 'of', 'to', 'at', 'and', 'in', 'on', 'by', 'at', 'it', 'its')
         words, data = Tokenizer.tokenize(self.string), {}
+        words = list(filter(lambda x: x not in exclude, words))
+
+        # ignore one-letter words
+        #words = list(filter(lambda x: len(x) > 1, words))
         
-        if words:
-            data.update({'words': {'$all': Tokenizer.tokenize(self.string)}})
-        
-        # regex on the text field is too slow
-        #if len(quoted) > 1:
-        #    data['$and'] = [{'text': Regex(f'{Tokenizer.scrub(x)}')} for x in quoted]
-        #elif len(quoted) == 1:
-        #    data['text'] = Regex(f'{Tokenizer.scrub(quoted[0])}')
+        if negated:
+            negated = Tokenizer.tokenize(' '.join(negated))
+
+            if words:
+                data.update({'$and': [{'words': {'$all': words}}, {'words': {'$nin': negated}}]})
+            else:
+                data.update({'words': {'$nin': negated}})
+        elif words:
+            data.update({'words': {'$all': words}})
+
+        if len(quoted) > 1:
+            data['$and'] = [{'text': Regex(f'{Tokenizer.scrub(x)}')} for x in quoted]
+        elif len(quoted) == 1:
+            data['text'] = Regex(f'{Tokenizer.scrub(quoted[0])}')
 
         # use the text index for these cases
         text_searches = []
-        if quoted: text_searches += quoted
-        if hyphenated: text_searches += [f'"{x}"' for x in hyphenated]
-        if negated: text_searches += negated
+        #if negated: text_searches += negated
+        #if quoted: text_searches += quoted
+        #if hyphenated: text_searches += [f'"{x}"' for x in hyphenated]
         
         if text_searches:
             data['$text'] = {'$search': ' '.join(text_searches)}
+
+        print(data)
 
         return data
 

@@ -25,7 +25,7 @@ def run():
 
     start = int(args.start)
     end = cls.from_query({}).count
-    inc = 1000
+    inc = 10
     tags = set()
     exclude_fields = list(Config.bib_logical_fields.keys() if args.type == 'bibs' else Config.auth_logical_fields.keys()) \
         + ['created', 'created_user', 'user', 'updated', 'words', 'text', 'word_count']
@@ -56,11 +56,24 @@ def run():
                 updates[field.tag].append(UpdateOne({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True))
 
                 # individual subfields
+                updates[field.tag].append(UpdateOne({'_id': text}, {'$unset': {'subfields': ''}}))
+
                 for s in field.subfields:
+                    # text col
+                    words = Tokenizer.tokenize(s.value)
                     updates[field.tag].append(
                         UpdateOne(
                             {'_id': text},
-                            {'$addToSet': {'subfields': {'code': s.code, 'value': s.value}}},
+                            {
+                                '$addToSet': {
+                                    'subfields': {
+                                        'code': s.code,
+                                        'value': s.value,
+                                        'text': ' '.join(words),
+                                        'words': words
+                                    }
+                                }
+                            },
                             #upsert=True
                         )
                     )
@@ -71,7 +84,13 @@ def run():
                 updates[field.tag].append(
                     UpdateOne(
                         {'_id': text}, 
-                        {'$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
+                        {
+                            '$set': {
+                                'text': Tokenizer.scrub(text),
+                                'words': list(count.keys()), 
+                                'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
+                            }
+                        }
                     )
                 )
 
@@ -84,7 +103,13 @@ def run():
             record_updates.append(
                 UpdateOne(
                     {'_id': record.id},
-                    {'$set': {'text': all_text, 'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
+                    {
+                        '$set': {
+                            'text': all_text, 
+                            'words': list(count.keys()), 
+                            'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
+                        }
+                    },
                 )
             )
 
