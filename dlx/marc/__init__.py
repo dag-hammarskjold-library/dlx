@@ -1252,7 +1252,7 @@ class Auth(Marc):
         if cached:
             return cached
 
-        query = Query(Condition(auth_tag, {code: value}))
+        query = Query(Condition(auth_tag, {code: value}, record_type='auth'))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
 

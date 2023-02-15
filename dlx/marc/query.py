@@ -98,7 +98,7 @@ class Query():
 
                 # exact match
                 if value[0] == '\'' and value[-1] == '\'':
-                    return Condition(tag, {code: value[1:-1]}, modifier=modifier)
+                    return Condition(tag, {code: value[1:-1]}, modifier=modifier, record_type=self.record_type)
 
                 # text
                 matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
@@ -488,7 +488,7 @@ class Condition(object):
                 subconditions.append(
                     SON({'$elemMatch': {'code': code, 'value': val}})
                 )
-            else:      
+            else:     
                 if isinstance(val, int):
                     xrefs = [val]
                 else:

@@ -217,8 +217,12 @@ def test_querydocument(db):
     assert len(list(Bib.find(query.compile()))) == 2
     
     query = Query(
-        Condition(tag='110', subfields={'a': 'Another header'}),
+        Condition(tag='110', subfields={'a': 'Another header'}, record_type='auth'),
     )
+
+    print(query.to_json())
+    print(Auth.from_id(2).to_mrk())
+
     assert len(list(Auth.find(query.compile()))) == 1
     assert Auth.find_one(query.compile()).id == 2
 
@@ -255,7 +259,8 @@ def test_querystring(db):
     #query = Query.from_string('245__a:This OR 245__a:Another AND 650:Header')
     #assert len(list(BibSet.from_query(query.compile()))) == 2
     
-    query = Query.from_string('110__a:\'Another header\'')
+    query = Query.from_string('110__a:\'Another header\'', record_type='auth')
+    print(query.to_json())
     assert Auth.from_query(query.compile()).id == 2
     
     query = Query.from_string('650__a:/[Hh]eader/')
@@ -334,7 +339,7 @@ def test_querystring(db):
     query = Query.from_string(f'NOT 246:\'This\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 0
     
-def test_get_field(bibs):
+def test_get_field(db, bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield
     
     bib = Bib(bibs[0])
@@ -348,10 +353,10 @@ def test_get_field(bibs):
         assert isinstance(field, Field)
         
     bib = Bib()
-    for tag in ('400', '100', '500', '300', '200'):
+    for tag in ('400', '250', '500', '300', '200'):
         bib.set(tag, 'a', 'test')
         
-    assert [field.tag for field in bib.get_fields()] == ['100', '200', '300', '400', '500']
+    assert [field.tag for field in bib.get_fields()] == ['200', '250', '300', '400', '500']
     
 def test_field_get_value(bibs):
     from dlx.marc import Bib
@@ -588,9 +593,9 @@ def test_from_mrk(db):
     
     mrk = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n'
 
-    bib = Bib.from_mrk(mrk)
+    bib = Bib.from_mrk(mrk, auth_control=True)
     assert bib.to_mrk() == mrk
-    assert bib.commit()
+    assert bib.commit(auth_check=True)
     
 def test_from_json():
     from dlx.marc import Bib, InvalidAuthValue, InvalidAuthField
@@ -613,9 +618,9 @@ def test_to_jmarcnx(bibs):
     bib = Bib(json.loads(jnx))
     assert bib.to_jmarcnx() == jnx
     
-def test_field_from_json(bibs):
+def test_field_from_json(db, bibs):
     from dlx.marc import Datafield
-    
+
     field = Datafield.from_json(
         record_type='bib',
         tag='500',
