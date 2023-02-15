@@ -1115,24 +1115,8 @@ class Marc(object):
     def from_mij(self, string):
         pass
 
-    @classmethod
-    def from_mrc(cls, string):
-        '''Parses a MARC21 string (.mrc) into dlx.Marc'''
-        
-        self = cls()
-        base = string[12:17]
-        directory = string[24:int(base)-24]
-        data = string[base:]
-
-        while directory:
-            tag = directory[:3]
-            length = directory[3:7]
-            start = directory[7:12]
-
-
-
-            
-            directory = directory[12:]
+    def from_mrc(self, string):
+        pass
 
     @classmethod
     def from_mrk(cls, string, auth_control=True):
@@ -1268,7 +1252,7 @@ class Auth(Marc):
         if cached:
             return cached
 
-        query = Query(Condition(auth_tag, {code: value}))
+        query = Query(Condition(auth_tag, {code: value}, record_type='auth'))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
 
