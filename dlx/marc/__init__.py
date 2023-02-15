@@ -187,22 +187,37 @@ class MarcSet():
         assert isinstance(root, ElementTree.Element)
         self = cls()
         
+        i = 0
+
         for r in root.findall('record'):
+            i += 1
             self.records.append(self.record_class.from_xml_raw(r, auth_control=auth_control))
-            
+
         return self
         
     @classmethod
-    def from_xml(cls, string):
+    def from_xml(cls, string, auth_control=False):
         return cls.from_xml_raw(ElementTree.fromstring(string))
+
+    @classmethod
+    def from_mrk(cls, string, *, auth_control=True):
+        self = cls()
+
+        for record in string.split('\n\n'):
+            record = self.record_class.from_mrk(record, auth_control=auth_control)
+
+            if isinstance(record, Marc): 
+                self.records.append(record)
+
+        return self
     
     # instance
 
     def __iter__(self): return self
-    def __next__(self): return next(self.records)
+    def __next__(self): return next(self.records) 
 
-    def __init__(self, records=[]):
-        self.records = records # can be any type of iterable
+    def __init__(self):
+        self.records = [] # records # can be any type of iterable
 
     @property
     def count(self):
@@ -1115,12 +1130,25 @@ class Marc(object):
     def from_mij(self, string):
         pass
 
-    def from_mrc(self, string):
-        pass
+    @classmethod
+    def from_mrc(cls, string):
+        '''Parses a MARC21 string (.mrc) into dlx.Marc'''
+        
+        self = cls()
+        base = string[12:17]
+        directory = string[24:int(base)-24]
+        data = string[base:]
+
+        while directory:
+            tag = directory[:3]
+            length = directory[3:7]
+            start = directory[7:12]
+            
+            directory = directory[12:]
 
     @classmethod
     def from_mrk(cls, string, auth_control=True):
-        record = cls()
+        self = cls()
 
         for line in filter(None, string.split('\n')):
             match = re.match(r'=(\d{3})  (.*)', line)
@@ -1136,9 +1164,9 @@ class Marc(object):
                     code, value = chunk[0], chunk[1:]
                     field.set(code, value, place='+', auth_control=auth_control)
 
-            record.fields.append(field)
+            self.fields.append(field)
 
-        return record
+        return self
     
     @classmethod
     def from_xml_raw(cls, root, *, auth_control=False):

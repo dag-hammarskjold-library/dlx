@@ -1,0 +1,11 @@
+=000  leader
+=008  controlfield
+=245  \\$aThis$bis the$ctitle
+=520  \\$aDescription
+=520  \\$aAnother description$aRepeated subfield
+=650  \\$aHeader
+=710  \\$aAnother header
+
+=000  leader
+=245  \\$aAnother$bis the$ctitle
+=650  \\$aHeader
