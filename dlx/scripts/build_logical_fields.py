@@ -74,7 +74,7 @@ def build_logical_fields(args):
                             {'_id': val}, 
                             {
                                 '$set': {
-                                    'text': ' '.join(words),
+                                    'text': f' {" ".join(words)} ',
                                     'words': list(count.keys()), 
                                     'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
                                 },

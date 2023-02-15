@@ -38,15 +38,12 @@ def run():
         updates, record_updates, start_time = {}, [], time.time()
 
         for record in cls.from_query({}, skip=i, limit=inc, projection=dict.fromkeys(exclude_fields, 0)):
-            all_text = []
+            all_text, tagindex = [], {}
 
             for field in record.datafields:
                 #field.subfields = list(filter(lambda x: not hasattr(x, 'xref'), field.subfields))
+                tagindex.setdefault(field.tag, 0)
                 tags.add(field.tag)
-
-                #for s in field.subfields:
-                #    if s.value is None:
-                #        print(f'\n{record.id}')
 
                 # concatenated subfield text
                 text = ' '.join(filter(None, [x.value for x in field.subfields]))
@@ -58,23 +55,43 @@ def run():
                 # individual subfields
                 updates[field.tag].append(UpdateOne({'_id': text}, {'$unset': {'subfields': ''}}))
 
-                for s in field.subfields:
+                for subindex, subfield in enumerate(field.subfields):
                     # text col
-                    words = Tokenizer.tokenize(s.value)
+                    words = Tokenizer.tokenize(subfield.value)
                     updates[field.tag].append(
                         UpdateOne(
                             {'_id': text},
                             {
                                 '$addToSet': {
                                     'subfields': {
-                                        'code': s.code,
-                                        'value': s.value,
-                                        'text': ' '.join(words),
+                                        'code': subfield.code,
+                                        'value': subfield.value,
+                                        'text': f' {" ".join(words)} ',
                                         'words': words
                                     }
                                 }
                             },
                             #upsert=True
+                        )
+                    )
+
+                    # record col
+                    raw = {'code': subfield.code, 'value': subfield.value}
+                    if hasattr(subfield, 'xref'): raw['xref'] = subfield.xref
+                    
+                    newdata = { 
+                        'text': f' {" ".join(words)} ',
+                        'words': words
+                    }
+
+                    record_updates.append(
+                        UpdateOne(
+                            {'_id': record.id},
+                            {
+                                '$set': {
+                                    f'{field.tag}.{tagindex[field.tag]}.subfields.{subindex}': {**raw, **newdata}
+                                },
+                            }
                         )
                     )
 
@@ -86,13 +103,16 @@ def run():
                         {'_id': text}, 
                         {
                             '$set': {
-                                'text': Tokenizer.scrub(text),
+                                'text': f' {Tokenizer.scrub(text)} ',
                                 'words': list(count.keys()), 
                                 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
                             }
                         }
                     )
                 )
+
+                # tag counter
+                tagindex[field.tag] += 1
 
             # all-text 
             #all_text_col = DB.handle[f'__index_{record.record_type}s']
@@ -105,7 +125,7 @@ def run():
                     {'_id': record.id},
                     {
                         '$set': {
-                            'text': all_text, 
+                            'text': f' {all_text} ', 
                             'words': list(count.keys()), 
                             'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
                         }

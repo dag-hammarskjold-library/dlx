@@ -445,6 +445,9 @@ class Marc(object):
                 for value in doc[tag]:
                     self.fields.append(Controlfield(tag, value))
             else:
+                #if 'words' in doc:
+                #    words = doc.pop('words')
+
                 for field in filter(lambda x: [s.get('xref') or s.get('value') for s in x.get('subfields')], doc[tag]):                
                     self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field, auth_control=auth_control))
                 

@@ -96,7 +96,7 @@ class Query():
                     if all(x in stemmed_val_words for x in stemmed_terms):
                         filtered.append(val)
 
-                matched_subfield_values = filtered       
+                matched_subfield_values = list(set(filtered))      
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
@@ -120,8 +120,10 @@ class Query():
                         lambda x: x['_id'], 
                         DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
                     )
+                    xrefs = list(xrefs)
 
-                    q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': list(xrefs)}}]}
+                    if len(xrefs) > 0:
+                        q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
 
                 return Raw(q)
 
@@ -159,6 +161,8 @@ class Query():
                 for m in matches:
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
+                matched_subfield_values = list(set(matched_subfield_values))
+
                 stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
                 for val in matched_subfield_values:
@@ -186,8 +190,10 @@ class Query():
                         lambda x: x['_id'], 
                         DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
                     )
+                    xrefs = list(xrefs)
 
-                    q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': list(xrefs)}}]}
+                    if len(xrefs) > 0:
+                        q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
 
                 return Raw(q)
 
@@ -288,7 +294,8 @@ class Query():
                     else:
                         return Raw({field: {'$in': values}}, record_type=record_type)
                 else:
-                    raise InvalidQueryString(f'Unrecognized query field "{field}"')
+                    #raise InvalidQueryString(f'Unrecognized query field "{field}"')
+                    pass
 
             # free text
             #token = add_quotes(token)
@@ -515,10 +522,10 @@ class Text():
         # capture words starting with hyphen (denotes "not" search)
         negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', self.string)]
 
-        for _ in negated + hyphenated:
+        for _ in negated:
             self.string = self.string.replace(_, '')
 
-        exclude = ('a', 'the', 'of', 'to', 'at', 'and', 'in', 'on', 'by', 'at', 'it', 'its')
+        exclude = ('the', 'of', 'to', 'at', 'and', 'in', 'on', 'by', 'at', 'it', 'its')
         words, data = Tokenizer.tokenize(self.string), {}
         words = list(filter(lambda x: x not in exclude, words))
 
@@ -536,9 +543,9 @@ class Text():
             data.update({'words': {'$all': words}})
 
         if len(quoted) > 1:
-            data['$and'] = [{'text': Regex(f'{Tokenizer.scrub(x)}')} for x in quoted]
+            data['$and'] = [{'text': Regex(f'\s{Tokenizer.scrub(x)}\s')} for x in quoted]
         elif len(quoted) == 1:
-            data['text'] = Regex(f'{Tokenizer.scrub(quoted[0])}')
+            data['text'] = Regex(f'\s{Tokenizer.scrub(quoted[0])}\s')
 
         # use the text index for these cases
         text_searches = []
@@ -587,11 +594,14 @@ class TagOnly():
                 lambda x: x['_id'], 
                 DB.auths.find({f'{source_tag}.subfields.value': value}, {'_id': 1})
             )
+            xrefs = list(xrefs)
             
             if modifier is None:
                 self.condition = Or(
                     Raw({f'{tag}.subfields.value': value}),
-                    Raw({f'{tag}.subfields.xref': {'$in': list(xrefs)}})
+                    Raw({f'{tag}.subfields.xref': {'$in': xrefs}})
+                ) if xrefs else Raw(
+                    {f'{tag}.subfields.value': value}
                 )
             elif modifier == 'not':
                 self.condition = Raw(

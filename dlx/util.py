@@ -977,6 +977,8 @@ class Tokenizer:
     
     @classmethod
     def split_words(cls, string):
+        #string = re.sub(r"['‘’]", '', string) # apostrophes
+
         return re.compile(r'\w+').findall(string)
         
     @classmethod
@@ -1001,6 +1003,8 @@ class Tokenizer:
 
     @classmethod
     def scrub(cls, string):
+        #string = re.sub(r"['‘’]", '', string) # apostrophes
+        
         return re.sub(r'\W+', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
 
     @classmethod
