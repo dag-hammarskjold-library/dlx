@@ -58,3 +58,28 @@ def test_auth_merge(db):
     auth_merge.run(connect='mongomock://localhost', gaining_id=1, losing_id=2, user='test', skip_prompt=True)
     assert Auth.from_id(1).in_use() == 2
     assert Auth.from_id(2) is None
+
+def test_import_marc(db, bibs, auths):
+    from dlx.scripts import marc_import
+
+    control = os.path.dirname(__file__) + '/marc.mrk'
+
+    assert marc_import.run(
+        connect='mongomock://localhost', 
+        type='bib', 
+        format='mrk', 
+        file=control, 
+        skip_auth_check=True,
+        skip_prompt=True
+    ) == None
+
+    control = os.path.dirname(__file__) + '/marc.xml'
+
+    assert marc_import.run(
+        connect='mongomock://localhost', 
+        type='bib', 
+        format='xml', 
+        file=control, 
+        skip_auth_check=True,
+        skip_prompt=True
+    ) == None

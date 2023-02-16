@@ -1,4 +1,4 @@
-version = '1.2.9'
+version = '1.2.9.1'
 
 import sys
 from setuptools import setup, find_packages
@@ -31,7 +31,8 @@ setup(
             'init-indexes=dlx.scripts.init_indexes:run',
             'build-logical-fields=dlx.scripts.build_logical_fields:run',
             'build-text-collections=dlx.scripts.build_text_collections:run',
-            'auth-merge=dlx.scripts.auth_merge:run'
+            'auth-merge=dlx.scripts.auth_merge:run',
+            'marc-import=dlx.scripts.marc_import:run'
         ]
     }
 )
