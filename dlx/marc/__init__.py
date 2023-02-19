@@ -107,7 +107,7 @@ class MarcSet():
         self.query_params = [args, kwargs]
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
-        
+
         self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.find(*args, **kwargs))
 
         return self
@@ -417,6 +417,7 @@ class Marc(object):
     # Instance methods
 
     def __init__(self, doc={}, *, auth_control=False, **kwargs):
+        self.data = doc
         self.id = int(doc['_id']) if '_id' in doc else None
         self.created = doc.get('created')
         self.created_user = doc.get('created_user')
@@ -445,9 +446,6 @@ class Marc(object):
                 for value in doc[tag]:
                     self.fields.append(Controlfield(tag, value))
             else:
-                #if 'words' in doc:
-                #    words = doc.pop('words')
-
                 for field in filter(lambda x: [s.get('xref') or s.get('value') for s in x.get('subfields')], doc[tag]):                
                     self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field, auth_control=auth_control))
                 
