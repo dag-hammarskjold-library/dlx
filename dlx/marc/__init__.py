@@ -204,9 +204,10 @@ class MarcSet():
         self = cls()
 
         for record in string.split('\n\n'):
+
             record = self.record_class.from_mrk(record, auth_control=auth_control)
 
-            if isinstance(record, Marc): 
+            if isinstance(record, Marc) and len(record.fields) > 0: 
                 self.records.append(record)
 
         return self
@@ -1153,6 +1154,7 @@ class Marc(object):
         for line in filter(None, string.split('\n')):
             match = re.match(r'=(\d{3})  (.*)', line)
             tag, rest = match.group(1), match.group(2)
+            if tag == 'LDR': tag = '000'
 
             if tag[:2] == '00':
                 field = Controlfield(tag, rest)
