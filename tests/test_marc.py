@@ -531,7 +531,12 @@ def test_auth_lookup(db):
     assert Auth._xcache['New']['150']['a'] == [3]
     
     bib.set('650', 'a', 'New')
-  
+
+def test_xlookup(db):
+    from dlx.marc import Bib, Auth, Literal
+
+    assert Auth.xlookup_multi('650', [Literal('a', 'Header')], record_type='bib') == [1]
+
 def test_auth_control(db):
     from dlx.marc import Bib, InvalidAuthValue
     
