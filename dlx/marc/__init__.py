@@ -1128,6 +1128,10 @@ class Marc(object):
 
     #### de-serializations
 
+    @classmethod
+    def resolve_ambiguous(cls, subfields):
+        pass
+
     def from_mij(self, string):
         pass
 
@@ -1152,7 +1156,7 @@ class Marc(object):
         self = cls()
 
         for line in filter(None, string.split('\n')):
-            match = re.match(r'=(\d{3})  (.*)', line)
+            match = re.match(r'=(\w{3})  (.*)', line)            
             tag, rest = match.group(1), match.group(2)
             if tag == 'LDR': tag = '000'
 
@@ -1161,10 +1165,27 @@ class Marc(object):
             else:
                 ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
                 field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
+                fallback = {}
+                ambiguous = []
 
                 for chunk in filter(None, rest[2:].split('$')):
                     code, value = chunk[0], chunk[1:]
-                    field.set(code, value, place='+', auth_control=auth_control)
+
+                    try:
+                        field.set(code, value, place='+', auth_control=auth_control)
+                    except(AmbiguousAuthValue):
+                        fallback[code] = value
+                        ambiguous.append(Literal(code, value))
+
+                if fallback and len(fallback) > 1:
+                    xrefs = Auth.xlookup_multi(tag, ambiguous, record_type=cls.record_type)
+                    
+                    if xrefs:
+                        if len(xrefs) == 1:
+                            for code in fallback.keys():
+                                field.set(code, xrefs[0], place='+')
+                    elif len(xrefs) > 1:
+                        raise AmbiguousAuthValue('bib', field.tag, '*', str(fallback))
 
             self.fields.append(field)
 
@@ -1287,6 +1308,31 @@ class Auth(Marc):
         xrefs = [r.id for r in list(auths)]
 
         Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
+
+        return xrefs
+
+    @classmethod
+    def xlookup_multi(cls, tag, subfields, *, record_type):
+        '''Lookup by multiple subfields'''
+        
+        # pairs of code and value {'a': 'val1', 'b': 'val2'}
+        assert [isinstance(x, Subfield) for x in subfields]
+        auth_tag = Config.authority_source_tag(record_type, tag, subfields[0].code) # assume same source tag
+
+        if auth_tag is None:
+            return
+
+        values = ''.join([x.value for x in subfields])
+        cached = Auth._xcache.get('multi', {}).get(values, {}).get(auth_tag, {})
+        
+        if cached:
+            return cached
+
+        query = Query(Condition(auth_tag, dict(zip([x.code for x in subfields], [x.value for x in subfields])), record_type='auth'))
+        auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
+        xrefs = [r.id for r in list(auths)]
+
+        Auth._xcache.setdefault('multi', {}).setdefault(values, {})[auth_tag] = values
 
         return xrefs
 
