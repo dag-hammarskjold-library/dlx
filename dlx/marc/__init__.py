@@ -808,6 +808,21 @@ class Marc(object):
             if isinstance(self, Auth):
                 for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                     setattr(Auth, cache, {})
+
+            # auth attached records update
+            def update_attached_records(auth):
+                if auth.record_type != 'auth': raise Exception('Record type must be auth')
+
+                for record in auth.list_attached():
+                    record.commit(user=auth.user)
+
+            if isinstance(self, Auth):
+                if DB.database_name == 'testing': 
+                    update_attached_records(self)
+
+                thread4 = threading.Thread(target=update_attached_records, args=[self])
+                thread4.setDaemon(False) # stop the thread after complete
+                thread4.start()
             
             return self
             
@@ -1474,6 +1489,22 @@ class Auth(Marc):
             return count(Auth, self.id)          
         else:    
             raise Exception('Invalid usage_type')
+
+    def list_attached(self, usage_type=None):
+        """List the records attached to this auth record"""
+
+        def list_records(lookup_class, xref):
+            tags = list(Config.bib_authority_controlled.keys()) if lookup_class == BibSet else list(Config.auth_authority_controlled.keys())
+            return [record for tag in tags for record in lookup_class.from_query({f'{tag}.subfields.xref': xref})]
+
+        if usage_type == 'bib':
+            return list_records(BibSet, self.id)
+        elif usage_type == 'auth':
+            return list_records(AuthSet, self.id)
+        elif usage_type is None:
+            return [record for cls in (BibSet, AuthSet) for record in list_records(cls, self.id)]
+        else:
+            raise Exception('Invalid "usage_type"')
 
     def merge(self, *, user, losing_record):
         if not isinstance(losing_record, Auth):

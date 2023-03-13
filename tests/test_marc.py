@@ -134,6 +134,21 @@ def test_commit(db, bibs, auths):
         bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': ' ', 'value': 'Subfield code is a space'}]}]})
         bib.commit()
 
+    # update attached records
+    auth = Auth()
+    bibs = [Bib().set('650', 'a', auth.id).commit() for i in range(10)]
+    auths = [Auth().set('550', 'a', auth.id).commit() for i in range(10)]
+    auth.set('150', 'a', 'updated')
+    auth.commit(user='test auth update')
+    
+    for bib in auth.list_attached():
+        assert bib.get_value('650', 'a') == 'updated'
+        assert bib.user == 'test auth update'
+
+    for auth in auth.list_attached():
+        assert auth.get_value('550', 'a') == 'updated'
+        assert auth.user == 'test auth update'
+
 def test_delete(db):
     from dlx import DB
     from dlx.marc import Bib
@@ -220,9 +235,6 @@ def test_querydocument(db):
         Condition(tag='110', subfields={'a': 'Another header'}, record_type='auth'),
     )
 
-    print(query.to_json())
-    print(Auth.from_id(2).to_mrk())
-
     assert len(list(Auth.find(query.compile()))) == 1
     assert Auth.find_one(query.compile()).id == 2
 
@@ -260,7 +272,6 @@ def test_querystring(db):
     #assert len(list(BibSet.from_query(query.compile()))) == 2
     
     query = Query.from_string('110__a:\'Another header\'', record_type='auth')
-    print(query.to_json())
     assert Auth.from_query(query.compile()).id == 2
     
     query = Query.from_string('650__a:/[Hh]eader/')
@@ -781,3 +792,12 @@ def test_bib_files(db, bibs):
     DB.files.insert_one({'_id': '2', 'identifiers': [{'type': 'symbol', 'value': 'A/TEST'}], 'languages': ['ES'], 'uri': 'www.test.com/es', 'mimetype': 'text/plain', 'size': 1, 'source': 'test', 'timestamp': datetime.now()})
     bib = Bib().set('191', 'a', 'A/TEST')
     assert bib.files() == ['www.test.com/fr', 'www.test.com/es']
+
+def test_list_attached(db, bibs, auths):
+    from dlx.marc import Bib, Auth
+
+    auth = Auth.from_id(1)
+    assert len(auth.list_attached()) == 2
+    assert len(auth.list_attached(usage_type='bib')) == 2
+    assert auth.list_attached()[0].id == 1
+    assert auth.list_attached()[1].id == 2
