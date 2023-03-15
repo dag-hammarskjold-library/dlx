@@ -658,7 +658,7 @@ class Marc(object):
             raise jsonschema.exceptions.ValidationError(msg)
 
     @Decorators.check_connected
-    def commit(self, user='admin', auth_check=True):
+    def commit(self, user='admin', auth_check=True, update_attached=True):
         new_record = True if self.id is None else False
 
         self.id = type(self)._increment_ids() if new_record else self.id
@@ -814,9 +814,15 @@ class Marc(object):
                 if auth.record_type != 'auth': raise Exception('Record type must be auth')
 
                 for record in auth.list_attached():
+                    if isinstance(record, Auth):
+                        # prevent feedback loops
+                        if auth in record.list_attached():
+                            record.commit(user=auth.user, update_attached=False)
+                            return
+
                     record.commit(user=auth.user)
 
-            if isinstance(self, Auth):
+            if isinstance(self, Auth) and update_attached == True:
                 if DB.database_name == 'testing': 
                     update_attached_records(self)
 
