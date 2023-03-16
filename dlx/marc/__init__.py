@@ -731,29 +731,66 @@ class Marc(object):
         count = Counter(data['words'])
         data['word_count'] = self.word_count = [{'stem': k, 'count': v} for k, v in count.items()]
 
-        thread1 = threading.Thread(target=index_field_text, args=[])
-        thread1.setDaemon(False) # stop the thread after complete
-        thread1.start()
+        if DB.database_name == 'testing':
+            index_field_text()
+        else:
+            thread1 = threading.Thread(target=index_field_text, args=[])
+            thread1.setDaemon(False) # stop the thread after complete
+            thread1.start()
         
         # add logical fields
+        previous_state = (DB.bibs if self.record_type == 'bib' else DB.auths).find_one({'_id': self.id})
+        
         def calculate_logical_fields():
-            # get the existing record from the DB and delete all the logical field values from the index
-            previous_state = (Bib if self.record_type == 'bib' else Auth).from_id(self.id)
-    
             if previous_state:
-                for logical_field, values in previous_state.logical_fields().items():
-                    updates = [DeleteOne({'_id': val}) for val in values]
-                    DB.handle[f'_index_{logical_field}'].bulk_write(updates)
+                # check old values to delete from browse collection
+                for logical_field in (Config.bib_logical_fields.keys() if self.record_type == 'bib' else Config.auth_logical_fields.keys()):
+                    if logical_field == '_record_type': continue
 
+                    if logical_field in previous_state:
+                        old_values = previous_state[logical_field]
+                    else: continue
+                    
+                    new_values = self.logical_fields()[logical_field]
+                    updates = []
+                    
+                    for value in old_values:
+                        if value in new_values: continue
+                        else: print(f'Checking changed value "{value}"')
+
+                        found_bibs = list(DB.bibs.find({logical_field: value}, limit=2))
+                        bibcount = len(found_bibs)
+                        if bibcount > 1: continue
+                        found_auths = list(DB.auths.find({logical_field: value}, limit=2))
+                        authcount = len(found_auths)
+                        if authcount > 1: continue
+
+                        if bibcount + authcount == 0:
+                            # no records exist with this value
+                            updates.append(DeleteOne({'_id': value}))
+                        elif self.record_type == 'auth':
+                            if authcount == 1:
+                                if self.id == found_auths[0]['_id']:
+                                    if bibcount == 0:
+                                        updates.append(DeleteOne({'_id': value}))
+                        elif self.record_type == 'bib':
+                            if bibcount == 1:
+                                if self.id == found_bibs[0]['_id']:
+                                    updates.append(DeleteOne({'_id': value}))
+                                    print(['Delete', self.id == found_bibs[0]['_id']])
+
+                    if updates:
+                        DB.handle[f'_index_{logical_field}'].bulk_write(updates)
+    
             # insert all the new data's logical fields into the index
-            for logical_field, values in self.logical_fields().items():
+            for logical_field, old_values in self.logical_fields().items():
                 if logical_field == '_record_type':
                     continue
                 
                 # text/browse indexes
                 updates = []
 
-                for val in values:
+                for val in old_values:
                     words = Tokenizer.tokenize(val)
                     count = Counter(words)
                     updates.append(
@@ -773,9 +810,12 @@ class Marc(object):
         for field, vals in self.logical_fields().items(): 
             data[field] = vals
 
-        thread2 = threading.Thread(target=calculate_logical_fields, args=[])
-        thread2.setDaemon(False) # stop the thread after complete
-        thread2.start()
+        if DB.database_name == 'testing':
+            calculate_logical_fields()
+        else:
+            thread2 = threading.Thread(target=calculate_logical_fields, args=[])
+            thread2.setDaemon(False) # stop the thread after complete
+            thread2.start()
 
         # history
         def save_history():
@@ -796,9 +836,12 @@ class Marc(object):
 
             history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
 
-        thread3 = threading.Thread(target=save_history, args=[])
-        thread3.setDaemon(False) # stop the thread after complete
-        thread3.start()
+        if DB.database_name == 'testing':
+            save_history()
+        else:
+            thread3 = threading.Thread(target=save_history, args=[])
+            thread3.setDaemon(False) # stop the thread after complete
+            thread3.start()
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
@@ -812,23 +855,32 @@ class Marc(object):
             # auth attached records update
             def update_attached_records(auth):
                 if auth.record_type != 'auth': raise Exception('Record type must be auth')
-
+                
                 for record in auth.list_attached():
-                    if isinstance(record, Auth):
-                        # prevent feedback loops
-                        if auth in record.list_attached():
-                            record.commit(user=auth.user, update_attached=False)
-                            return
+                    def do_update():
+                        if isinstance(record, Auth):
+                            # prevent feedback loops
+                            if auth.id in [x.id for x in record.list_attached(usage_type='auth')]:
+                                record.commit(user=auth.user, auth_check=False, update_attached=False)
+                                return
 
-                    record.commit(user=auth.user)
+                        record.commit(user=auth.user, auth_check=False)
+
+                    if 1: #DB.database_name == 'testing':
+                        do_update()
+                    else:
+                        # subthreading here doesn't work ?
+                        thread = threading.Thread(target=do_update, args=[])
+                        thread.setDaemon(False) # stop the thread after complete
+                        thread.start()
 
             if isinstance(self, Auth) and update_attached == True:
                 if DB.database_name == 'testing': 
                     update_attached_records(self)
-
-                thread4 = threading.Thread(target=update_attached_records, args=[self])
-                thread4.setDaemon(False) # stop the thread after complete
-                thread4.start()
+                else:
+                    thread4 = threading.Thread(target=update_attached_records, args=[self])
+                    thread4.setDaemon(False) # stop the thread after complete
+                    thread4.start()
             
             return self
             
@@ -842,17 +894,31 @@ class Marc(object):
             for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                 setattr(Auth, cache, {})
 
-        # update browse index if necessary
-        for field, values in self.logical_fields().items():
-            updates = []
+        def update_browse_collections():
+            # update browse index if necessary
+            for field, values in self.logical_fields().items():
+                if field == '_record_type': 
+                    continue
+            
+                updates = []
 
-            for val in values:
-                if type(self).handle().count_documents({field: val}) == 1:
-                    # this record is the only instance of the value
-                    updates.append(DeleteOne({'_id': val}))
+                for val in values:
+                    bibcount = len(list(DB.bibs.find({field: val}, limit=2)))
+                    authcount = len(list(DB.bibs.find({field: val}, limit=2)))
+                    
+                    if bibcount + authcount in [0, 1]:
+                        # this record is the only instance of the value
+                        updates.append(DeleteOne({'_id': val}))
 
-            if updates:
-                DB.handle[f'{field}_index'].bulk_write(updates)
+                if updates:
+                    DB.handle[f'_index_{field}'].bulk_write(updates)
+
+        if DB.database_name == 'testing': 
+            update_browse_collections()
+        else:
+            thread = threading.Thread(target=update_browse_collections, args=[])
+            thread.setDaemon(False) # stop the thread after complete
+            thread.start()
         
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
