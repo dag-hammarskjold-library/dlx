@@ -776,7 +776,6 @@ class Marc(object):
                             if bibcount == 1:
                                 if self.id == found_bibs[0]['_id']:
                                     updates.append(DeleteOne({'_id': value}))
-                                    print(['Delete', self.id == found_bibs[0]['_id']])
 
                     if updates:
                         DB.handle[f'_index_{logical_field}'].bulk_write(updates)
@@ -874,12 +873,17 @@ class Marc(object):
                         subthread.start()
 
             if isinstance(self, Auth) and update_attached == True:
-                if DB.database_name == 'testing': 
-                    update_attached_records(self)
-                else:
-                    thread4 = threading.Thread(target=update_attached_records, args=[self])
-                    thread4.setDaemon(False) # stop the thread after complete
-                    thread4.start()
+                if previous_state: 
+                    previous = Auth(previous_state)
+
+                    if self.heading_field.to_mrk() != previous.heading_field.to_mrk():
+                        # only update attached record if the heading field changed
+                        if DB.database_name == 'testing': 
+                            update_attached_records(self)
+                        else:
+                            thread4 = threading.Thread(target=update_attached_records, args=[self])
+                            thread4.setDaemon(False) # stop the thread after complete
+                            thread4.start()
             
             return self
             
