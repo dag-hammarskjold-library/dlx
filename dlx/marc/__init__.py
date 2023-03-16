@@ -751,7 +751,8 @@ class Marc(object):
                         old_values = previous_state[logical_field]
                     else: continue
                     
-                    new_values = self.logical_fields()[logical_field]
+                    new_values = self.logical_fields().get(logical_field)
+                    if new_values is None: continue
                     updates = []
                     
                     for value in old_values:
