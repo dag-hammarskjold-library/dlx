@@ -755,8 +755,7 @@ class Marc(object):
                     updates = []
                     
                     for value in old_values:
-                        if value in new_values: continue
-                        else: print(f'Checking changed value "{value}"')
+                        if value in new_values: continue    
 
                         found_bibs = list(DB.bibs.find({logical_field: value}, limit=2))
                         bibcount = len(found_bibs)
@@ -870,9 +869,9 @@ class Marc(object):
                         do_update()
                     else:
                         # subthreading here doesn't work ?
-                        thread = threading.Thread(target=do_update, args=[])
-                        thread.setDaemon(False) # stop the thread after complete
-                        thread.start()
+                        subthread = threading.Thread(target=do_update, args=[])
+                        subthread.setDaemon(False) # stop the thread after complete
+                        subthread.start()
 
             if isinstance(self, Auth) and update_attached == True:
                 if DB.database_name == 'testing': 
