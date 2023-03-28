@@ -695,7 +695,7 @@ class Marc(object):
             for i, field in enumerate(filter(lambda x: isinstance(x, Datafield), self.fields)):
                 # tag indexes
                 tag_col = DB.handle[f'_index_{field.tag}']
-                text = ' '.join([subfield.value for subfield in field.subfields])
+                text = ' '.join([subfield.value or '' for subfield in field.subfields]) # subfield may no longer exist
                 scrubbed = Tokenizer.scrub(text)
                 all_text.append(scrubbed)
 
