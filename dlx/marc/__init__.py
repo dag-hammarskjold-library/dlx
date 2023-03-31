@@ -14,6 +14,9 @@ from dlx.db import DB
 from dlx.file import File, Identifier
 from dlx.marc.query import QueryDocument, Query, Condition, Or, Raw
 from dlx.util import Table, Tokenizer
+import logging
+
+logger = logging.getLogger()
 
 ### Exceptions
 
@@ -1619,7 +1622,12 @@ class Auth(Marc):
                 if record.to_bson() != state:
                     def do_commit():
                         # we can skip the auth validation because these records should already be validated
-                        record.commit(user=user, auth_check=False)
+                        # Wrapping this in a try/except block and sending the exception to a configured log
+                        # surfaces exceptions that occur in a thread. This is the only threaded function.
+                        try:
+                            record.commit(user=user, auth_check=False)
+                        except Exception as err:
+                            logger.exception(err)
 
                     t = threading.Thread(target=do_commit, args=[])
                     t.setDaemon(False) # stop the thread after complete
