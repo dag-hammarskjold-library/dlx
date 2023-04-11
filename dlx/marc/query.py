@@ -82,7 +82,8 @@ class Query():
                     return Condition(tag, {code: value[1:-1]}, modifier=modifier)
 
                 # text
-                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                matches = DB.handle[f'_index_{tag}'].find({'words': {'$all': Tokenizer.tokenize(value)}})
                 matched_subfield_values = []
 
                 for m in matches:
@@ -155,10 +156,14 @@ class Query():
                     return TagOnly(tag, value[1:-1], modifier=modifier)
                 
                 # text
-                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                matches = DB.handle[f'_index_{tag}'].find({'words': {'$all': Tokenizer.tokenize(value)}})
                 matched_subfield_values = []
 
+                print(Tokenizer.tokenize(value))
+
                 for m in matches:
+                    print('MATCH')
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
                 matched_subfield_values = list(set(matched_subfield_values))
