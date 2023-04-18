@@ -94,7 +94,7 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    return Condition(tag, {code: value}, modifier=modifier)
+                    return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
 
                 # exact match
                 if value[0] == '\'' and value[-1] == '\'':
