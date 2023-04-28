@@ -832,8 +832,15 @@ class Marc(object):
                 record_history = history_collection.find_one({'_id': self.id})
 
                 if record_history:
-                    record_history.setdefault('history', []) # record may not have history if migrated from another db
-                    record_history['history'].append(data)
+                    # capture previous state if record originated in another db
+                    if record_history.get('history') is None:
+                        if previous_state:
+                            previous_state['user'] = 'system import'
+                            record_history['history'] = [previous_state, data]
+                        else:
+                            record_history['history'] = [data]
+                    else:
+                        record_history['history'].append(data)
                 else:
                     record_history = SON()
                     record_history['_id'] = self.id
@@ -841,7 +848,12 @@ class Marc(object):
                     if new_record:
                         record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
 
-                    record_history['history'] = [data]
+                    # capture previous state if record originated in another db
+                    if previous_state:
+                        previous_state['user'] = 'system import'
+                        record_history['history'] = [previous_state, data]
+                    else:
+                        record_history['history'] = [data]
 
                 history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
             except Exception as err:
