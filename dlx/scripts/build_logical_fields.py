@@ -20,7 +20,12 @@ parser.add_argument('--fields', help='Only build these fields', nargs='+')
   
 def run():
     args = parser.parse_args()
-    #DB.connect(args.connect, database=args.database)
+    
+    if DB.database_name == 'testing':
+        # DB is already connected to by the test suite
+        pass
+    else:
+        DB.connect(args.connect, database=args.database)
 
     build_logical_fields(args)
     #build_auth_controlled_logical_fields(args) # disabled
