@@ -38,9 +38,18 @@ def test_build_logical_fields(db):
         .set('246', 'a', 'Alt title') \
         .set('650', 'a', 1) \
         .commit()
-    
-    # interim
-    assert build_logical_fields.run() is None
+
+    # delete the logical field that was created on commit to test that the script adds it
+    bib.handle().update_one({'_id': bib.id}, {'$unset': {'title': 1}})
+    assert bib.handle().find_one({'_id': bib.id}).get('title') is None
+    assert build_logical_fields.run() == True
+    assert bib.handle().find_one({'_id': bib.id}).get('title') == ['Title: subtitle', 'Alt title']
+
+    # test fields arg
+    bib.handle().update_one({'_id': bib.id}, {'$unset': {'title': 1}})
+    sys.argv[1:] = ['--connect=mongomock://localhost', '--type=bib', '--fields=dummy1 dummy2']
+    assert build_logical_fields.run() == True
+    assert bib.handle().find_one({'_id': bib.id}).get('title') is None
 
 def test_build_text_collections(db):
     from dlx.marc import Bib
@@ -58,3 +67,28 @@ def test_auth_merge(db):
     auth_merge.run(connect='mongomock://localhost', gaining_id=1, losing_id=2, user='test', skip_prompt=True)
     assert Auth.from_id(1).in_use() == 2
     assert Auth.from_id(2) is None
+
+def test_import_marc(db, bibs, auths):
+    from dlx.scripts import marc_import
+
+    control = os.path.dirname(__file__) + '/marc.mrk'
+
+    assert marc_import.run(
+        connect='mongomock://localhost', 
+        type='bib', 
+        format='mrk', 
+        file=control, 
+        skip_auth_check=True,
+        skip_prompt=True
+    ) == None
+
+    control = os.path.dirname(__file__) + '/marc.xml'
+
+    assert marc_import.run(
+        connect='mongomock://localhost', 
+        type='bib', 
+        format='xml', 
+        file=control, 
+        skip_auth_check=True,
+        skip_prompt=True
+    ) == None

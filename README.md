@@ -4,7 +4,7 @@
 APIs for performing ETL operations on MARC and file data
 
 ### Requirements:
-* Python 3.6+
+* Python 3.7+
 * Valid MongoDB connection string
 * AWS S3 credentials (file submission only)
 
@@ -22,33 +22,50 @@ DB.connect('<connection string>')
 
 from dlx.marc import Bib, BibSet, Query, Condition
 
-bib = Bib.from_id(100)
+# get a record from the database as a `Bib` object
+bib = Bib.from_id(10000)
+# get values from the record
 print(bib.get_value('245', 'a'))
 
+# contstruct a query using search syntax
+query = Query.from_string("245__a:'Title' AND 245__b:'subtitle'")
+
+# construct a more specific query using a `Condition`
 query = Query(
 	Condition('245', {'a': 'Title', 'b': 'subtitle'})
 )
 
+# get the records that match the query as `Bib` objects
 for bib in BibSet.from_query(query):
-	bib.set('245', 'a', 'New title')
-	bib.commit(user='you')
+	# edit the records
+	bib.set('245', 'a', 'Edited title')
+	# save the records back to the database
+	bib.commit(user='myusername')
 
 ### File
 
-from dlx.file import File, Identifier, S3
+from dlx.file import File, Identifier
 
-S3.connect(aws_key='<AWS key>', aws_key_id='<AWS key ID>', bucket='<bucket name>')
-
-fileobj = open('file.txt', 'r')
-
-File.import_from_handle(
-	fileobj, 
-	identifiers=[Identifier('isbn', '1')], 
+# import a file from the local disk
+File.import_from_path(
+	'c:\\files\file.pdf', 
+	identifiers=[Identifier('isbn', '9781234567890')], 
 	filename='fn.txt', languages=['EN'], 
 	mimetype='text/plain', 
 	source='demo'
 )
 
-xfile = File.latest_by_identifier_language(Identifier('isbn', '1'), 'EN')
-print(xfile.url)
+# import a file from a url
+File.import_from_path(
+	'www.someurl.com/file.pdf', 
+	identifiers=[Identifier('isbn', '9781234567890')], 
+	filename='fn.txt', languages=['EN'], 
+	mimetype='text/plain', 
+	source='demo'
+)
+
+# retrieve the file record as a `File` object
+f = File.latest_by_identifier_language(Identifier('isbn', '9781234567890'), 'EN')
+# get the file's new s3 link
+print(f.url)
 ```

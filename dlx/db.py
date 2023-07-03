@@ -2,7 +2,7 @@
 Provides the DB class for connecting to and accessing the database.
 """
 
-import re
+import re, certifi
 from pymongo import MongoClient
 #from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
 from mongomock import MongoClient as MockClient
@@ -36,7 +36,7 @@ class DB():
     ## class
 
     @classmethod
-    def connect(cls, connection_string, **kwargs):
+    def connect(cls, connection_string, *, database=None, mock=False):
         """Connects to the database and stores database and collection handles
         as class attributes.
 
@@ -44,6 +44,10 @@ class DB():
         ----------
         param1 : str
             MongoDB connection string.
+
+        *database : str
+            The name of the database to use. If not specified, the name will be 
+            attempted to be parsed from the connection string.
 
         Returns
         -------
@@ -58,31 +62,35 @@ class DB():
             If the supplied credentials are invalid.
         """
 
-        if 'mock' in kwargs.keys():
-            client = MockClient(connection_string)
-        elif connection_string == 'mongomock://localhost':
+        if mock or connection_string == 'mongomock://localhost':
             # allows MongoEngine mock client connection string
-            connection_string = 'mongodb://.../?authSource=dummy'
-            client = MockClient(connection_string)
+            client =  MockClient()
+            mock = True
         else:
-            client = MongoClient(connection_string, serverSelectionTimeoutMS=10)
+            kwargs = {'serverSelectionTimeoutMS': 5000}
+            
+            if re.match(r'mongodb\+srv', connection_string):
+                # https://pypi.org/project/certifi/ 
+                # https://www.mongodb.com/docs/mongodb-shell/reference/options/#std-option-mongosh.--tlsCAFile
+                kwargs['tlsCAFile'] = certifi.where()
 
-        # raises pymongo exceptions if connection fails
-        try:
-            client.admin.command('ismaster')
-        except NotImplementedError:
-            pass
+            client = MongoClient(connection_string, **kwargs)
+
+        if database:
+            DB.database_name = database
+        else:    
+            match = re.search(r'\?authSource=([\w]+)', connection_string)
+            
+            if match:
+                DB.database_name = match.group(1)
+            elif mock:
+                DB.database_name = 'testing'
+            else:
+                raise Exception('No database name was provided and could not parse database name from connection string')
 
         DB.connected = True
         DB.config['connection_string'] = connection_string
-
-        match = re.search(r'\?authSource=([\w]+)', connection_string)
-
-        if match:
-            DB.database_name = match.group(1)
-        else:
-            # this should be impossible
-            raise Exception('Could not parse database name from connection string')
+        print(f'connected to database "{DB.database_name}"')
 
         DB.client = client
         DB.handle = client[DB.database_name]
@@ -91,36 +99,9 @@ class DB():
         DB.auths = DB.handle['auths']
         DB.auth_history = DB.handle['auth_history']
         DB.files = DB.handle['files']
-        
-        return DB.client
 
     @classmethod
     def disconnect(cls):
         if DB.connected:
             DB.client.close()
-
-    ## static
-
-    @staticmethod
-    def check_connection():
-        """Raises an exception if the database has not been connected to.
-
-        This is used to prevent attempts at database operations without
-        being connected, which can create hard-to-trace errors.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        Exception
-            If the database has not been connected to yet.
-        """
-
-        try:
-            DB.client.admin.command('ismaster')
-        except NotImplementedError:
-            pass
-
-        return True
+            DB.connected = False

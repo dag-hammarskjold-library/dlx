@@ -20,7 +20,12 @@ class Config():
     
     # this is used by dlx.query to locate the linked value
     bib_authority_controlled = {
+        '100': {'a': '100'},
+        '110': {'a': '110'},
+        '111': {'a': '111'},
+        '130': {'a': '130'},
         '191': {'b': '190', 'c': '190'},
+        '440': {'a': '140'},
         '600': {'a': '100', 'g': '100'},
         '610': {'a': '110', 'g': '110'},
         '611': {'a': '111', 'g': '111'},
@@ -37,12 +42,14 @@ class Config():
     }
 
     auth_authority_controlled = {
-        '491': {'a': '191'},
+        #'491': {'a': '191', 'b': '191', 'c': '191', 'd': '191'},
         '500': {'a': '100'},
         '510': {'a': '110'},
         '511': {'a': '111'},
+        '530': {'a': '130'},
         '550': {'a': '150'},
         '551': {'a': '151'},
+        '591': {'a': '191', 'b': '191', 'c': '191', 'd': '191'},
     }
     
     auth_language_tag = {
@@ -57,7 +64,7 @@ class Config():
     bib_text_index_weights = {}
     
     # auth-controlled fields are automatically indexed
-    auth_index = ['100', '110', '111', '130', '150', '190', '998']
+    auth_index = ['100', '110', '111', '130', '140', '150', '190', '998']
     auth_index_case_insensitive = ['100', '110', '111']
     auth_index_logical_numeric = ['body', 'agenda']
     auth_text_index_weights = {}
@@ -220,15 +227,22 @@ class Config():
             '150': ['a'],
             '191': ['abcd'],
             '190': ['bc'],
+            '491': ['d'],
+            '591': ['abcd']
         },
         'agenda': {
-            '191': ['abcd']
+            '191': ['abcd'],
+            '491': ['d'],
+            '591': ['abcd']
         },
         'agenda_title': {
-            '191': ['c']
+            '191': ['c'],
+            '591': ['c']
         },
         'agenda_subject': {
-            '191': ['d']
+            '191': ['d'],
+            '491': ['d'],
+            '591': ['d']
         },
         'series': {
             '130': ['adfgklnp'],

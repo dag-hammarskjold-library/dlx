@@ -12,21 +12,28 @@ from dlx.marc import BibSet, Bib, AuthSet, Auth, Query
 from dlx.util import Tokenizer
 
 parser = ArgumentParser()
-parser.add_argument('--connect', required=True)
+parser.add_argument('--connect', required=True, help='MongoDB connection string')
+parser.add_argument('--database', help='The database to use, if it differs from the one in the connection string')
 parser.add_argument('--type', required=True, choices=['bib', 'auth'])
 parser.add_argument('--start', default=0)
+parser.add_argument('--fields', help='Only build these fields', nargs='+')
   
 def run():
     args = parser.parse_args()
     
-    if not DB.connected:
-        DB.connect(args.connect)
+    if DB.database_name == 'testing':
+        # DB is already connected to by the test suite
+        pass
+    else:
+        DB.connect(args.connect, database=args.database)
 
     build_logical_fields(args)
     #build_auth_controlled_logical_fields(args) # disabled
     
     if args.type == 'auth':
         calculate_auth_use()
+
+    return True
 
 def build_logical_fields(args):
     cls = BibSet if args.type == 'bib' else AuthSet
@@ -38,6 +45,9 @@ def build_logical_fields(args):
         #if field not in auth_controlled: #Config.auth_controlled_bib_logical_fields():
         #    tags += list(d.keys())
         #    names.append(field)
+
+        if args.fields and field not in args.fields:
+            continue
 
         tags += list(d.keys()) + (Config.bib_type_map_tags() if cls == BibSet else Config.auth_type_map_tags())
         names.append(field)
