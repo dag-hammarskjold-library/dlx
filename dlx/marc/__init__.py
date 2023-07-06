@@ -1922,7 +1922,7 @@ class Datafield(Field):
             if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
                 value = sub.translated(language)
             else: 
-                value = sub.value
+                value = sub.value or ''
 
             string += ''.join([delim + sub.code + value])
 
