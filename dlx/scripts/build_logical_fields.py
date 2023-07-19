@@ -68,11 +68,7 @@ def build_logical_fields(args):
         
         for record in cls.from_query(query, sort=[('_id', DESC)], skip=i, limit=inc, projection=dict.fromkeys(tags, 1)):
             for field, values in record.logical_fields(*list(names)).items():
-                updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))                
-                
-                if field == '_record_type': 
-                    continue
-
+                updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))
                 browse_updates.setdefault(field, [])
 
                 for val in values:
