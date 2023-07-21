@@ -116,6 +116,16 @@ class MarcSet():
         return self
 
     @classmethod
+    def from_aggregation(cls, pipeline, **kwargs):
+        # the aggregation results must return valid Marc records
+        self = cls()
+        Marc = self.record_class
+        ac = kwargs.pop('auth_control', False)
+        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline))
+
+        return self
+
+    @classmethod
     def from_ids(cls, ids):
         return cls.from_query({'_id' : {'$in': ids}})
 
