@@ -19,16 +19,16 @@ class Query():
         self.record_type = record_type
         
         def tokenize(string):
-            tokens, buffer, in_quotes = [], '', False
+            tokens, buffer, in_quotes_or_regex = [], '', False
 
             for i, char in enumerate(string):
-                if char in ['"', "'"]:
+                if char in ['"', "'", '/']:
                     # toggle
-                    in_quotes = not in_quotes
+                    in_quotes_or_regex = not in_quotes_or_regex
 
                 buffer += char
 
-                if in_quotes == False:
+                if in_quotes_or_regex == False:
                     match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s$', buffer)
                     
                     if match:
