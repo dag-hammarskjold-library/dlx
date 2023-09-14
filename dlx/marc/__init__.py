@@ -1820,9 +1820,16 @@ class Datafield(Field):
         return sub.value if sub else ''
 
     def get_values(self, *codes):
-        subs = filter(lambda sub: sub.code in codes, self.subfields)
+        values = []
 
-        return list(filter(None, [sub.value for sub in subs]))
+        for code in codes:
+            i = 0
+
+            while self.get_value(code, place=i):
+                values.append(self.get_value(code, place=i))
+                i += 1
+
+        return values
 
     def get_xrefs(self):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
