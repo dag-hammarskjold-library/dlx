@@ -14,12 +14,16 @@ class DB():
     -----------
         All class attributes are set automatically by DB.connect()
 
+    client : pymongo.MongoClient
     connected : bool
     handle : pymongo.database.Database
     bibs : pymongo.collection.Collection
+    bib_history : pymongo.collection.Collection
     auths : pymongo.collection.Collection
-    file : pymongo.collection.Collection
+    auth_history : pymongo.collection.Collection
+    files : pymongo.collection.Collection
     config : dict
+    is_atlas : bool
     """
 
     client = None
@@ -32,6 +36,7 @@ class DB():
     auth_history = None
     files = None
     config = {}
+    is_atlas = False
 
     ## class
 
@@ -63,6 +68,7 @@ class DB():
         """
 
         if mock or connection_string == 'mongomock://localhost':
+            # testing environment
             # allows MongoEngine mock client connection string
             client =  MockClient()
             mock = True
@@ -73,6 +79,12 @@ class DB():
                 # https://pypi.org/project/certifi/ 
                 # https://www.mongodb.com/docs/mongodb-shell/reference/options/#std-option-mongosh.--tlsCAFile
                 kwargs['tlsCAFile'] = certifi.where()
+            
+            if re.match('mongodb\+srv://.*mongodb.net/', connection_string):
+                # appears to be an Atlas instance
+                DB.is_atlas = True
+            else:
+                DB.is_atlas = False
 
             client = MongoClient(connection_string, **kwargs)
 

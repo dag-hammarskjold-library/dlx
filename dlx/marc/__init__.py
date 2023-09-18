@@ -116,6 +116,16 @@ class MarcSet():
         return self
 
     @classmethod
+    def from_aggregation(cls, pipeline, **kwargs):
+        # the aggregation results must return valid Marc records
+        self = cls()
+        Marc = self.record_class
+        ac = kwargs.pop('auth_control', False)
+        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline))
+
+        return self
+
+    @classmethod
     def from_ids(cls, ids):
         return cls.from_query({'_id' : {'$in': ids}})
 
@@ -1811,9 +1821,16 @@ class Datafield(Field):
         return sub.value if sub else ''
 
     def get_values(self, *codes):
-        subs = filter(lambda sub: sub.code in codes, self.subfields)
+        values = []
 
-        return list(filter(None, [sub.value for sub in subs]))
+        for code in codes:
+            i = 0
+
+            while self.get_value(code, place=i):
+                values.append(self.get_value(code, place=i))
+                i += 1
+
+        return values
 
     def get_xrefs(self):
         return list(set([sub.xref for sub in filter(lambda x: hasattr(x, 'xref'), self.subfields)]))
@@ -1923,7 +1940,7 @@ class Datafield(Field):
             if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
                 value = sub.translated(language)
             else: 
-                value = sub.value
+                value = sub.value or ''
 
             string += ''.join([delim + sub.code + value])
 

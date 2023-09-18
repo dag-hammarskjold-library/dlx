@@ -19,16 +19,16 @@ class Query():
         self.record_type = record_type
         
         def tokenize(string):
-            tokens, buffer, in_quotes = [], '', False
+            tokens, buffer, in_quotes_or_regex = [], '', False
 
             for i, char in enumerate(string):
-                if char in ['"', "'"]:
+                if char in ['"', "'", '/']:
                     # toggle
-                    in_quotes = not in_quotes
+                    in_quotes_or_regex = not in_quotes_or_regex
 
                 buffer += char
 
-                if in_quotes == False:
+                if in_quotes_or_regex == False:
                     match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s$', buffer)
                     
                     if match:
@@ -59,12 +59,18 @@ class Query():
                 else:
                     return Regex(string[1:-1])
             elif '*' in string:
+                if string == '*':
+                    # special string for checking if field exists
+                    return string
+
+                # convert to regex
                 string = string.replace('(', r'\(')
                 string = string.replace(')', r'\)')
                 string = string.replace('[', r'\]')
                 string = string.replace(']', r'\[')
                 return Regex('^' + string.replace('*', '.*?') + '$')
             else:
+                # do nothing
                 return string
 
         def add_quotes(string):
@@ -91,6 +97,10 @@ class Query():
             if match:
                 tag, ind1, ind2, code, value = match.group(1, 2, 3, 4, 5)
                 value = process_string(value)
+
+                # exists
+                if value == '*':
+                    return Raw({f'{tag}.subfields': {'$elemMatch': {'code': code}}})
 
                 # regex
                 if isinstance(value, Regex):
@@ -165,6 +175,10 @@ class Query():
                         raise InvalidQueryString(f'ID must be a number')
                 elif tag[:2] == '00':
                     return Raw({tag: value}, record_type=record_type)
+
+                # exists
+                if value == '*':
+                    return Raw({tag: {'$exists': True}})
 
                 # regex
                 if isinstance(value, Regex):
