@@ -7,7 +7,7 @@
 
 import sys, os, time
 from collections import Counter
-from pymongo import UpdateOne
+from pymongo import UpdateOne, ReplaceOne
 from argparse import ArgumentParser
 from dlx import DB, Config
 from dlx.marc import BibSet, AuthSet
@@ -29,8 +29,8 @@ def run():
     end = cls.from_query({}).count
     inc = 1000
     tags = set()
-    exclude_fields = list(Config.bib_logical_fields.keys() if args.type == 'bibs' else Config.auth_logical_fields.keys()) \
-        + ['created', 'created_user', 'user', 'updated', 'words', 'text', 'word_count']
+    exclude_fields = [] #list(Config.bib_logical_fields.keys() if args.type == 'bib' else Config.auth_logical_fields.keys())
+    exclude_fields += ['words', 'text', 'word_count']
 
     # chunks
     for i in range(start, end, inc):
@@ -38,57 +38,86 @@ def run():
 
         # records
         updates, record_updates, start_time = {}, [], time.time()
+        to_set = {}
 
-        for record in cls.from_query({}, skip=i, limit=inc, projection=dict.fromkeys(exclude_fields, 0)):
-            all_text = []
+        for record in cls.from_query({}, skip=i, limit=inc, projection=dict.fromkeys(exclude_fields, False)):
+            all_text, all_words, tagindex = [], [], {}
 
             for field in record.datafields:
                 #field.subfields = list(filter(lambda x: not hasattr(x, 'xref'), field.subfields))
+                tagindex.setdefault(field.tag, 0)
                 tags.add(field.tag)
-
-                #for s in field.subfields:
-                #    if s.value is None:
-                #        print(f'\n{record.id}')
 
                 # concatenated subfield text
                 text = ' '.join(filter(None, [x.value for x in field.subfields]))
                 scrubbed = Tokenizer.scrub(text)
                 all_text.append(scrubbed)
+                words = Tokenizer.tokenize(text)
+                all_words += words
                 updates.setdefault(field.tag, [])
                 updates[field.tag].append(UpdateOne({'_id': text}, {'$setOnInsert': {'_id': text}}, upsert=True))
 
-                # individual subfields
-                for s in field.subfields:
-                    updates[field.tag].append(
-                        UpdateOne(
-                            {'_id': text},
-                            {'$addToSet': {'subfields': {'code': s.code, 'value': s.value}}},
-                            #upsert=True
-                        )
-                    )
-
-                # text
-                words = Tokenizer.tokenize(text)
+                # text col
                 count = Counter(words)
                 updates[field.tag].append(
                     UpdateOne(
                         {'_id': text}, 
-                        {'$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
+                        {
+                            '$set': {
+                                'text': f' {scrubbed} ',
+                                'words': list(count.keys()), 
+                                #'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
+                            },
+                            '$unset': {'word_count': ''}
+                        }
                     )
                 )
+                
+                record.data[field.tag][tagindex[field.tag]]['text'] = f' {" ".join(words)} '
+                record.data[field.tag][tagindex[field.tag]]['words'] = words
+
+                # individual subfields
+                updates[field.tag].append(UpdateOne({'_id': text}, {'$unset': {'subfields': ''}}))
+
+                for subindex, subfield in enumerate(field.subfields):
+                    # text col
+                    if not subfield.value:
+                        continue
+
+                    words = Tokenizer.tokenize(subfield.value)
+                    """
+                    updates[field.tag].append(
+                        UpdateOne(
+                            {'_id': text},
+                            {
+                                '$addToSet': {
+                                    'subfields': {
+                                        'code': subfield.code,
+                                        'value': subfield.value,
+                                        'text': f' {" ".join(words)} ',
+                                        'words': words
+                                    }
+                                }
+                            },
+                            #upsert=True
+                        )
+                    )
+                    """
+
+                    record.data[field.tag][tagindex[field.tag]]['subfields'][subindex]['text'] = f' {" ".join(words)} '
+                    record.data[field.tag][tagindex[field.tag]]['subfields'][subindex]['words'] = words
+
+                # tag counter
+                tagindex[field.tag] += 1
 
             # all-text 
             #all_text_col = DB.handle[f'__index_{record.record_type}s']
             all_text = ' '.join(all_text)
-            all_words = Tokenizer.tokenize(all_text)
             count = Counter(all_words)
-            
-            record_updates.append(
-                UpdateOne(
-                    {'_id': record.id},
-                    {'$set': {'text': all_text, 'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
-                )
-            )
+            record.data['text'] = f' {all_text} '
+            record.data['words'] = list(count.keys())
+            #record.data['word_count'] = count
+            record_updates.append(ReplaceOne({'_id': record.id}, record.data))
 
         print('\u2713', end='', flush=True)
 

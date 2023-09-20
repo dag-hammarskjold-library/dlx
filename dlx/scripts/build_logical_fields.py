@@ -59,7 +59,7 @@ def build_logical_fields(args):
     print(f'building {list(names)}')
     
     c = r = start = int(args.start)
-    inc = 10000
+    inc = 1000
     query = {}
     end = cls().handle.estimated_document_count() #cls.from_query(query).count
     
@@ -79,7 +79,12 @@ def build_logical_fields(args):
                         UpdateOne(
                             {'_id': val}, 
                             {
-                                '$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]},
+                                '$set': {
+                                    'text': f' {" ".join(words)} ', # leading and tailing space added to help with matching
+                                    'words': list(count.keys()),
+                                    #'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
+                                },
+                                '$unset': {'word_count': ''},
                                 '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]}
                             },
                             upsert=True

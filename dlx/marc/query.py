@@ -111,7 +111,25 @@ class Query():
                     return Condition(tag, {code: value[1:-1]}, modifier=modifier, record_type=self.record_type)
 
                 # text
-                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                quoted = re.findall(r'"(.+?)"', value)
+                negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                
+                for _ in negated:
+                    value = value.replace(_, '')
+
+                    if not value.strip():
+                        raise Exception('Search term can\'t contain only negations')
+
+                matches = DB.handle[f'_index_{tag}'].find(
+                    {
+                        '$and': [
+                            {'words': {'$all': Tokenizer.tokenize(value)}},
+                            {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
+                            {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                        ]
+                    }
+                )
                 matched_subfield_values = []
 
                 for m in matches:
@@ -125,7 +143,7 @@ class Query():
                     if all(x in stemmed_val_words for x in stemmed_terms):
                         filtered.append(val)
 
-                matched_subfield_values = filtered       
+                matched_subfield_values = list(set(filtered))      
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
@@ -149,8 +167,10 @@ class Query():
                         lambda x: x['_id'], 
                         DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
                     )
+                    xrefs = list(xrefs)
 
-                    q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': list(xrefs)}}]}
+                    if len(xrefs) > 0:
+                        q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
 
                 return Raw(q)
 
@@ -186,12 +206,32 @@ class Query():
                     return TagOnly(tag, value[1:-1], modifier=modifier)
                 
                 # text
-                matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
+                quoted = re.findall(r'"(.+?)"', value)
+                # capture words starting with hyphen (denotes "not" search)
+                negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+
+                for _ in negated:
+                    value = value.replace(_, '')
+
+                    if not value.strip():
+                        raise Exception('Search term can\'t contain only negations')
+
+                matches = DB.handle[f'_index_{tag}'].find(
+                    {
+                        '$and': [
+                            {'words': {'$all': Tokenizer.tokenize(value)}},
+                            {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))} if negated else {'$exists': 1}},
+                            {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                        ]
+                    }
+                )
                 matched_subfield_values = []
 
                 for m in matches:
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
+                matched_subfield_values = list(set(matched_subfield_values))
                 stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
                 for val in matched_subfield_values:
@@ -219,8 +259,10 @@ class Query():
                         lambda x: x['_id'], 
                         DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
                     )
+                    xrefs = list(xrefs)
 
-                    q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': list(xrefs)}}]}
+                    if len(xrefs) > 0:
+                        q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
 
                 return Raw(q)
 
@@ -310,7 +352,24 @@ class Query():
                             return Raw({field: process_string(value)}, record_type=record_type)
                     
                     # text
-                    matches = DB.handle[f'_index_{field}'].find({'$text': {'$search': add_quotes(value)}})
+                    quoted = re.findall(r'"(.+?)"', value)
+                    negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                
+                    for _ in negated:
+                            value = value.replace(_, '')
+
+                            if not value.strip():
+                                raise Exception('Search term can\'t contain only negations')
+
+                    matches = DB.handle[f'_index_{field}'].find(
+                        {
+                            '$and': [
+                                {'words': {'$all': Tokenizer.tokenize(value)}},
+                                {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
+                                {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                            ]
+                        }
+                    )                   
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
@@ -322,10 +381,10 @@ class Query():
                         return Raw({field: {'$in': values}}, record_type=record_type)
                 else:
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
+                    pass
 
             # free text
-            token = add_quotes(token)
-            
+            #token = add_quotes(token)
             return Text(token, record_type=record_type)
         
         string = re.sub(r'^\s+', '', string) # leading
@@ -544,7 +603,51 @@ class Text():
         self.record_type = record_type
     
     def compile(self):
-        return {'$text': {'$search': f'{self.string}'}}
+        # new text search
+
+        # capture quotes strings
+        quoted = re.findall(r'(".+?")', self.string)
+        # capture hyphenated words
+        hyphenated = re.findall(r'(\w+\-\w+)', self.string)
+        # capture words starting with hyphen (denotes "not" search)
+        negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', self.string)]
+        copied_string = self.string
+
+        for _ in negated:
+            copied_string = copied_string.replace(_, '')
+
+        exclude = ('the', 'of', 'to', 'at', 'and', 'in', 'on', 'by', 'at', 'it', 'its')
+        words = Tokenizer.tokenize(copied_string)
+        words = list(filter(lambda x: x not in exclude, words))
+        #words = list(filter(lambda x: len(x) > 1, words)) # ignore one-letter words
+
+        data = {}
+        
+        if negated:
+            negated = Tokenizer.tokenize(' '.join(negated))
+
+            if words:
+                data.update({'$and': [{'words': {'$all': words}}, {'words': {'$nin': negated}}]})
+            else:
+                raise Exception('Search term can\'t contain only negations')
+        elif words:
+            data.update({'words': {'$all': words}})
+
+        if len(quoted) > 1:
+            data['$and'] = [{'text': Regex(f'\s{Tokenizer.scrub(x)}\s')} for x in quoted]
+        elif len(quoted) == 1:
+            data['text'] = Regex(f'\s{Tokenizer.scrub(quoted[0])}\s')
+
+        # use the text index for these cases
+        text_searches = []
+        #if negated: text_searches += negated
+        #if quoted: text_searches += quoted
+        #if hyphenated: text_searches += [f'"{x}"' for x in hyphenated]
+        
+        if text_searches:
+            data['$text'] = {'$search': ' '.join(text_searches)}
+        
+        return data
 
 class Wildcard(Text):
     # Deprecated
@@ -580,11 +683,14 @@ class TagOnly():
                 lambda x: x['_id'], 
                 DB.auths.find({f'{source_tag}.subfields.value': value}, {'_id': 1})
             )
+            xrefs = list(xrefs)
             
             if modifier is None:
                 self.condition = Or(
                     Raw({f'{tag}.subfields.value': value}),
-                    Raw({f'{tag}.subfields.xref': {'$in': list(xrefs)}})
+                    Raw({f'{tag}.subfields.xref': {'$in': xrefs}})
+                ) if xrefs else Raw(
+                    {f'{tag}.subfields.value': value}
                 )
             elif modifier == 'not':
                 self.condition = Raw(

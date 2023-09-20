@@ -110,7 +110,6 @@ def test_commit(db, bibs, auths):
     bib.commit()
     assert bib.text == 'testing testing 1234'
     assert bib.words == ['test', 'test', '1234']
-    assert bib.word_count == [{'stem': 'test', 'count': 2}, {'stem': '1234', 'count': 1}]
 
     # id incrementer
     Bib().commit()
@@ -256,6 +255,7 @@ def test_from_query(db):
 
 def test_querystring(db):
     from datetime import datetime
+    from bson import Regex
     from dlx.marc import BibSet, Bib, Auth, Query
 
     query = Query.from_string('245__c:\'title\'')
@@ -283,24 +283,32 @@ def test_querystring(db):
     # all fields
     query = Query.from_string('Another header')
    
-    with pytest.raises(NotImplementedError):
-        # $text operator not implemented in mongomock
-        assert len(list(BibSet.from_query(query.compile()))) == 2
+    #with pytest.raises(NotImplementedError):
+    #    # $text operator not implemented in mongomock
+    #    #assert len(list(BibSet.from_query(query.compile()))) == 2
+    
+    # text indexes don't exist here until commit
+    for _ in (1, 2):
+        Bib.from_id(_).commit()
+
+    assert len(list(BibSet.from_query(query.compile()))) == 2
 
     # quotes automatically added by dlx (forces "and" search)
-    assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+    #assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+    assert query.compile() == {'words': {'$all': ['anoth', 'header']}}
 
     # hyphenated word inside double quoted text
     query = Query.from_string('"Another-header"')
-    assert query.compile() == {'$text': {'$search': '"Another-header"'}}
-
+    assert query.compile()['words'] == {'$all': ["anoth", "header"]}
+    assert query.compile()['text'] == Regex('\\sanother header\\s')
+    
     # hyphenated free text word
     query = Query.from_string('Another-header')
-    assert query.compile() == {'$text': {'$search': '"Another-header"'}}
+    assert query.compile()['words'] == {'$all': ["anoth", "header"]}
 
     # negation operator
     query = Query.from_string('Another -header')
-    assert query.compile() == {'$text': {'$search': '"Another" -header'}}
+    assert query.compile() == {'$and': [{'words': {'$all': ['anoth']}}, {'words': {'$nin': ['header']}}]}
 
     # tag no subfield
     query = Query.from_string('245:\'is the\'')
@@ -316,12 +324,13 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
     # updated
+    # currently 3 records have been updated in this test
     Bib().commit()
     query = Query.from_string('updated>1900-01-01')
-    assert len(list(BibSet.from_query(query.compile()))) == 1
+    assert len(list(BibSet.from_query(query.compile()))) == 3
 
     query = Query.from_string(f'updated:{(datetime.utcnow()).strftime("%Y-%m-%d")}')
-    assert len(list(BibSet.from_query(query.compile()))) == 1
+    assert len(list(BibSet.from_query(query.compile()))) == 3
     
     # xref
     auth = Auth().set('100', 'a', 'x').commit()
