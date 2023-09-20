@@ -947,6 +947,10 @@ class AsciiMap:
         "ᶎ": "Z",
         "Ⱬ": "Z",
         "ⱬ": "Z",
+        # other
+        "–": "-", # en dash
+        "’": "'",
+        "`": "'"
     }
 
     @classmethod
@@ -977,8 +981,6 @@ class Tokenizer:
     
     @classmethod
     def split_words(cls, string):
-        #string = re.sub(r"['‘’]", '', string) # apostrophes
-
         return re.compile(r'\w+').findall(string)
         
     @classmethod
@@ -991,11 +993,14 @@ class Tokenizer:
             # none of the chars in the map are in the string
             return string
 
-        for k, v in filter(lambda x: x[0] in string, AsciiMap.multi_byte().items()):
+        for char, rep in AsciiMap.multi_byte().items():
             # chars that can't be used in the maketrans table
-            string.replace(k, v)
+            if char in string:
+                string = string.replace(char, rep)
 
-        return string.translate(str.maketrans(AsciiMap.single_byte()))
+        string = string.translate(str.maketrans(AsciiMap.single_byte())).lower()
+
+        return string
 
     @classmethod
     def stem(cls, string):
@@ -1004,10 +1009,9 @@ class Tokenizer:
     @classmethod
     def scrub(cls, string):
         #string = re.sub(r"['‘’]", '', string) # apostrophes
-        
         return re.sub(r'\W+', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
 
     @classmethod
     def tokenize(cls, string):
-        return [Tokenizer.stem(Tokenizer.asciify(x.upper())) for x in Tokenizer.split_words(string)]
+        return [Tokenizer.stem(x) for x in Tokenizer.split_words(Tokenizer.asciify(string))]
 

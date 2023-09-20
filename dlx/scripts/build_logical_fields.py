@@ -80,10 +80,11 @@ def build_logical_fields(args):
                             {'_id': val}, 
                             {
                                 '$set': {
-                                    'text': f' {" ".join(words)} ',
-                                    'words': list(count.keys()), 
-                                    'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
+                                    'text': f' {" ".join(words)} ', # leading and tailing space added to help with matching
+                                    'words': list(count.keys()),
+                                    #'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
                                 },
+                                '$unset': {'word_count': ''},
                                 '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]}
                             },
                             upsert=True

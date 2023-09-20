@@ -66,8 +66,9 @@ def run():
                             '$set': {
                                 'text': f' {scrubbed} ',
                                 'words': list(count.keys()), 
-                                'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
-                            }
+                                #'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
+                            },
+                            '$unset': {'word_count': ''}
                         }
                     )
                 )
@@ -84,6 +85,7 @@ def run():
                         continue
 
                     words = Tokenizer.tokenize(subfield.value)
+                    """
                     updates[field.tag].append(
                         UpdateOne(
                             {'_id': text},
@@ -100,6 +102,7 @@ def run():
                             #upsert=True
                         )
                     )
+                    """
 
                     record.data[field.tag][tagindex[field.tag]]['subfields'][subindex]['text'] = f' {" ".join(words)} '
                     record.data[field.tag][tagindex[field.tag]]['subfields'][subindex]['words'] = words
@@ -113,7 +116,7 @@ def run():
             count = Counter(all_words)
             record.data['text'] = f' {all_text} '
             record.data['words'] = list(count.keys())
-            record.data['word_count'] = count
+            #record.data['word_count'] = count
             record_updates.append(ReplaceOne({'_id': record.id}, record.data))
 
         print('\u2713', end='', flush=True)

@@ -105,7 +105,7 @@ class MarcSet():
             query = Query(*conditions).compile()
         else:
             query = args[0]
-            
+
         args = [query, *args[1:]]
         self.query_params = [args, kwargs]
         Marc = self.record_class
@@ -729,7 +729,7 @@ class Marc(object):
                         updates.append(
                             UpdateOne(
                                 {'_id': text}, 
-                                {'$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]}},
+                                {'$set': {'text': f' {" ".join(words)} ', 'words': list(count.keys())}},
                             )   
                         )
 
@@ -745,8 +745,8 @@ class Marc(object):
         text = index_field_text(threaded=False)
         data['text'] = self.text = text
         data['words'] = self.words = Tokenizer.tokenize(text)
-        count = Counter(data['words'])
-        data['word_count'] = self.word_count = [{'stem': k, 'count': v} for k, v in count.items()]
+        #count = Counter(data['words'])
+        #self.word_count = [{'stem': k, 'count': v} for k, v in count.items()]
 
         if DB.database_name == 'testing':
             index_field_text()
@@ -814,7 +814,7 @@ class Marc(object):
                             UpdateOne(
                                 {'_id': val},
                                 {   
-                                    '$set': {'words': list(count.keys()), 'word_count': [{'stem': k, 'count': v} for k, v in count.items()]},
+                                    '$set': {'text': f' {" ".join(words)} ', 'words': list(count.keys())},
                                     '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is  only one record type in the array
                                 },
                                 upsert=True

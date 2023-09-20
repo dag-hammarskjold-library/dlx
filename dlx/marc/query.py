@@ -112,7 +112,24 @@ class Query():
 
                 # text
                 #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
-                matches = DB.handle[f'_index_{tag}'].find({'words': {'$all': Tokenizer.tokenize(value)}})
+                quoted = re.findall(r'"(.+?)"', value)
+                negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                
+                for _ in negated:
+                    value = value.replace(_, '')
+
+                    if not value.strip():
+                        raise Exception('Search term can\'t contain only negations')
+
+                matches = DB.handle[f'_index_{tag}'].find(
+                    {
+                        '$and': [
+                            {'words': {'$all': Tokenizer.tokenize(value)}},
+                            {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
+                            {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                        ]
+                    }
+                )
                 matched_subfield_values = []
 
                 for m in matches:
@@ -190,17 +207,31 @@ class Query():
                 
                 # text
                 #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
-                matches = DB.handle[f'_index_{tag}'].find({'words': {'$all': Tokenizer.tokenize(value)}})
+                quoted = re.findall(r'"(.+?)"', value)
+                # capture words starting with hyphen (denotes "not" search)
+                negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+
+                for _ in negated:
+                    value = value.replace(_, '')
+
+                    if not value.strip():
+                        raise Exception('Search term can\'t contain only negations')
+
+                matches = DB.handle[f'_index_{tag}'].find(
+                    {
+                        '$and': [
+                            {'words': {'$all': Tokenizer.tokenize(value)}},
+                            {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))} if negated else {'$exists': 1}},
+                            {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                        ]
+                    }
+                )
                 matched_subfield_values = []
 
-                print(Tokenizer.tokenize(value))
-
                 for m in matches:
-                    print('MATCH')
                     matched_subfield_values += [x['value'] for x in m['subfields']]
 
                 matched_subfield_values = list(set(matched_subfield_values))
-
                 stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
                 for val in matched_subfield_values:
@@ -321,7 +352,24 @@ class Query():
                             return Raw({field: process_string(value)}, record_type=record_type)
                     
                     # text
-                    matches = DB.handle[f'_index_{field}'].find({'$text': {'$search': add_quotes(value)}})
+                    quoted = re.findall(r'"(.+?)"', value)
+                    negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                
+                    for _ in negated:
+                            value = value.replace(_, '')
+
+                            if not value.strip():
+                                raise Exception('Search term can\'t contain only negations')
+
+                    matches = DB.handle[f'_index_{field}'].find(
+                        {
+                            '$and': [
+                                {'words': {'$all': Tokenizer.tokenize(value)}},
+                                {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
+                                {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                            ]
+                        }
+                    )                   
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
@@ -555,8 +603,6 @@ class Text():
         self.record_type = record_type
     
     def compile(self):
-        #return {'$text': {'$search': f'{self.string}'}}
-        
         # new text search
 
         # capture quotes strings
@@ -565,16 +611,17 @@ class Text():
         hyphenated = re.findall(r'(\w+\-\w+)', self.string)
         # capture words starting with hyphen (denotes "not" search)
         negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', self.string)]
+        copied_string = self.string
 
         for _ in negated:
-            self.string = self.string.replace(_, '')
+            copied_string = copied_string.replace(_, '')
 
         exclude = ('the', 'of', 'to', 'at', 'and', 'in', 'on', 'by', 'at', 'it', 'its')
-        words, data = Tokenizer.tokenize(self.string), {}
+        words = Tokenizer.tokenize(copied_string)
         words = list(filter(lambda x: x not in exclude, words))
+        #words = list(filter(lambda x: len(x) > 1, words)) # ignore one-letter words
 
-        # ignore one-letter words
-        #words = list(filter(lambda x: len(x) > 1, words))
+        data = {}
         
         if negated:
             negated = Tokenizer.tokenize(' '.join(negated))
@@ -582,7 +629,7 @@ class Text():
             if words:
                 data.update({'$and': [{'words': {'$all': words}}, {'words': {'$nin': negated}}]})
             else:
-                data.update({'words': {'$nin': negated}})
+                raise Exception('Search term can\'t contain only negations')
         elif words:
             data.update({'words': {'$all': words}})
 
@@ -599,9 +646,7 @@ class Text():
         
         if text_searches:
             data['$text'] = {'$search': ' '.join(text_searches)}
-
-        print(data)
-
+        
         return data
 
 class Wildcard(Text):
