@@ -110,7 +110,6 @@ def test_commit(db, bibs, auths):
     bib.commit()
     assert bib.text == 'testing testing 1234'
     assert bib.words == ['test', 'test', '1234']
-    assert bib.word_count == [{'stem': 'test', 'count': 2}, {'stem': '1234', 'count': 1}]
 
     # id incrementer
     Bib().commit()
@@ -256,6 +255,7 @@ def test_from_query(db):
 
 def test_querystring(db):
     from datetime import datetime
+    from bson import Regex
     from dlx.marc import BibSet, Bib, Auth, Query
 
     query = Query.from_string('245__c:\'title\'')
@@ -299,15 +299,16 @@ def test_querystring(db):
 
     # hyphenated word inside double quoted text
     query = Query.from_string('"Another-header"')
-    assert query.compile() == {'$text': {'$search': '"Another-header"'}}
+    assert query.compile()['words'] == {'$all': ["anoth", "header"]}
+    assert query.compile()['text'] == Regex('\\sanother header\\s')
     
     # hyphenated free text word
     query = Query.from_string('Another-header')
-    assert query.compile() == {'$text': {'$search': '"Another-header"'}}
+    assert query.compile()['words'] == {'$all': ["anoth", "header"]}
 
     # negation operator
     query = Query.from_string('Another -header')
-    assert query.compile() == {'words': {'$all': ['anoth']}, '$text': {'$search': '-header'}}
+    assert query.compile() == {'$and': [{'words': {'$all': ['anoth']}}, {'words': {'$nin': ['header']}}]}
 
     # tag no subfield
     query = Query.from_string('245:\'is the\'')

@@ -380,7 +380,7 @@ class Query():
                     else:
                         return Raw({field: {'$in': values}}, record_type=record_type)
                 else:
-                    #raise InvalidQueryString(f'Unrecognized query field "{field}"')
+                    raise InvalidQueryString(f'Unrecognized query field "{field}"')
                     pass
 
             # free text
