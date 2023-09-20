@@ -54,18 +54,7 @@ def run():
         print(f'creating tag indexes...')
         for tag in index_fields + list(auth_ctrl.keys()):
             #col.drop_index(f'{tag}.$**_1')
-            #col.drop_index(f'{tag}.subfields.value_1')
-
-            if f'{tag}.subfields.value_1' in col.index_information().keys():
-                col.drop_index(f'{tag}.subfields.value_1')
-
-            if f'{tag}.subfields.xref_1' in col.index_information().keys():
-                col.drop_index(f'{tag}.subfields.xref_1')
-            
-            indexes.append(col.create_index(
-                [(f'{tag}.$**', 1)],
-                collation=Collation(locale='en', strength=1, numericOrdering=True))
-            )
+            indexes.append(col.create_index(f'{tag}.$**', collation=Collation(locale='en', strength=1, numericOrdering=True)))
 
         print('creating logical field indexes...')
         for field_name in logical_fields.keys():
@@ -99,11 +88,11 @@ def run():
         for k, v in col.index_information().items():
             if v['key'][0][0] == '$**':
                 # drop any existing wildcard index as the excluded fields may have changed
-                pass #col.drop_index(k)
+                col.drop_index(k)
 
         exclude = index_fields + list(auth_ctrl.keys())
         exclude += list(logical_fields.keys())
-        exclude += ['updated', 'created', 'user', 'created_user', 'words', 'word_count', 'text']
+        exclude += ['updated']
 
         indexes.append(
             col.create_index(
@@ -112,18 +101,12 @@ def run():
                 collation=Collation(locale='en', strength=1, numericOrdering=True)
             )
         )
-
-        print('creating custom text indexes...')
-        indexes += [
-            col.create_index('words', collation=Collation(locale='en', strength=1, numericOrdering=True)),
-            col.create_index('text', collation=Collation(locale='en', strength=1, numericOrdering=True))
-        ]
             
         print('creating logical field text index...')
         for k, v in col.index_information().items():
             if v['key'][0][0] == '_fts':
                 # drop any existing wildcard index as the logical fields may have changed
-                pass #col.drop_index(k)
+                col.drop_index(k)
 
         indexes.append(
             col.create_index([(x, 'text') for x in logical_fields.keys()], default_language='none', weights=text_weights)
@@ -144,12 +127,6 @@ def run():
 
             indexes.append(
                 index_col.create_index('_record_type')
-            )
-
-            # new text index
-            index_col.create_index(
-                [('words', 1), ('text', 1)],
-                collation=Collation(locale='en', strength=1, numericOrdering=True)
             )
 
         print('creating tag field text indexes: ', end='')
@@ -173,17 +150,9 @@ def run():
             #    if v['key'][0][0] == '_fts':
             #        index_col.drop_index(k)
 
-            indexes += [
-                index_col.create_index([('subfields.value', 'text')], default_language='none'),
-                index_col.create_index(
-                    [('words', 1), ('text', 1)], 
-                    collation=Collation(locale='en', strength=1, numericOrdering=True)
-                ),
-                index_col.create_index(
-                    [('subfields.words', 1), ('subfields.text', 1)], 
-                    collation=Collation(locale='en', strength=1, numericOrdering=True)
-                )
-            ]
+            indexes.append(
+                index_col.create_index([('subfields.value', 'text')], default_language='none')
+            )
 
         print('\n')
 
