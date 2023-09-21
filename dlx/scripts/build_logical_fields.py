@@ -27,6 +27,8 @@ def run():
     else:
         DB.connect(args.connect, database=args.database)
 
+    print('building auth cache...')
+    Auth.build_cache()
     build_logical_fields(args)
     #build_auth_controlled_logical_fields(args) # disabled
     
@@ -72,7 +74,8 @@ def build_logical_fields(args):
                 browse_updates.setdefault(field, [])
 
                 for val in values:
-                    words = Tokenizer.tokenize(val)
+                    scrubbed = Tokenizer.scrub(val)
+                    words = Tokenizer.tokenize(scrubbed)
                     count = Counter(words)
 
                     browse_updates[field].append(
@@ -80,9 +83,8 @@ def build_logical_fields(args):
                             {'_id': val}, 
                             {
                                 '$set': {
-                                    'text': f' {" ".join(words)} ', # leading and tailing space added to help with matching
+                                    'text': f' {scrubbed} ', # leading and tailing space added to help with matching
                                     'words': list(count.keys()),
-                                    #'word_count': [{'stem': k, 'count': v} for k, v in count.items()]
                                 },
                                 '$unset': {'word_count': ''},
                                 '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]}

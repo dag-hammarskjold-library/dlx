@@ -1009,7 +1009,7 @@ class Tokenizer:
     @classmethod
     def scrub(cls, string):
         #string = re.sub(r"['‘’]", '', string) # apostrophes
-        return re.sub(r'\W+', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
+        return re.sub(r'[\u0020-\u002f]', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
 
     @classmethod
     def tokenize(cls, string):

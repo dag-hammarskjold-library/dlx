@@ -454,7 +454,6 @@ class Marc(object):
         self.user = doc.get('user')
         self.text = doc.get('text')
         self.words = doc.get('words')
-        self.word_count = doc.get('word_count')
         self.fields = []
         self.parse(doc, auth_control=auth_control)
 
@@ -729,7 +728,7 @@ class Marc(object):
                         updates.append(
                             UpdateOne(
                                 {'_id': text}, 
-                                {'$set': {'text': f' {" ".join(words)} ', 'words': list(count.keys())}},
+                                {'$set': {'text': f' {scrubbed} ', 'words': list(count.keys())}},
                             )   
                         )
 
@@ -742,9 +741,9 @@ class Marc(object):
                 LOGGER.exception(err)
 
         # all-text
-        text = index_field_text(threaded=False)
-        data['text'] = self.text = text
-        data['words'] = self.words = Tokenizer.tokenize(text)
+        self.text = index_field_text(threaded=False)
+        data['text'] = f' {self.text} ' # padded with spaces for matching
+        data['words'] = self.words = Tokenizer.tokenize(self.text)
         #count = Counter(data['words'])
         #self.word_count = [{'stem': k, 'count': v} for k, v in count.items()]
 
@@ -808,13 +807,14 @@ class Marc(object):
                     updates = []
 
                     for val in old_values:
-                        words = Tokenizer.tokenize(val)
+                        scrubbed = Tokenizer.scrub(val)
+                        words = Tokenizer.tokenize(scrubbed)
                         count = Counter(words)
                         updates.append(
                             UpdateOne(
                                 {'_id': val},
                                 {   
-                                    '$set': {'text': f' {" ".join(words)} ', 'words': list(count.keys())},
+                                    '$set': {'text': f' {scrubbed} ', 'words': list(count.keys())},
                                     '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is  only one record type in the array
                                 },
                                 upsert=True
@@ -1400,6 +1400,27 @@ class Auth(Marc):
     _xcache = {}
     _pcache = {}
     _langcache = {}
+
+    @classmethod
+    def build_cache(cls):
+        '''Stores all auth headings to the the lookup cache for use in long
+        batch operations'''
+
+        total, chars = DB.auths.estimated_document_count(), 0
+
+        for i, auth in enumerate(AuthSet.from_query({})):
+            for subfield in auth.heading_field.subfields:
+                if auth.id in Auth._cache:
+                    Auth._cache[auth.id][subfield.code] = subfield.value
+                else:
+                    Auth._cache[auth.id] = {subfield.code: subfield.value}
+
+            if (i + 1) % 1000 == 0 or i - 1 == total:
+                status = f'Building auth cache: {i} / {total}'
+                print(('\b' * chars) + status, end='', flush=True)
+                chars = len(status)
+
+        print('\n')
 
     @classmethod
     def lookup(cls, xref, code, language=None):
