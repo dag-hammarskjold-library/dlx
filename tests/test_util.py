@@ -35,5 +35,10 @@ class TestTable(TestCase):
 def test_tokenizer():
     from dlx.util import Tokenizer
 
-    tokens = Tokenizer.tokenize('!@#first//second third testing İcing Øscar')
+    string = '!first//second third testing İcing Øscar'
+    
+    scrubbed = Tokenizer.scrub(string)
+    assert scrubbed == 'first second third testing icing oscar'
+
+    tokens = Tokenizer.tokenize(string)
     assert tokens == ['first', 'second', 'third', 'test', 'ice', 'oscar']
