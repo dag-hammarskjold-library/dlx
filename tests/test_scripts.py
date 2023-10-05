@@ -56,7 +56,7 @@ def test_build_text_collections(db):
     from dlx.scripts import build_text_collections
     
     sys.argv[1:] = ['--connect=mongomock://localhost', '--type=bib']
-    
+
     # interim
     assert build_text_collections.run() is None
 

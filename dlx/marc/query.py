@@ -100,7 +100,10 @@ class Query():
 
                 # exists
                 if value == '*':
-                    return Raw({f'{tag}.subfields': {'$elemMatch': {'code': code}}})
+                    if modifier == 'not':
+                        return Raw({f'{tag}.subfields': {'$not': {'$elemMatch': {'code': code}}}})
+                    else:
+                        return Raw({f'{tag}.subfields': {'$elemMatch': {'code': code}}})
 
                 # regex
                 if isinstance(value, Regex):
@@ -126,7 +129,7 @@ class Query():
                         '$and': [
                             {'words': {'$all': Tokenizer.tokenize(value)}},
                             {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
-                            {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                            {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
                         ]
                     }
                 )
@@ -195,7 +198,7 @@ class Query():
 
                 # exists
                 if value == '*':
-                    return Raw({tag: {'$exists': True}})
+                    return Raw({tag: {'$exists': False if modifier == 'not' else True}})
 
                 # regex
                 if isinstance(value, Regex):
@@ -222,7 +225,7 @@ class Query():
                         '$and': [
                             {'words': {'$all': Tokenizer.tokenize(value)}},
                             {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))} if negated else {'$exists': 1}},
-                            {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                            {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
                         ]
                     }
                 )
@@ -340,6 +343,10 @@ class Query():
                 field = 'symbol' if field == 'meeting record' else field
                 
                 if field in logical_fields:
+                    # exists
+                    if value == '*':
+                        return Raw({field: {'$exists': False if modified == 'not' else True}})
+
                     # exact match
                     if value[0] == '\'' and value[-1] == '\'':
                         return Raw({field: value[1:-1] }, record_type=record_type)
@@ -366,7 +373,7 @@ class Query():
                             '$and': [
                                 {'words': {'$all': Tokenizer.tokenize(value)}},
                                 {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
-                                {'_id': Regex(' '.join(quoted), 'i') if quoted else {'$exists': 1}}
+                                {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
                             ]
                         }
                     )                   
