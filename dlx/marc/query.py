@@ -116,7 +116,9 @@ class Query():
                 # text
                 #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
                 quoted = re.findall(r'"(.+?)"', value)
+                quoted = [Tokenizer.scrub(x) for x in quoted]
                 negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                negated = [Tokenizer.scrub(x) for x in negated]
                 
                 for _ in negated:
                     value = value.replace(_, '')
@@ -155,7 +157,7 @@ class Query():
                     q = {
                         '$or': [
                             {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$not': {'$in': matched_subfield_values}}}}},
-                            {f'{tag}.subfields': {'$not': {'$elemMatch': {'code': {'code': code}}}}}
+                            #{f'{tag}.subfields': {'$not': {'$elemMatch': {'code': {'code': code}}}}}
                         ]
                     }
                 else:
@@ -211,8 +213,10 @@ class Query():
                 # text
                 #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
                 quoted = re.findall(r'"(.+?)"', value)
+                quoted = [Tokenizer.scrub(x) for x in quoted]
                 # capture words starting with hyphen (denotes "not" search)
                 negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                negated = [Tokenizer.scrub(x) for x in negated]
 
                 for _ in negated:
                     value = value.replace(_, '')
@@ -360,7 +364,9 @@ class Query():
                     
                     # text
                     quoted = re.findall(r'"(.+?)"', value)
+                    negated = [Tokenizer.scrub(x) for x in quoted]
                     negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                    negated = [Tokenizer.scrub(x) for x in negated]
                 
                     for _ in negated:
                             value = value.replace(_, '')
