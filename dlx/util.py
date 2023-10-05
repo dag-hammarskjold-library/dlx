@@ -981,7 +981,7 @@ class Tokenizer:
     
     @classmethod
     def split_words(cls, string):
-        return re.compile(r'\w+').findall(string)
+        return re.compile(r'[^\u0020-\u002f\u2018\u2019\u201c\u201d]+').findall(string)
         
     @classmethod
     def asciify(cls, string):
@@ -1008,10 +1008,13 @@ class Tokenizer:
 
     @classmethod
     def scrub(cls, string):
-        #string = re.sub(r"['‘’]", '', string) # apostrophes
-        return re.sub(r'[\u0020-\u002f]', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
+        '''Convert to lowercase and remove puncuation from a string'''
+        
+        # replace ascii punctuation with space
+        return re.sub(r'[\u0020-\u002f\u2018\u2019\u201c\u201d]+', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
 
     @classmethod
     def tokenize(cls, string):
-        return [Tokenizer.stem(x) for x in Tokenizer.split_words(Tokenizer.asciify(string))]
+        '''Split a string into an array of stemmed words'''
 
+        return [Tokenizer.stem(x) for x in Tokenizer.split_words(Tokenizer.asciify(string))]
