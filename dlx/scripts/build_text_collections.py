@@ -13,6 +13,7 @@ from argparse import ArgumentParser
 from dlx import DB, Config
 from dlx.marc import BibSet, AuthSet, Auth
 from dlx.util import Tokenizer
+from bson import Regex
 
 parser = ArgumentParser()
 parser.add_argument('--connect', required=True, help='MongoDB connection string')
@@ -26,14 +27,13 @@ def run():
     
     cls = BibSet if args.type == 'bib' else AuthSet
     start = int(args.start) or 0
-    print(list(DB.bibs.find({})))
     end = list(cls.from_query({}, sort=[('_id', -1)], limit=1).records)[0].id if DB.database_name != 'testing' else 1 # doesn't work in the test for some reason
     inc = 10000
     tags = set()
     exclude_fields = [] #list(Config.bib_logical_fields.keys() if args.type == 'bib' else Config.auth_logical_fields.keys())
     exclude_fields += ['words', 'text']
 
-    print('building auth cache...')
+    # auth cache
     Auth.build_cache()
 
     # chunks
@@ -49,10 +49,6 @@ def run():
             all_text, all_words, tagindex = [], [], {}
 
             for field in record.datafields:
-                if field.tag in ('949', '998', '999'):
-                    continue
-
-                #field.subfields = list(filter(lambda x: not hasattr(x, 'xref'), field.subfields))
                 tagindex.setdefault(field.tag, 0)
                 tags.add(field.tag)
 
@@ -106,14 +102,14 @@ def run():
                                     }
                                 }
                             },
-                            #upsert=True
+                            #upsert=True # already exists from above
                         )
                     )
 
                 # tag counter
                 tagindex[field.tag] += 1
 
-            # while record text 
+            # whole record text 
             all_text = ' ' + ' '.join(all_text) + ' '
             count = Counter(all_words)
             words = list(count.keys())

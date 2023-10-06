@@ -946,11 +946,7 @@ class AsciiMap:
         "ᵶ": "Z",
         "ᶎ": "Z",
         "Ⱬ": "Z",
-        "ⱬ": "Z",
-        # other
-        "–": "-", # en dash
-        "’": "'",
-        "`": "'"
+        "ⱬ": "Z"
     }
 
     @classmethod
@@ -978,10 +974,22 @@ class Tokenizer:
 
     from nltk import PorterStemmer
     STEMMER = PorterStemmer()
+
+    # for matching most known punctuation characters
+    # unicode block names
+    regex_punctuation = {
+        'ASCII': r'\u0020-\u002f\u003a-\u0040\u005b-\u0060\u007b-\u007e',
+        'Latin-1 Supplement': r'\u00a0-\u00bf',
+        'General Puncuation': r'\u2000-\u206f',
+        'Currency Symbols': r'\u20a0-\u20cf'
+    }
     
     @classmethod
     def split_words(cls, string):
-        return re.compile(r'[^\u0020-\u002f\u2018\u2019\u201c\u201d]+').findall(string)
+        chars = ''.join(Tokenizer.regex_punctuation.values())
+
+        # split on all non-punctuation chars
+        return re.compile(f'[^{chars}]+').findall(string)
         
     @classmethod
     def asciify(cls, string):
@@ -1010,8 +1018,9 @@ class Tokenizer:
     def scrub(cls, string):
         '''Convert to lowercase and remove puncuation from a string'''
         
-        # replace ascii punctuation with space
-        return re.sub(r'[\u0020-\u002f\u2018\u2019\u201c\u201d]+', ' ', Tokenizer.asciify(string.upper()).lower()).strip()
+        string = ' '.join(Tokenizer.split_words(string))
+
+        return Tokenizer.asciify(string.upper()).lower().strip()
 
     @classmethod
     def tokenize(cls, string):
