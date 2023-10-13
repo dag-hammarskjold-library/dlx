@@ -349,7 +349,7 @@ class Query():
                 if field in logical_fields:
                     # exists
                     if value == '*':
-                        return Raw({field: {'$exists': False if modified == 'not' else True}})
+                        return Raw({field: {'$exists': False if modifier == 'not' else True}})
 
                     # exact match
                     if value[0] == '\'' and value[-1] == '\'':
@@ -364,7 +364,7 @@ class Query():
                     
                     # text
                     quoted = re.findall(r'"(.+?)"', value)
-                    negated = [Tokenizer.scrub(x) for x in quoted]
+                    quoted = [Tokenizer.scrub(x) for x in quoted]
                     negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
                     negated = [Tokenizer.scrub(x) for x in negated]
                 
@@ -382,7 +382,7 @@ class Query():
                                 {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
                             ]
                         }
-                    )                   
+                    )                  
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
