@@ -975,8 +975,8 @@ class Tokenizer:
     from nltk import PorterStemmer
     STEMMER = PorterStemmer()
 
-    # for matching most known punctuation characters
-    # unicode block names
+    # for matching space and most known punctuation characters. the \W regex
+    # character class was not sufficient. with unicode block names
     regex_punctuation = {
         'ASCII': r'\u0020-\u002f\u003a-\u0040\u005b-\u0060\u007b-\u007e',
         'Latin-1 Supplement': r'\u00a0-\u00bf',
