@@ -46,7 +46,7 @@ class Query():
 
                 buffer += char
 
-                if in_single_quotes == False and in_single_quotes == False and in_regex == False and is_free_text == False:
+                if in_single_quotes == False and in_double_quotes == False and in_regex == False and is_free_text == False:
                     match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s$', buffer)
                     
                     if match:
