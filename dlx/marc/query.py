@@ -24,15 +24,14 @@ class Query():
             in_single_quotes = False
             in_double_quotes = False
             in_regex = False
-            is_free_text = False
 
-            if ':' not in string:
-                is_free_text = True
+            string = re.sub('(AND|OR|NOT)(\s+)(?!(AND|OR|NOT|\w+:))', r'"\1"\2', string)
 
             for i, char in enumerate(string):
                 if char == ':':
                     if string[i+1] not in ("'", '/'):
-                        is_free_text = True
+                        pass
+                
                 if char == "'":
                     if in_double_quotes == False and in_regex == False:
                         in_single_quotes = not in_single_quotes
@@ -46,8 +45,8 @@ class Query():
 
                 buffer += char
 
-                if in_single_quotes == False and in_double_quotes == False and in_regex == False and is_free_text == False:
-                    match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s$', buffer)
+                if in_single_quotes == False and in_double_quotes == False and in_regex == False: # and is_free_text == False:
+                    match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s+$', buffer)
                     
                     if match:
                         if not tokens or tokens[-1] != match.group(1):
@@ -58,6 +57,8 @@ class Query():
 
             tokens.append(buffer.strip())
             tokens = list(filter(None, tokens))
+
+            print(tokens)
 
             return tokens
         
@@ -241,7 +242,7 @@ class Query():
 
                     if not value.strip():
                         raise Exception('Search term can\'t contain only negations')
-
+                
                 matches = DB.handle[f'_index_{tag}'].find(
                     {
                         '$and': [
