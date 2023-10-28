@@ -280,8 +280,7 @@ def test_querystring(db):
     query = Query.from_string('650__a:/header/i')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     
-    # all fields
-    query = Query.from_string('Another header')
+    # all fields text
    
     #with pytest.raises(NotImplementedError):
     #    # $text operator not implemented in mongomock
@@ -292,10 +291,11 @@ def test_querystring(db):
         Bib.from_id(_).commit()
 
     assert len(list(BibSet.from_query(query.compile()))) == 2
-
-    # quotes automatically added by dlx (forces "and" search)
-    #assert query.compile() == {'$text': {'$search': '"Another" "header"'}}
+    query = Query.from_string('Another header')
     assert query.compile() == {'words': {'$all': ['anoth', 'header']}}
+
+    # double quoted strings in text search
+    query = Query.from_string('"Another-header"')
 
     # hyphenated word inside double quoted text
     query = Query.from_string('"Another-header"')
@@ -346,19 +346,34 @@ def test_querystring(db):
     bib = Bib().set('246', 'a', 'This title:').set('246', 'b', 'is a title').commit()
     query = Query.from_string(f'title:\'This title: is a title\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
-    
-    from dlx.marc.query import Query, InvalidQueryString
-    with pytest.raises(InvalidQueryString):
-        q = Query.from_string('invalid_field:value')
 
     # not
     for bib in BibSet.from_query({}):
+        # delete all bibs for further tests
         bib.delete()
 
-    bib = Bib().set('246', 'a', 'This').commit()
-    query = Query.from_string(f'NOT 246:\'This\'', record_type='bib')
+    bib = Bib().set('246', 'a', 'New title').commit()
+    query = Query.from_string(f'NOT 246:\'New title\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 0
-    
+
+    # multi field + text
+    bib.set('500','a', 'notes').set('520', 'z', 'Some words in a field').commit()
+    query = Query.from_string(f"246:'New title' AND 500:'notes' AND some words in a field", record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    # text search order of terms
+    query = Query.from_string(f"246:'New title' AND some words in a field AND 500:'notes'", record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    # invalid query stings
+    from dlx.marc.query import InvalidQueryString
+
+    with pytest.raises(InvalidQueryString): Query.from_string('invalid_field:value')
+    with pytest.raises(InvalidQueryString): Query.from_string('245:title NOT 500:notes')
+    with pytest.raises(InvalidQueryString): Query.from_string('245:title "unclosed double quote')
+    with pytest.raises(InvalidQueryString): Query.from_string('245:\'title unclosed \' exact match')
+    with pytest.raises(InvalidQueryString): Query.from_string('245:/title uncl/osed regex')
+
 def test_get_field(db, bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield
     
