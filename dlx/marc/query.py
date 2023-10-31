@@ -17,7 +17,7 @@ class Query():
         # todo: indicators, all-subfield
         self = cls()
         self.record_type = record_type
-        
+
         def tokenize(string):
             tokens = []
             buffer = ''
@@ -25,40 +25,43 @@ class Query():
             in_double_quotes = False
             in_regex = False
 
-            string = re.sub('(AND|OR|NOT)(\s+)(?!(AND|OR|NOT|\w+:))', r'"\1"\2', string)
-
             for i, char in enumerate(string):
-                if char == ':':
-                    if string[i+1] not in ("'", '/'):
-                        pass
-                
-                if char == "'":
-                    if in_double_quotes == False and in_regex == False:
-                        in_single_quotes = not in_single_quotes
+                buffer += char
+
+                if char == "'" and string[i-1] == ':':
+                    in_single_quotes = True
+                elif char == "'":
+                    in_single_quotes = False
+                elif char == '/' and string[i-1] == ':':
+                    in_regex = True
+                elif char == '/' and string[i-1] != '\\':
+                    in_regex = False
                 elif char == '"':
                     if in_single_quotes == False and in_regex == False:
                         in_double_quotes = not in_double_quotes
-                elif char == '/' and string[i-1] == ':':
-                    in_regex = True
-                elif char == '/' and in_regex == True and string[i-1] != '\\':
-                    in_regex = False
 
-                buffer += char
-
-                if in_single_quotes == False and in_double_quotes == False and in_regex == False: # and is_free_text == False:
-                    match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s+$', buffer)
+                if in_single_quotes == False and in_double_quotes == False and in_regex == False:
+                    # check if operator is detected; split the terms and the operators into tokens
+                    match = re.match(r'^(.*)(^|\s)(AND|OR|NOT)\s$', buffer)
                     
                     if match:
-                        if not tokens or tokens[-1] != match.group(1):
-                            tokens.append(match.group(1).strip())
-                            
-                        tokens.append(match.group(3))
-                        buffer = ''
+                        term, operator = match.group(1, 3)
+                        term = term.strip()
 
+                        if not tokens or tokens[-1] != term:
+                            tokens.append(term)
+                        
+                        tokens.append(operator)
+                        buffer = ''
+                        
+            # capture last (or only) token
             tokens.append(buffer.strip())
             tokens = list(filter(None, tokens))
 
-            print(tokens)
+            if in_single_quotes or in_double_quotes:
+                raise InvalidQueryString("Unresolved quotes")
+            elif in_regex:
+                raise InvalidQueryString("Unclosed regex")
 
             return tokens
         
@@ -68,6 +71,8 @@ class Query():
             for p in pairs:
                 if string[0] == p[0] and (string[-1] == p[1] or (string[-2] == p[1] and string[-1] == 'i')):
                     return True
+                elif string[0] == p[0]:
+                    raise InvalidQueryString(f'Invalid regex: "{token}"')
                 
         def process_string(string):
             # convert to regex object if regex
@@ -91,21 +96,6 @@ class Query():
             else:
                 # do nothing
                 return string
-
-        def add_quotes(string):
-            # these xformations must be done in the correct order
-
-            # extract quoted phrases
-            quoted = re.findall('(".*?")', string)
-            for _ in quoted: string = string.replace(_, '')
-
-            # extract dashed words
-            dashed = re.findall('\B(-\S+)', string)
-            for _ in dashed: string = string.replace(_, '')
-
-            rest = [f'"{x}"' for x in filter(None, re.split('\s+', string))]
-
-            return ' '.join(rest + quoted + dashed)
                 
         def parse(token, modifier=None):
             '''Returns: dlx.query.Condition'''
@@ -131,9 +121,10 @@ class Query():
                 # exact match
                 if value[0] == '\'' and value[-1] == '\'':
                     return Condition(tag, {code: value[1:-1]}, modifier=modifier, record_type=self.record_type)
+                elif value[0] == '\'' and value[-1] != '\'':
+                    raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
                 # text
-                #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
                 quoted = re.findall(r'"(.+?)"', value)
                 quoted = [Tokenizer.scrub(x) for x in quoted]
                 negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
@@ -228,9 +219,10 @@ class Query():
                 # exact match
                 if value[0] == '\'' and value[-1] == '\'':
                     return TagOnly(tag, value[1:-1], modifier=modifier)
+                elif value[0] == '\'' and value[-1] != '\'':
+                    raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
                 
                 # text
-                #matches = DB.handle[f'_index_{tag}'].find({'$text': {'$search': add_quotes(value)}})
                 quoted = re.findall(r'"(.+?)"', value)
                 quoted = [Tokenizer.scrub(x) for x in quoted]
                 # capture words starting with hyphen (denotes "not" search)
@@ -373,6 +365,8 @@ class Query():
                     # exact match
                     if value[0] == '\'' and value[-1] == '\'':
                         return Raw({field: value[1:-1] }, record_type=record_type)
+                    elif value[0] == '\'' and value[-1] != '\'':
+                        raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
                     # regex
                     if isinstance(process_string(value), Regex):
@@ -426,11 +420,14 @@ class Query():
         # parse tokens
         for i, token in enumerate(tokens):
             if token == 'NOT':
+                if i > 0 and tokens[i-1] not in ('AND', 'OR'):
+                    raise InvalidQueryString('"NOT" must be preceeded by "AND", "OR"')
+
                 if not len(tokens) > i + 1:
-                    raise Exception('"NOT" can\'t be at end of search string')
+                    raise InvalidQueryString('"NOT" can\'t be at end of search string')
 
                 if not re.match(r'^[^"\']+:', tokens[i + 1]):
-                    raise Exception('"NOT" not valid for whole record text search')
+                    raise InvalidQueryString('"NOT" not valid for all fields text search')
 
                 tokens[i] = None
             elif i > 0 and tokens[i-1] == None:
@@ -637,10 +634,8 @@ class Text():
     def compile(self):
         # new text search
 
-        # capture quotes strings
+        # capture double quoted strings
         quoted = re.findall(r'(".+?")', self.string)
-        # capture hyphenated words
-        hyphenated = re.findall(r'(\w+\-\w+)', self.string)
         # capture words starting with hyphen (denotes "not" search)
         negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', self.string)]
         copied_string = self.string
