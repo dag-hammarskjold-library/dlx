@@ -271,9 +271,15 @@ def test_querystring(db):
     #query = Query.from_string('245__a:This OR 245__a:Another AND 650:Header')
     #assert len(list(BibSet.from_query(query.compile()))) == 2
     
+    # text indexes don't exist here until commit
+    for _ in (1, 2):
+        Bib.from_id(_).commit()
+
+    # regex    
     query = Query.from_string('110__a:\'Another header\'', record_type='auth')
     assert Auth.from_query(query.compile()).id == 2
     
+    # regex authority controlled
     query = Query.from_string('650__a:/[Hh]eader/')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     
@@ -285,10 +291,6 @@ def test_querystring(db):
     #with pytest.raises(NotImplementedError):
     #    # $text operator not implemented in mongomock
     #    #assert len(list(BibSet.from_query(query.compile()))) == 2
-    
-    # text indexes don't exist here until commit
-    for _ in (1, 2):
-        Bib.from_id(_).commit()
 
     assert len(list(BibSet.from_query(query.compile()))) == 2
     query = Query.from_string('Another header')
@@ -339,7 +341,7 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 1
     
     # string with wildcard
-    query = Query.from_string(f'245:*i*l*', record_type='bib')
+    query = Query.from_string(f"245__c:*itl*", record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     
     # logical fields

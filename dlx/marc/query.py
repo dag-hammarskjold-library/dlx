@@ -10,6 +10,11 @@ from dlx.util import Tokenizer
 
 class InvalidQueryString(Exception):
     pass
+
+class WildcardRegex(Regex):
+    # for differentiating regex to run against text index vs actual value
+    def __init__(self, string=None):
+        super().__init__(string)
     
 class Query():
     @classmethod
@@ -78,7 +83,6 @@ class Query():
             # convert to regex object if regex
             if is_regex(string):
                 if string[-1] == 'i':
-                    # case insensitive
                     return Regex(string[1:-2], 'i')
                 else:
                     return Regex(string[1:-1])
@@ -87,12 +91,11 @@ class Query():
                     # special string for checking if field exists
                     return string
 
-                # convert to regex
-                string = string.replace('(', r'\(')
-                string = string.replace(')', r'\)')
-                string = string.replace('[', r'\]')
-                string = string.replace(']', r'\[')
-                return Regex('^' + string.replace('*', '.*?') + '$')
+                string = string.replace('*', '1234wildcard4321')
+                string = '^ ?' + Tokenizer.scrub(string)
+                string = string.replace('1234wildcard4321', '.*?')
+
+                return WildcardRegex(string)
             else:
                 # do nothing
                 return string
@@ -114,54 +117,64 @@ class Query():
                     else:
                         return Raw({f'{tag}.subfields': {'$elemMatch': {'code': code}}})
 
+                # exact match
+                if not isinstance(value, Regex):
+                    if value[0] == '\'' and value[-1] == '\'':
+                        return Condition(tag, {code: value[1:-1]}, modifier=modifier, record_type=self.record_type)
+                    elif value[0] == '\'' and value[-1] != '\'':
+                        raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
+
                 # regex
                 if isinstance(value, Regex):
-                    return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
+                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'_id': value})
+                    matched_subfield_values = []
 
-                # exact match
-                if value[0] == '\'' and value[-1] == '\'':
-                    return Condition(tag, {code: value[1:-1]}, modifier=modifier, record_type=self.record_type)
-                elif value[0] == '\'' and value[-1] != '\'':
-                    raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
+                    for m in matches:
+                        matched_subfield_values += list(
+                            filter(
+                                lambda y: re.search(value.pattern, Tokenizer.scrub(y)) if isinstance(value, WildcardRegex) else re.search(value.pattern, y, flags=value.flags), 
+                                [x['value'] for x in m['subfields']]
+                            )
+                        )
+                else:
+                    # text
+                    quoted = re.findall(r'"(.+?)"', value)
+                    quoted = [Tokenizer.scrub(x) for x in quoted]
+                    negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                    negated = [Tokenizer.scrub(x) for x in negated]
 
-                # text
-                quoted = re.findall(r'"(.+?)"', value)
-                quoted = [Tokenizer.scrub(x) for x in quoted]
-                negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
-                negated = [Tokenizer.scrub(x) for x in negated]
-                
-                for _ in negated:
-                    value = value.replace(_, '')
+                    for _ in negated:
+                        value = value.replace(_, '')
 
-                    if not value.strip():
-                        raise Exception('Search term can\'t contain only negations')
+                        if not value.strip():
+                            raise Exception('Search term can\'t contain only negations')
 
-                matches = DB.handle[f'_index_{tag}'].find(
-                    {
-                        '$and': [
-                            {'words': {'$all': Tokenizer.tokenize(value)}},
-                            {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
-                            {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
-                        ]
-                    }
-                )
-                matched_subfield_values = []
+                    matches = DB.handle[f'_index_{tag}'].find(
+                        {
+                            '$and': [
+                                {'words': {'$all': Tokenizer.tokenize(value)}},
+                                {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
+                                {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
+                            ]
+                        }
+                    )
+                    matched_subfield_values = []
 
-                for m in matches:
-                    matched_subfield_values += [x['value'] for x in m['subfields']]
+                    for m in matches:
+                        matched_subfield_values += [x['value'] for x in m['subfields']]
 
-                stemmed_terms, filtered = Tokenizer.tokenize(value), []
+                    stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
-                for val in matched_subfield_values:
-                    stemmed_val_words = Tokenizer.tokenize(val)
+                    for val in matched_subfield_values:
+                        stemmed_val_words = Tokenizer.tokenize(val)
 
-                    if all(x in stemmed_val_words for x in stemmed_terms):
-                        filtered.append(val)
+                        if all(x in stemmed_val_words for x in stemmed_terms):
+                            filtered.append(val)
 
-                matched_subfield_values = list(set(filtered))      
+                    matched_subfield_values = list(set(filtered))      
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
-                    raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
+                    raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
 
                 if modifier == 'not':
                     q = {
@@ -188,8 +201,6 @@ class Query():
                         q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
 
                 return Raw(q)
-
-                return Condition(tag, {code: process_string(value)}, record_type=record_type, modifier=modifier)
                 
             # tag only syntax 
             # matches a single subfield only
@@ -212,56 +223,67 @@ class Query():
                 if value == '*':
                     return Raw({tag: {'$exists': False if modifier == 'not' else True}})
 
+                # exact match
+                if not isinstance(value, Regex):
+                    if value[0] == '\'' and value[-1] == '\'':
+                        return TagOnly(tag, value[1:-1], modifier=modifier)
+                    elif value[0] == '\'' and value[-1] != '\'':
+                        raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
+
                 # regex
                 if isinstance(value, Regex):
-                    return TagOnly(tag, value, modifier=modifier)
+                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'_id': value})
+                    matched_subfield_values = []
 
-                # exact match
-                if value[0] == '\'' and value[-1] == '\'':
-                    return TagOnly(tag, value[1:-1], modifier=modifier)
-                elif value[0] == '\'' and value[-1] != '\'':
-                    raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
-                
+                    for m in matches:
+                        matched_subfield_values += list(
+                            filter(
+                                lambda y: re.search(value.pattern, Tokenizer.scrub(y)) if isinstance(value, WildcardRegex) else re.search(value.pattern, y, flags=value.flags), 
+                                [x['value'] for x in m['subfields']]
+                            )
+                        )
                 # text
-                quoted = re.findall(r'"(.+?)"', value)
-                quoted = [Tokenizer.scrub(x) for x in quoted]
-                # capture words starting with hyphen (denotes "not" search)
-                negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
-                negated = [Tokenizer.scrub(x) for x in negated]
+                else: 
+                    quoted = re.findall(r'"(.+?)"', value)
+                    quoted = [Tokenizer.scrub(x) for x in quoted]
+                    # capture words starting with hyphen (denotes "not" search)
+                    negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                    negated = [Tokenizer.scrub(x) for x in negated]
 
-                for _ in negated:
-                    value = value.replace(_, '')
+                    for _ in negated:
+                        value = value.replace(_, '')
 
-                    if not value.strip():
-                        raise Exception('Search term can\'t contain only negations')
+                        if not value.strip():
+                            raise Exception('Search term can\'t contain only negations')
+
+                    matches = DB.handle[f'_index_{tag}'].find(
+                        {
+                            '$and': [
+                                {'words': {'$all': Tokenizer.tokenize(value)}},
+                                {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))} if negated else {'$exists': 1}},
+                                {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
+                            ]
+                        }
+                    )
+
+                    matched_subfield_values = []
+
+                    for m in matches:
+                        matched_subfield_values += [x['value'] for x in m['subfields']]
+
+                    matched_subfield_values = list(set(matched_subfield_values))
+                    stemmed_terms, filtered = Tokenizer.tokenize(value), []
+
+                    for val in matched_subfield_values:
+                        stemmed_val_words = Tokenizer.tokenize(val)
+
+                        if all(x in stemmed_val_words for x in stemmed_terms):
+                            filtered.append(val)
+
+                    matched_subfield_values = filtered
                 
-                matches = DB.handle[f'_index_{tag}'].find(
-                    {
-                        '$and': [
-                            {'words': {'$all': Tokenizer.tokenize(value)}},
-                            {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))} if negated else {'$exists': 1}},
-                            {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
-                        ]
-                    }
-                )
-                matched_subfield_values = []
-
-                for m in matches:
-                    matched_subfield_values += [x['value'] for x in m['subfields']]
-
-                matched_subfield_values = list(set(matched_subfield_values))
-                stemmed_terms, filtered = Tokenizer.tokenize(value), []
-
-                for val in matched_subfield_values:
-                    stemmed_val_words = Tokenizer.tokenize(val)
-
-                    if all(x in stemmed_val_words for x in stemmed_terms):
-                        filtered.append(val)
-                
-                matched_subfield_values = filtered
-
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
-                    raise Exception(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
+                    raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
 
                 if modifier == 'not':
                     q = {f'{tag}.subfields.value': {'$not': {'$in': matched_subfield_values}}}
@@ -368,38 +390,38 @@ class Query():
                     elif value[0] == '\'' and value[-1] != '\'':
                         raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
+                    value = process_string(value)
+
                     # regex
-                    if isinstance(process_string(value), Regex):
-                        if modifier == 'not':
-                            return Raw({field: {'$not': process_string(value)}}, record_type=record_type)
-                        else:
-                            return Raw({field: process_string(value)}, record_type=record_type)
-                    
+                    if isinstance(value, Regex):
+                        matches = DB.handle[f'_index_{field}'].find({'text': value} if isinstance(value, WildcardRegex) else {'_id': value})
+                        values = [x['_id'] for x in matches]
                     # text
-                    quoted = re.findall(r'"(.+?)"', value)
-                    quoted = [Tokenizer.scrub(x) for x in quoted]
-                    negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
-                    negated = [Tokenizer.scrub(x) for x in negated]
-                
-                    for _ in negated:
-                            value = value.replace(_, '')
+                    else:
+                        quoted = re.findall(r'"(.+?)"', value)
+                        quoted = [Tokenizer.scrub(x) for x in quoted]
+                        negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+                        negated = [Tokenizer.scrub(x) for x in negated]
 
-                            if not value.strip():
-                                raise Exception('Search term can\'t contain only negations')
+                        for _ in negated:
+                                value = value.replace(_, '')
 
-                    matches = DB.handle[f'_index_{field}'].find(
-                        {
-                            '$and': [
-                                {'words': {'$all': Tokenizer.tokenize(value)}},
-                                {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
-                                {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
-                            ]
-                        }
-                    )                  
-                    values = [x['_id'] for x in matches]
+                                if not value.strip():
+                                    raise Exception('Search term can\'t contain only negations')
+
+                        matches = DB.handle[f'_index_{field}'].find(
+                            {
+                                '$and': [
+                                    {'words': {'$all': Tokenizer.tokenize(value)}},
+                                    {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
+                                    {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
+                                ]
+                            }
+                        )                  
+                        values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
-                        raise Exception(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
+                        raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
 
                     if modifier == 'not':
                         return Raw({field: {'$not': {'$in': values}}}, record_type=record_type)
@@ -407,7 +429,6 @@ class Query():
                         return Raw({field: {'$in': values}}, record_type=record_type)
                 else:
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
-                    pass
 
             # free text
             #token = add_quotes(token)
