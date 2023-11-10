@@ -673,16 +673,22 @@ class Marc(object):
     @Decorators.check_connected
     def commit(self, user='admin', auth_check=True, update_attached=True):
         new_record = True if self.id is None else False
-
         self.id = type(self)._increment_ids() if new_record else self.id
         self.validate()
         data = self.to_bson()
         self.updated = data['updated'] = datetime.utcnow()
         self.user = data['user'] = user
+        previous_state = (DB.bibs if self.record_type == 'bib' else DB.auths).find_one({'_id': self.id})
         
         if new_record:
             self.created = self.updated
             self.created_user = user
+        elif previous_state:
+            # disregard any provided created date and use the existing one
+            if previous_state.get('created'):
+                previous_state['created']
+            else:
+                raise Exception(f'Created date not found for existing record {self.record_type} {self.id}')
 
         data['created'] = self.created
         data['created_user'] = self.created_user
@@ -755,8 +761,6 @@ class Marc(object):
             thread1.start()
         
         # add logical fields
-        previous_state = (DB.bibs if self.record_type == 'bib' else DB.auths).find_one({'_id': self.id})
-        
         def calculate_logical_fields():
             try:
                 if previous_state:

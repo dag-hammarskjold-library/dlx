@@ -1,12 +1,14 @@
 import pytest
 from mongomock import MongoClient as MockClient
 from moto import mock_s3
+from datetime import datetime
 
 @pytest.fixture
 def bibs():
     return [
         {
             '_id': 1,
+            'created': datetime.now(),
             '000': ['leader'],
             '008': ['controlfield'],
             '245': [
@@ -41,6 +43,7 @@ def bibs():
         },
         {
             '_id': 2,
+            'created': datetime.now(),
             '000': ['leader'],
             '245': [
                 {
@@ -62,6 +65,7 @@ def auths():
     return [
         {
             '_id': 1,
+            'created': datetime.now(),
             '150': [
                 {
                     'indicators': [' ', ' '],
@@ -71,6 +75,7 @@ def auths():
         },
         {
             '_id': 2,
+            'created': datetime.now(),
             '110': [
                 {
                     'indicators' : [' ', ' '],
