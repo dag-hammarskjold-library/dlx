@@ -689,6 +689,11 @@ class Marc(object):
                 previous_state['created']
             else:
                 raise Exception(f'Created date not found for existing record {self.record_type} {self.id}')
+        else:
+            # record has been created with an id that doesn't exist yet
+            # this actually shouldn't be allowed but is needed for certain exiting tests to pass
+            warn(f'{self.record_type} {self.id} is being created with a user-specified ID')
+            self.created = self.updated
 
         data['created'] = self.created
         data['created_user'] = self.created_user
