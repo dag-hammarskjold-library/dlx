@@ -680,20 +680,22 @@ class Marc(object):
         self.user = data['user'] = user
         previous_state = (DB.bibs if self.record_type == 'bib' else DB.auths).find_one({'_id': self.id})
         
-        if new_record:
-            self.created = self.updated
-            self.created_user = user
-        elif previous_state:
-            # disregard any provided created date and use the existing one
+        if previous_state:
+            # disregard any provided created data and use existing
             if previous_state.get('created'):
-                previous_state['created']
+                self.created = previous_state['created']
+                self.created_user = previous_state['created_user']
             else:
                 raise Exception(f'Created date not found for existing record {self.record_type} {self.id}')
+        elif new_record:
+            self.created = self.updated
+            self.created_user = self.user
         else:
             # record has been created with an id that doesn't exist yet
-            # this actually shouldn't be allowed but is needed for certain exiting tests to pass
+            # this actually shouldn't be allowed but is needed for certain existing tests to pass
             warn(f'{self.record_type} {self.id} is being created with a user-specified ID')
             self.created = self.updated
+            self.created_user = self.user
 
         data['created'] = self.created
         data['created_user'] = self.created_user
