@@ -103,6 +103,9 @@ def test_commit(db, bibs, auths):
     assert bib.created_user == 'admin'
     bib.commit(user='different user')
     assert bib.created != bib.updated
+    bib.created = 'string'
+    bib.commit()
+    assert isinstance(bib.created, datetime) # can't change created
     assert bib.created_user == 'admin'
 
     # new text attributes
