@@ -8,8 +8,8 @@ def bibs():
     return [
         {
             '_id': 1,
-            'created': datetime.now(),
-            'created_user': 'admin',
+            #'created': datetime.now(),
+            #'created_user': 'admin',
             '000': ['leader'],
             '008': ['controlfield'],
             '245': [
@@ -44,8 +44,8 @@ def bibs():
         },
         {
             '_id': 2,
-            'created': datetime.now(),
-            'created_user': 'admin',
+            #'created': datetime.now(),
+            #'created_user': 'admin',
             '000': ['leader'],
             '245': [
                 {
@@ -67,8 +67,8 @@ def auths():
     return [
         {
             '_id': 1,
-            'created': datetime.now(),
-            'created_user': 'admin',
+            #'created': datetime.now(),
+            #'created_user': 'admin',
             '150': [
                 {
                     'indicators': [' ', ' '],
@@ -78,8 +78,8 @@ def auths():
         },
         {
             '_id': 2,
-            'created': datetime.now(),
-            'created_user': 'admin',
+            #'created': datetime.now(),
+            #'created_user': 'admin',
             '110': [
                 {
                     'indicators' : [' ', ' '],
