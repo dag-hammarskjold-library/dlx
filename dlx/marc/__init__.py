@@ -686,7 +686,10 @@ class Marc(object):
                 self.created = previous_state['created']
                 self.created_user = previous_state['created_user']
             else:
-                raise Exception(f'Created date not found for existing record {self.record_type} {self.id}')
+                # the record is likely from the legacy system (inserted directly into DB, hence no audit data)
+                #raise Exception(f'Created date not found for existing record {self.record_type} {self.id}')
+                self.created = None
+                self.created_user = None
         elif new_record:
             self.created = self.updated
             self.created_user = self.user
