@@ -352,13 +352,18 @@ def test_querystring(db):
     query = Query.from_string(f'title:\'This title: is a title\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
-    # not
+    # NOT
     for bib in BibSet.from_query({}):
         # delete all bibs for further tests
         bib.delete()
 
     bib = Bib().set('246', 'a', 'New title').commit()
     query = Query.from_string(f'NOT 246:\'New title\'', record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 0
+
+    # multi field NOT with text
+    bib.set('246', 'a', 'Second alt title', address='+').commit()
+    query = Query.from_string(f'NOT 246:New title', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 0
 
     # multi field + text

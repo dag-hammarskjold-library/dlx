@@ -178,10 +178,7 @@ class Query():
 
                 if modifier == 'not':
                     q = {
-                        '$or': [
-                            {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$not': {'$in': matched_subfield_values}}}}},
-                            #{f'{tag}.subfields': {'$not': {'$elemMatch': {'code': {'code': code}}}}}
-                        ]
+                        f'{tag}.subfields': {'$not': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}},
                     }
                 else:
                     q = {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}
@@ -189,16 +186,20 @@ class Query():
                 auth_ctrl = Config.bib_authority_controlled if self.record_type == 'bib' else Config.auth_authority_controlled
 
                 if tag in auth_ctrl:
-                    source_tag = list(auth_ctrl[tag].values())[0]
+                    if code in auth_ctrl[tag].keys():
+                        source_tag = list(auth_ctrl[tag].values())[0]
 
-                    xrefs = map(
-                        lambda x: x['_id'], 
-                        DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
-                    )
-                    xrefs = list(xrefs)
+                        xrefs = map(
+                            lambda x: x['_id'], 
+                            DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
+                        )
+                        xrefs = list(xrefs)
 
-                    if len(xrefs) > 0:
-                        q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
+                        if len(xrefs) > 0:
+                            if modifier == 'not':
+                                q = {'$and': [q, {f'{tag}.subfields.xref': {'$nin': xrefs}}]}
+                            else:
+                                q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
 
                 return Raw(q)
                 
@@ -302,7 +303,10 @@ class Query():
                     xrefs = list(xrefs)
 
                     if len(xrefs) > 0:
-                        q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
+                        if modifier == 'not':
+                            q = {'$and': [q, {f'{tag}.subfields.xref': {'$nin': xrefs}}]}
+                        else:
+                            q = {'$or': [q, {f'{tag}.subfields.xref': {'$in': xrefs}}]}
 
                 return Raw(q)
 
