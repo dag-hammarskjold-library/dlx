@@ -120,6 +120,14 @@ class MarcSet():
         self = cls()
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
+        
+        if not any([x.get('$match') or x.get('$search') for x in pipeline]):
+            raise Exception(f'$match or $search stage is required')    
+        
+        # as of now, the query is expected to be stored as the first positional argument
+        query = list(filter(lambda x: x.get('$match'), pipeline))[0]['$match']
+        self.query_params = [[query], kwargs]
+        
         self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline))
 
         return self

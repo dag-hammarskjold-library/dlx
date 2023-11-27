@@ -384,6 +384,19 @@ def test_querystring(db):
     with pytest.raises(InvalidQueryString): Query.from_string('245:\'title unclosed \' exact match')
     with pytest.raises(InvalidQueryString): Query.from_string('245:/title uncl/osed regex')
 
+def test_from_aggregation(db, bibs):
+    from dlx.marc import BibSet, Query
+
+    query = Query.from_string('245__c:\'title\'')
+    bibs = BibSet.from_aggregation(
+        [
+            {'$match': query.compile()}
+        ],
+        collation={}
+    )
+    assert isinstance(bibs, BibSet)
+    assert bibs.count == 2
+
 def test_get_field(db, bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield
     
