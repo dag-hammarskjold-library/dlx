@@ -122,13 +122,20 @@ class MarcSet():
         ac = kwargs.pop('auth_control', False)
         
         if not any([x.get('$match') or x.get('$search') for x in pipeline]):
-            raise Exception(f'$match or $search stage is required')    
-        
+            #raise Exception(f'$match or $search stage is required')    
+            pass
+
         # as of now, the query is expected to be stored as the first positional argument
         query = list(filter(lambda x: x.get('$match'), pipeline))[0]['$match']
         self.query_params = [[query], kwargs]
-        
-        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline))
+
+        for opt in ('skip', 'limit', 'sort', 'projection'):
+            if opt in kwargs:
+                pipeline.append({f'${opt if opt != "projection" else "project"}': kwargs[opt]}) # projection option is called "project" in ag stage
+
+        collation = kwargs.get('collation') if kwargs.get('collation') else None
+
+        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline, collation=collation))
 
         return self
 

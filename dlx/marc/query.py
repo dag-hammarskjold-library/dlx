@@ -765,5 +765,14 @@ class TagOnly():
 class Any(TagOnly):
     # deprecated
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)    
-    
+        super().__init__(*args, **kwargs)
+
+class AtlasQuery():
+    '''Compiles into an aggregation pipeline'''
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_string(string):
+        pass
