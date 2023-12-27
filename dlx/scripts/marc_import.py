@@ -27,7 +27,7 @@ def run(**kwargs):
     args = get_args(**kwargs)
     DB.connect(args.connect, database=args.database)
     cls = BibSet if args.type == 'bib' else AuthSet
-    string = open(args.file, 'r').read()
+    string = open(args.file, 'r', encoding='utf8').read()
     method = getattr(cls, 'from_' + args.format)  
     marcset = method(string, auth_control=False if args.skip_auth_check else True)
     
