@@ -578,6 +578,7 @@ class AsciiMap:
         'ḭ': 'I',
         'ᶤ': 'I',
         'İ': 'I', # dotted
+        'ı': 'I', # small dotless
         'i̇': 'I', # MULTIBYTE
         ### J
         'Ĵ': 'J',
