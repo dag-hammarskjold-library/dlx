@@ -917,6 +917,9 @@ class Marc(object):
                             except Exception as err:
                                 LOGGER.exception(err)
 
+                            # for debugging
+                            DB.handle['auth_linked_update_log'].insert_one({'record_type': record.record_type, 'record_id': record.id, 'action': 'updated', 'triggered_by': auth.id, 'time': datetime.now()})
+
                         if 1: #DB.database_name == 'testing':
                             do_update()
                         else:
@@ -1662,11 +1665,16 @@ class Auth(Marc):
 
     def merge(self, *, user, losing_record):
         if not isinstance(losing_record, Auth):
-            raise Exception("Losing record just be of type Auth")
+            raise Exception("Losing record must be of type Auth")
+
+        # for debugging
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'losing', 'time': datetime.now()})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'gaining', 'time': datetime.now()})
 
         def update_records(record_type, gaining, losing):
             authmap = getattr(Config, f'{record_type}_authority_controlled')
             
+            # build query for all records that are linked to the losing auth
             conditions = []
                  
             for ref_tag, d in authmap.items():
@@ -1679,8 +1687,9 @@ class Auth(Marc):
             
             cls = BibSet if record_type == 'bib' else AuthSet
             query = Query(Or(*conditions))
+            
+            #  update the records linked to the losing auth with the gaining auth id
             changed = 0
-            updates = []
 
             for record in cls.from_query(query):
                 state = record.to_bson()
@@ -1695,6 +1704,8 @@ class Auth(Marc):
                                     del record.fields[i] # duplicate field
 
                 if record.to_bson() != state:
+                    # the record has actually changed
+
                     def do_commit():
                         # we can skip the auth validation because these records should already be validated
                         # Wrapping this in a try/except block and sending the exception to a configured log
@@ -1703,6 +1714,9 @@ class Auth(Marc):
                             record.commit(user=user, auth_check=False)
                         except Exception as err:
                             LOGGER.exception(err)
+
+                        # for debugging
+                        DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now()})
 
                     t = threading.Thread(target=do_commit, args=[])
                     t.setDaemon(False) # stop the thread after complete
@@ -1729,6 +1743,13 @@ class Auth(Marc):
             time.sleep(1)
 
         losing_record.delete(user)
+
+        # add to history
+        DB.handle['auth_history'].update_one({'_id': losing_record.id}, {'$set': {'merged': {'into': self.id, 'time': datetime.now()}}})
+
+        # for debugging
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'deleted', 'time': datetime.now()})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'merge complete', 'time': datetime.now()})
 
 class Diff():
     """Compare two Marc objects.
