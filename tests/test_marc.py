@@ -147,6 +147,9 @@ def test_commit(db, bibs, auths):
         assert bib.get_value('650', 'a') == 'updated'
         assert bib.user == 'test auth update'
 
+        # log
+        assert DB.handle['auth_linked_update_log'].find_one({'record_type': 'bib', 'record_id': bib.id})['triggered_by'] == auth.id
+
     for auth in auth.list_attached():
         assert auth.get_value('550', 'a') == 'updated'
         assert auth.user == 'test auth update'
@@ -793,11 +796,12 @@ def test_auth_use_count(db, bibs, auths):
     assert auth.in_use() == 1
 
 def test_auth_merge():
+    from dlx import DB
     from dlx.marc import Bib, Auth
 
-    auth1 = Auth().set('100', 'a', 'Will be gaining')
+    auth1 = Auth().set('100', 'a', 'Will be losing')
     auth1.commit()
-    auth2 = Auth().set('100', 'a', 'Will be losing')
+    auth2 = Auth().set('100', 'a', 'Will be gaining')
     auth2.commit()
 
     Bib().set('700', 'a', auth1.id).commit()
@@ -809,6 +813,15 @@ def test_auth_merge():
 
     assert auth1.in_use() == 0
     assert auth2.in_use() == 2
+
+    # history
+    assert DB.handle['auth_history'].find_one({'_id': auth1.id})['merged']['into'] == auth2.id
+
+    # log
+    assert DB.handle['merge_log'].find_one({'record_type': 'auth', 'action': 'losing'})
+    assert DB.handle['merge_log'].find_one({'record_type': 'auth', 'action': 'deleted'})
+    assert DB.handle['merge_log'].find_one({'record_type': 'auth', 'action': 'gaining'})
+    assert DB.handle['merge_log'].find_one({'record_type': 'auth', 'action': 'merge complete'})
 
 def test_logical_fields(db):
     from dlx import DB, Config
