@@ -946,11 +946,16 @@ class Marc(object):
                     LOGGER.exception(err)
 
             if isinstance(self, Auth) and update_attached == True:
-                if previous_state: 
+                if previous_state:
+                    # only update attached record if the heading field changed
+                    # don't check indicators
                     previous = Auth(previous_state)
+                    linked_codes = Config.auth_linked_codes(self.heading_field.tag)
+                    heading_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, self.heading_field.subfields))]
+                    prev_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, previous.heading_field.subfields))]
 
-                    if self.heading_field.to_mrk() != previous.heading_field.to_mrk():
-                        # only update attached record if the heading field changed
+                    if heading_serialized != prev_serialized:
+                        # the heading has changed
                         if DB.database_name == 'testing': 
                             update_attached_records(self)
                         else:

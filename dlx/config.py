@@ -316,7 +316,19 @@ class Config():
             r += [t for t in code.values()]
         
         return list(set(r))
-    
+
+    @staticmethod
+    def auth_linked_codes(heading_tag):
+        # returns the subfield codes that can be linked to for the given auth heading tag
+        codes = []
+
+        for tag, subdict in list(Config.bib_authority_controlled.items()) + list(Config.auth_authority_controlled.items()):
+            for code, tag in subdict.items():
+                if tag == heading_tag:
+                    codes.append(code)
+
+        return [str(x) for x in codes]
+            
     @staticmethod
     def language_source_tag(tag, language):
         tags = Config.auth_language_tag
