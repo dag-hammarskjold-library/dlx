@@ -255,6 +255,8 @@ class MarcSet():
             args, kwargs = self.query_params
 
             if args[0] or kwargs.get('skip') or kwargs.get('limit'):
+                # remove sort param if exists. count doesn't work with sort
+                kwargs.pop('sort', None)
                 self._count = self.handle.count_documents(*args, **kwargs)
             else:
                 self._count = self.handle.estimated_document_count()
