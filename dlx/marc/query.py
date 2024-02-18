@@ -621,7 +621,7 @@ class Condition(object):
                 else:
                     auth_tag = Config.authority_source_tag(self.record_type, tag, code)
                     lookup = SON({f'{auth_tag}.subfields': SON({'$elemMatch': {'code': code, 'value': val}})})
-                    xrefs = [doc['_id'] for doc in DB.auths.find(lookup, {'_id': 1})]
+                    xrefs = [doc['_id'] for doc in DB.auths.find(lookup, projection={'_id': 1}, collation=Config.marc_index_default_collation)]
 
                 subconditions.append(
                     SON({'$elemMatch': {'code': code, 'xref': xrefs[0] if len(xrefs) == 1 else {'$in' : xrefs}}})
@@ -733,7 +733,7 @@ class TagOnly():
             
             xrefs = map(
                 lambda x: x['_id'], 
-                DB.auths.find({f'{source_tag}.subfields.value': value}, {'_id': 1})
+                DB.auths.find({f'{source_tag}.subfields.value': value}, projection={'_id': 1}, collation=Config.marc_index_default_collation)
             )
             xrefs = list(xrefs)
             
