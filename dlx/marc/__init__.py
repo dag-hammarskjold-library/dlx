@@ -1,6 +1,6 @@
 """dlx.marc"""
 
-import time, re, json, threading
+import time, re, json, threading, types
 from collections import Counter
 from datetime import datetime
 from warnings import warn
@@ -249,14 +249,12 @@ class MarcSet():
 
     @property
     def count(self):
-        import types
-        
         if isinstance(self.records, (map, types.GeneratorType)):
             args, kwargs = self.query_params
 
             if args[0] or kwargs.get('skip') or kwargs.get('limit'):
-                # remove sort param if exists. count doesn't work with sort
-                kwargs.pop('sort', None)
+                kwargs.pop('sort', None) # remove sort param if exists. count doesn't work with sort
+                kwargs['collation'] = None if DB.database_name == 'testing' else Config.marc_index_default_collation # param not supported in mongomock as of 4.1.2
                 self._count = self.handle.count_documents(*args, **kwargs)
             else:
                 self._count = self.handle.estimated_document_count()

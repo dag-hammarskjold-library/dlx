@@ -119,9 +119,9 @@ class Query():
 
                 # exact match
                 if not isinstance(value, Regex):
-                    if value[0] == '\'' and value[-1] == '\'':
+                    if value[0] == "\'" and value[-1] == "\'":
                         return Condition(tag, {code: value[1:-1]}, modifier=modifier, record_type=self.record_type)
-                    elif value[0] == '\'' and value[-1] != '\'':
+                    elif value[0] == "\'" and value[-1] != "\'":
                         raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
                 # regex
@@ -244,7 +244,7 @@ class Query():
                             )
                         )
                 # text
-                else: 
+                else:
                     quoted = re.findall(r'"(.+?)"', value)
                     quoted = [Tokenizer.scrub(x) for x in quoted]
                     # capture words starting with hyphen (denotes "not" search)
@@ -701,6 +701,17 @@ class Text():
         
         return data
 
+    def atlas_compile(self):
+        return {
+            "$search": {
+                "index": "default",
+                "text": {
+                    "path": "*",
+                    "query": self.string
+                }
+            }
+        }
+
 class Wildcard(Text):
     # Deprecated
     def __init__(self, *args, **kwargs):
@@ -771,8 +782,33 @@ class AtlasQuery():
     '''Compiles into an aggregation pipeline'''
 
     def __init__(self):
-        pass
+        self.conditions = []
+        self.match = None # the standard query to use in $match stage
 
     @classmethod
-    def from_string(string):
-        pass
+    def from_string(cls, string, *, record_type=None):
+        self = cls()
+        standard_query = Query.from_string(string)
+        standard_conditions = standard_query.conditions
+        self.conditions = []
+        
+        # remove text conditions for conversion to Atlas conditions
+        for i, cond in enumerate(standard_conditions):
+            if isinstance(cond, Text):
+                self.conditions.append(standard_conditions.pop(i))
+
+        # save the rest of the standard query to use in $match aggregation stage
+        self.match = Query(*standard_conditions)
+
+        return self
+
+    def compile(self):
+        pipeline = []
+
+        if self.conditions:
+            pipeline += [x.atlas_compile() for x in self.conditions]
+
+        if self.match:
+            pipeline.append({'$match': self.match.compile()})
+
+        return pipeline

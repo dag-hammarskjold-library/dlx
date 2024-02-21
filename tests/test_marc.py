@@ -163,12 +163,13 @@ def test_delete(db):
     bib.commit()    
     bib.delete()
     
-    assert Bib.match_id(bib.id) == None
+    assert Bib.from_id(bib.id) == None
     
     history = DB.handle['bib_history'].find_one({'_id': bib.id})
     assert history['deleted']['user'] == 'admin'
     assert isinstance(history['deleted']['time'], datetime)
 
+@pytest.mark.skip(reason='deprecated')
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth
     
@@ -180,6 +181,7 @@ def test_find_one(db, bibs, auths):
     assert auth.id == 1
     assert isinstance(auth, Auth)
         
+@pytest.mark.skip(reason='deprecated')
 def test_find(db):
     from dlx.marc import Bib, Auth
         
@@ -399,6 +401,15 @@ def test_from_aggregation(db, bibs):
     )
     assert isinstance(bibs, BibSet)
     assert bibs.count == 2
+
+def test_atlasquery(db, bibs):
+    from dlx.marc.query import AtlasQuery
+
+    ag = AtlasQuery.from_string('245:\'title\' AND notes')
+    pipeline = ag.compile()
+    assert isinstance(ag.compile(), list)
+    assert pipeline[0].get('$search')
+    assert pipeline[1].get('$match')
 
 def test_get_field(db, bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield
