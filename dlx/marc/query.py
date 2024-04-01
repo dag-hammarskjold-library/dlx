@@ -707,7 +707,7 @@ class Text():
                 "index": "default",
                 "text": {
                     "path": "*",
-                    "query": self.string
+                    "query": {"wildcard": self.string}
                 }
             }
         }

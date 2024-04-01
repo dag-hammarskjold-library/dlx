@@ -1,6 +1,6 @@
 """dlx.marc"""
 
-import time, re, json, threading, types
+import time, re, json, threading
 from collections import Counter
 from datetime import datetime
 from warnings import warn
@@ -12,7 +12,7 @@ from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
 from dlx.file import File, Identifier
-from dlx.marc.query import QueryDocument, Query, Condition, Or, Raw
+from dlx.marc.query import QueryDocument, Query, AtlasQuery, Condition, Or, Raw
 from dlx.util import Table, Tokenizer
 import logging
 
@@ -120,22 +120,7 @@ class MarcSet():
         self = cls()
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
-        
-        if not any([x.get('$match') or x.get('$search') for x in pipeline]):
-            #raise Exception(f'$match or $search stage is required')    
-            pass
-
-        # as of now, the query is expected to be stored as the first positional argument
-        query = list(filter(lambda x: x.get('$match'), pipeline))[0]['$match']
-        self.query_params = [[query], kwargs]
-
-        for opt in ('skip', 'limit', 'sort', 'projection'):
-            if opt in kwargs:
-                pipeline.append({f'${opt if opt != "projection" else "project"}': kwargs[opt]}) # projection option is called "project" in ag stage
-
-        collation = kwargs.get('collation') if kwargs.get('collation') else None
-
-        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline, collation=collation))
+        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline))
 
         return self
 
@@ -249,6 +234,8 @@ class MarcSet():
 
     @property
     def count(self):
+        import types
+        
         if isinstance(self.records, (map, types.GeneratorType)):
             args, kwargs = self.query_params
 
@@ -653,8 +640,12 @@ class Marc(object):
 
         self.set('008', None, cat_date + text[6] + pub_year + text[11:])
 
-    def delete_field(self, tag, place=0):
-        if isinstance(place, int):
+    def delete_field(self, tag_or_field, place=0):
+        if isinstance(tag_or_field, (Controlfield, Datafield)):
+            field = tag_or_field
+            del self.fields[self.fields.index(field)]
+        elif isinstance(place, int):
+            tag = tag_or_field
             i, j = 0, 0
 
             for i, field in enumerate(self.fields):
