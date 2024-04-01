@@ -502,6 +502,9 @@ class Query():
     def compile(self):
         compiled = []
 
+        if not self.conditions:
+            return
+
         for condition in self.conditions:
             compiled.append(condition.compile())
 
@@ -706,8 +709,8 @@ class Text():
             "$search": {
                 "index": "default",
                 "text": {
-                    "path": "*",
-                    "query": {"wildcard": self.string}
+                    "path": {"wildcard": "*"},
+                    "query": self.string
                 }
             }
         }
@@ -798,7 +801,7 @@ class AtlasQuery():
                 self.conditions.append(standard_conditions.pop(i))
 
         # save the rest of the standard query to use in $match aggregation stage
-        self.match = Query(*standard_conditions)
+        self.match = Query(*standard_conditions) if standard_conditions else None
 
         return self
 
