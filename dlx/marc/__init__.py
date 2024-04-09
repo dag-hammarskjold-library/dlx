@@ -12,7 +12,7 @@ from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
 from dlx.file import File, Identifier
-from dlx.marc.query import QueryDocument, Query, Condition, Or, Raw
+from dlx.marc.query import QueryDocument, Query, AtlasQuery, Condition, Or, Raw
 from dlx.util import Table, Tokenizer
 import logging
 
@@ -115,12 +115,13 @@ class MarcSet():
         return self
 
     @classmethod
-    def from_aggregation(cls, pipeline, **kwargs):
+    def from_aggregation(cls, *args, **kwargs):
         # the aggregation results must return valid Marc records
         self = cls()
+        self.query_params = [args, kwargs]
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
-        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline))
+        self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(*args, **kwargs))
 
         return self
 
@@ -239,12 +240,19 @@ class MarcSet():
         if isinstance(self.records, (map, types.GeneratorType)):
             args, kwargs = self.query_params
 
-            if args[0] or kwargs.get('skip') or kwargs.get('limit'):
-                kwargs.pop('sort', None) # remove sort param if exists. count doesn't work with sort
-                kwargs['collation'] = None if DB.database_name == 'testing' else Config.marc_index_default_collation # param not supported in mongomock as of 4.1.2
-                self._count = self.handle.count_documents(*args, **kwargs)
+            if isinstance(args[0], list):
+                # aggregation pipeline
+                count_ag = args[0] + [{'$count': 'c'}]
+                self._count = next(self.handle.aggregate(count_ag, **kwargs), {}).get('c') or 0
             else:
-                self._count = self.handle.estimated_document_count()
+                # regular query document
+                if args[0] or kwargs.get('skip') or kwargs.get('limit'):
+                    kwargs.pop('sort', None) # remove sort param if exists. count doesn't work with sort
+                    kwargs['collation'] = None if DB.database_name == 'testing' else Config.marc_index_default_collation # param not supported in mongomock as of 4.1.2
+                    self._count = self.handle.count_documents(*args, **kwargs)
+                else:
+                    # no criteria
+                    self._count = self.handle.estimated_document_count()
 
             return self._count
         else:
@@ -640,8 +648,12 @@ class Marc(object):
 
         self.set('008', None, cat_date + text[6] + pub_year + text[11:])
 
-    def delete_field(self, tag, place=0):
-        if isinstance(place, int):
+    def delete_field(self, tag_or_field, place=0):
+        if isinstance(tag_or_field, (Controlfield, Datafield)):
+            field = tag_or_field
+            del self.fields[self.fields.index(field)]
+        elif isinstance(place, int):
+            tag = tag_or_field
             i, j = 0, 0
 
             for i, field in enumerate(self.fields):

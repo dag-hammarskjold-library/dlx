@@ -119,9 +119,9 @@ class Query():
 
                 # exact match
                 if not isinstance(value, Regex):
-                    if value[0] == '\'' and value[-1] == '\'':
+                    if value[0] == "\'" and value[-1] == "\'":
                         return Condition(tag, {code: value[1:-1]}, modifier=modifier, record_type=self.record_type)
-                    elif value[0] == '\'' and value[-1] != '\'':
+                    elif value[0] == "\'" and value[-1] != "\'":
                         raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
                 # regex
@@ -244,7 +244,7 @@ class Query():
                             )
                         )
                 # text
-                else: 
+                else:
                     quoted = re.findall(r'"(.+?)"', value)
                     quoted = [Tokenizer.scrub(x) for x in quoted]
                     # capture words starting with hyphen (denotes "not" search)
@@ -502,6 +502,9 @@ class Query():
     def compile(self):
         compiled = []
 
+        if not self.conditions:
+            return
+
         for condition in self.conditions:
             compiled.append(condition.compile())
 
@@ -621,7 +624,7 @@ class Condition(object):
                 else:
                     auth_tag = Config.authority_source_tag(self.record_type, tag, code)
                     lookup = SON({f'{auth_tag}.subfields': SON({'$elemMatch': {'code': code, 'value': val}})})
-                    xrefs = [doc['_id'] for doc in DB.auths.find(lookup, {'_id': 1})]
+                    xrefs = [doc['_id'] for doc in DB.auths.find(lookup, projection={'_id': 1}, collation=Config.marc_index_default_collation)]
 
                 subconditions.append(
                     SON({'$elemMatch': {'code': code, 'xref': xrefs[0] if len(xrefs) == 1 else {'$in' : xrefs}}})
@@ -701,6 +704,17 @@ class Text():
         
         return data
 
+    def atlas_compile(self):
+        return {
+            "$search": {
+                "index": "default",
+                "text": {
+                    "path": {"wildcard": "*"},
+                    "query": self.string
+                }
+            }
+        }
+
 class Wildcard(Text):
     # Deprecated
     def __init__(self, *args, **kwargs):
@@ -733,7 +747,7 @@ class TagOnly():
             
             xrefs = map(
                 lambda x: x['_id'], 
-                DB.auths.find({f'{source_tag}.subfields.value': value}, {'_id': 1})
+                DB.auths.find({f'{source_tag}.subfields.value': value}, projection={'_id': 1}, collation=Config.marc_index_default_collation)
             )
             xrefs = list(xrefs)
             
@@ -765,5 +779,39 @@ class TagOnly():
 class Any(TagOnly):
     # deprecated
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)    
-    
+        super().__init__(*args, **kwargs)
+
+class AtlasQuery():
+    '''Compiles into an aggregation pipeline'''
+
+    def __init__(self):
+        self.conditions = []
+        self.match = None # the standard query to use in $match stage
+
+    @classmethod
+    def from_string(cls, string, *, record_type=None):
+        self = cls()
+        standard_query = Query.from_string(string)
+        standard_conditions = standard_query.conditions
+        self.conditions = []
+        
+        # remove text conditions for conversion to Atlas conditions
+        for i, cond in enumerate(standard_conditions):
+            if isinstance(cond, Text):
+                self.conditions.append(standard_conditions.pop(i))
+
+        # save the rest of the standard query to use in $match aggregation stage
+        self.match = Query(*standard_conditions) if standard_conditions else None
+
+        return self
+
+    def compile(self):
+        pipeline = []
+
+        if self.conditions:
+            pipeline += [x.atlas_compile() for x in self.conditions]
+
+        if self.match:
+            pipeline.append({'$match': self.match.compile()})
+
+        return pipeline
