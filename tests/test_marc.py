@@ -380,6 +380,8 @@ def test_querystring(db):
     query = Query.from_string(f"246:'New title' AND some words in a field AND 500:'notes'", record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
+
+
     # invalid query stings
     from dlx.marc.query import InvalidQueryString
 
