@@ -817,10 +817,10 @@ def test_logical_fields(db):
     Config.bib_logical_fields.update({'test_field': {'867': ['a', 'z']}})
     bib = Bib().set('867', 'a', 'logical value 1').set('867', 'z', 'logical value 2').commit()
     assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['logical value 1', 'logical value 2']
-    
-    Config.bib_logical_fields.update({'test_field': {'867': ['abc']}})
-    bib.set('867', 'a', 'part 1,').set('867', 'b', 'part 2 +').set('867', 'c', 'part 3').commit()
-    assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field') == ['part 1, part 2 + part 3']
+
+    Config.bib_logical_fields.update({'test_field_2': {'868': ['abc']}})
+    bib.set('868', 'a', 'part 1,').set('868', 'b', 'part 2 +').set('868', 'c', 'part 3').commit()
+    assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field_2') == ['part 1, part 2 + part 3']
 
     # record type special field
     assert bib.logical_fields()['_record_type'] == ['default']
@@ -828,6 +828,18 @@ def test_logical_fields(db):
     Config.bib_type_map.update({'my_test_type': ['900', 'a', 'test type']})
     bib.set('900', 'a', 'test type')
     assert bib.logical_fields()['_record_type'] == ['my_test_type']
+
+    # indexes
+    bib2 = Bib()
+    bib2.set('867', 'a', 'logical value 1')
+    bib.commit()
+    bib2.commit()
+    assert DB.handle['_index_test_field'].find_one({'_id': 'logical value 1'})
+    
+    bib.delete()
+    assert DB.handle['_index_test_field'].find_one({'_id': 'logical value 1'})
+    bib2.delete()
+    assert DB.handle['_index_test_field'].find_one({'_id': 'logical value 1'}) == None
 
 def test_bib_files(db, bibs):
     from datetime import datetime
