@@ -133,7 +133,7 @@ class Query():
                         matched_subfield_values += list(
                             filter(
                                 lambda y: re.search(value.pattern, Tokenizer.scrub(y)) if isinstance(value, WildcardRegex) else re.search(value.pattern, y, flags=value.flags), 
-                                [x['value'] for x in m['subfields']]
+                                [x['value'] for x in filter(lambda z: z['code'] == code, m['subfields'])]
                             )
                         )
                 else:
@@ -161,7 +161,7 @@ class Query():
                     matched_subfield_values = []
 
                     for m in matches:
-                        matched_subfield_values += [x['value'] for x in m['subfields']]
+                        matched_subfield_values += [x['value'] for x in filter(lambda z: z['code'] == code, m['subfields'])]
 
                     stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
@@ -516,6 +516,9 @@ class Query():
             return compiled[0]
         else:
             return {'$and': compiled}
+
+    def to_dict(self):
+        return self.compile()
 
     def to_json(self):
         return dumps(self.compile())
