@@ -125,6 +125,12 @@ def run():
             #)
 
             indexes.append(
+                index_col.create_index('text')
+            )
+            indexes.append(
+                index_col.create_index('words')
+            )
+            indexes.append(
                 index_col.create_index('_record_type')
             )
 

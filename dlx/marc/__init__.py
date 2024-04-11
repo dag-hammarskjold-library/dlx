@@ -110,6 +110,7 @@ class MarcSet():
         self.query_params = [args, kwargs]
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
+        kwargs.setdefault('collation', Config.marc_index_default_collation)
         self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.find(*args, **kwargs))
 
         return self
@@ -440,6 +441,7 @@ class Marc(object):
 
     @classmethod
     def from_query(cls, *args, **kwargs):
+        kwargs.setdefault('collation', Config.marc_index_default_collation)
         return next(cls.set_class.from_query(*args, **kwargs), None)
 
     @classmethod
