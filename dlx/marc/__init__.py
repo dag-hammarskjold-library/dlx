@@ -985,7 +985,7 @@ class Marc(object):
 
                     for val in values:
                         bibcount = len(list(DB.bibs.find({field: val}, limit=2)))
-                        authcount = len(list(DB.bibs.find({field: val}, limit=2)))
+                        authcount = len(list(DB.auths.find({field: val}, limit=2)))
 
                         if bibcount + authcount in [0, 1]:
                             # this record is the only instance of the value
