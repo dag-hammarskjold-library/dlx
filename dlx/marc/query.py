@@ -149,15 +149,19 @@ class Query():
                         if not value.strip():
                             raise Exception('Search term can\'t contain only negations')
 
-                    matches = DB.handle[f'_index_{tag}'].find(
-                        {
-                            '$and': [
-                                {'words': {'$all': Tokenizer.tokenize(value)}},
-                                {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
-                                {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
-                            ]
-                        }
-                    )
+                    q = {
+                        '$and': [
+                            {'words': {'$all': Tokenizer.tokenize(value)}}
+                        ]
+                    }
+
+                    if negated:
+                        q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
+
+                    if quoted:
+                        q['$and'].append({'text': Regex(' '.join(quoted))})
+                    
+                    matches = DB.handle[f'_index_{tag}'].find(q)
                     matched_subfield_values = []
 
                     for m in matches:
@@ -257,15 +261,19 @@ class Query():
                         if not value.strip():
                             raise Exception('Search term can\'t contain only negations')
 
-                    matches = DB.handle[f'_index_{tag}'].find(
-                        {
-                            '$and': [
-                                {'words': {'$all': Tokenizer.tokenize(value)}},
-                                {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))} if negated else {'$exists': 1}},
-                                {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
-                            ]
-                        }
-                    )
+                    q = {
+                        '$and': [
+                            {'words': {'$all': Tokenizer.tokenize(value)}}
+                        ]
+                    }
+
+                    if negated:
+                        q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
+
+                    if quoted:
+                        q['$and'].append({'text': Regex(' '.join(quoted))})
+                    
+                    matches = DB.handle[f'_index_{tag}'].find(q)
 
                     matched_subfield_values = []
 
@@ -408,21 +416,25 @@ class Query():
                         negated = [Tokenizer.scrub(x) for x in negated]
 
                         for _ in negated:
-                                value = value.replace(_, '')
+                            value = value.replace(_, '')
 
-                                if not value.strip():
-                                    raise Exception('Search term can\'t contain only negations')
+                            if not value.strip():
+                                raise Exception('Search term can\'t contain only negations')
 
-                        matches = DB.handle[f'_index_{field}'].find(
-                            {
-                                '$and': [
-                                    {'words': {'$all': Tokenizer.tokenize(value)}},
-                                    {'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}},
-                                    {'text': Regex(' '.join(quoted)) if quoted else {'$exists': 1}}
-                                ]
-                            }
-                        )                  
-                        values = [x['_id'] for x in matches]
+                    q = {
+                        '$and': [
+                            {'words': {'$all': Tokenizer.tokenize(value)}}
+                        ]
+                    }
+
+                    if negated:
+                        q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
+
+                    if quoted:
+                        q['$and'].append({'text': Regex(' '.join(quoted))})
+                    
+                    matches = DB.handle[f'_index_{field}'].find(q)             
+                    values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
                         raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
