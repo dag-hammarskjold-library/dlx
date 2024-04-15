@@ -1,4 +1,4 @@
-dnspython==2.3.0 # required to connect using MDB Atlas uri
+dnspython==2.6.1 # required to connect using MDB Atlas uri
 jsonschema==4.0.0 # maximum version working on Python 3.6    
 mongomock==4.1.2
 moto==2.3.1
