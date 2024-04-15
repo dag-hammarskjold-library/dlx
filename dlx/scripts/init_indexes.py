@@ -40,77 +40,75 @@ def run():
         text_weights = getattr(Config, _[:-1] + '_text_index_weights')
         
         print(f'creating {_} indexes...')
-        indexes.append(col.create_index('updated'))
         indexes.append(
             col.create_index(
                 # to allow sorting if the search is using this collation
                 'updated',
                 name='updated_collated',
-                collation=Collation(locale='en', strength=1, numericOrdering=True)
+                collation=Config.marc_index_default_collation
             )
         )
-        indexes.append(col.create_index('_record_type'))
+        indexes.append(
+            col.create_index(
+                # to allow sorting if the search is using this collation
+                'created',
+                name='created_collated',
+                collation=Config.marc_index_default_collation
+            )
+        )
+        indexes.append(col.create_index('_record_type', collation=Config.marc_index_default_collation))
+
+        print(f'creating text indexes...')
+        indexes.append(col.create_index('words', collation=Config.marc_index_default_collation))
+        indexes.append(col.create_index('text', collation=Config.marc_index_default_collation))
 
         print(f'creating tag indexes...')
         for tag in index_fields + list(auth_ctrl.keys()):
             #col.drop_index(f'{tag}.$**_1')
-            indexes.append(col.create_index(f'{tag}.$**', collation=Collation(locale='en', strength=1, numericOrdering=True)))
+            indexes.append(col.create_index(f'{tag}.$**', collation=Config.marc_index_default_collation))
 
         print('creating logical field indexes...')
         for field_name in logical_fields.keys():
             #if field_name + '_1' in col.index_information().keys():
             #    col.drop_index(field_name + '_1')
-
-            indexes.append(
-                col.create_index(field_name)
-            )
-
-            #col.drop_index(field_name + '_collated')
             indexes.append(
                 col.create_index(
                     field_name,
                     name=field_name + '_collated',
-                    collation=Collation(locale='en', strength=1, numericOrdering=True)
-                )
-            )
-
-        print('creating case-insenstive indexes...')
-        for tag in case_ins:
-            indexes.append(
-                col.create_index(
-                    f'{tag}.subfields.value',
-                    name=f'{tag}.subfields.value_caseinsensitive',
-                    collation=Collation(locale='en', strength=2)
+                    collation=Config.marc_index_default_collation
                 )
             )
 
         print('creating wildcard index...')
-        for k, v in col.index_information().items():
-            if v['key'][0][0] == '$**':
-                # drop any existing wildcard index as the excluded fields may have changed
-                col.drop_index(k)
-
         exclude = index_fields + list(auth_ctrl.keys())
         exclude += list(logical_fields.keys())
-        exclude += ['updated']
+        exclude += ['updated', 'created', 'words', 'text', '_record_type']
+
+        for name, index in col.index_information().items():
+            if index['key'][0][0] == '$**':
+                # drop any existing wildcard index if the excluded fields changed
+                if set(index['wildcardProjection'].keys()) != set(exclude):
+                    col.drop_index(name)
 
         indexes.append(
             col.create_index(
                 "$**",
                 wildcardProjection=dict.fromkeys(exclude, 0),
-                collation=Collation(locale='en', strength=1, numericOrdering=True)
+                collation=Config.marc_index_default_collation
             )
         )
-            
-        print('creating logical field text index...')
-        for k, v in col.index_information().items():
-            if v['key'][0][0] == '_fts':
-                # drop any existing wildcard index as the logical fields may have changed
-                col.drop_index(k)
 
-        indexes.append(
-            col.create_index([(x, 'text') for x in logical_fields.keys()], default_language='none', weights=text_weights)
-        )
+        # not currently in use  
+        #print('creating logical field text index...')
+        #for k, v in col.index_information().items():
+        #    if v['key'][0][0] == '_fts':
+        #        # drop any existing wildcard index as the logical fields may have changed
+        #        col.drop_index(k)
+        #
+        #
+        #indexes.append(
+        #    col.create_index([(x, 'text') for x in logical_fields.keys()], default_language='none', weights=text_weights)
+        #)
 
         print('creating logical field text collection indexes...')
         for field in logical_fields.keys():
@@ -121,15 +119,23 @@ def run():
             #    if v['key'][0][0] == '_fts':
             #        index_col.drop_index(k)
             
-            indexes.append(
-                index_col.create_index([('_id', 'text')], default_language='none')
-            )
+            # not currently in use
+            #indexes.append(
+            #    index_col.create_index([('_id', 'text')], default_language='none')
+            #)
 
+            indexes.append(
+                index_col.create_index('text')
+            )
+            indexes.append(
+                index_col.create_index('words')
+            )
             indexes.append(
                 index_col.create_index('_record_type')
             )
 
-        print('creating tag field text indexes: ', end='')
+        print('creating tag field text indexes: ', end='', flush=True)
+         # get all tags in collection
         result = col.aggregate(
             [
                 {"$project": {"data": {"$objectToArray": "$$ROOT"}}},
@@ -138,22 +144,28 @@ def run():
                 {"$group": {"_id": None, "keys": {"$addToSet": "$data"}}}
             ]
         )
-
         tags = filter(lambda x: re.match('\d{3}', x), list(result)[0]['keys'])
-
+    
         for tag in sorted(tags):
             print(tag + ' ', flush=True, end='')
             index_col = DB.handle[f'_index_{tag}']
-
+        
             # debug
             #for k, v in index_col.index_information().items():
             #    if v['key'][0][0] == '_fts':
             #        index_col.drop_index(k)
-
+        
+            # not currently in use
+            #indexes.append(
+            #    index_col.create_index([('subfields.value', 'text')], default_language='none')
+            #)
             indexes.append(
-                index_col.create_index([('subfields.value', 'text')], default_language='none')
+                index_col.create_index('words')
             )
-
+            indexes.append(
+                index_col.create_index('text')
+            )
+        
         print('\n')
 
         print('Dropping extraneous indexes...')
