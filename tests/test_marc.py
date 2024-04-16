@@ -847,11 +847,11 @@ def test_logical_fields(db):
     assert DB.handle['bibs'].find_one({'_id': bib.id}).get('test_field_2') == ['part 1, part 2 + part 3']
 
     # record type special field
-    assert bib.logical_fields()['_record_type'] == ['default']
+    assert set(bib.logical_fields()['_record_type']) == set(['bib', 'default'])
 
     Config.bib_type_map.update({'my_test_type': ['900', 'a', 'test type']})
     bib.set('900', 'a', 'test type')
-    assert bib.logical_fields()['_record_type'] == ['my_test_type']
+    assert set(bib.logical_fields()['_record_type']) == set(['my_test_type', 'bib'])
 
     # indexes
     bib2 = Bib()
