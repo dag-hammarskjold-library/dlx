@@ -1,6 +1,4 @@
 import boto3
-from moto import mock_s3
-#from moto import mock_s3
 
 class S3(object):
     '''Wrapper around the boto3 s3 client'''
