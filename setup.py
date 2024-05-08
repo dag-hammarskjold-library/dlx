@@ -23,7 +23,7 @@ setup(
     package_data = {'dlx': ['schemas/jmarc.schema.json', 'schemas/jfile.schema.json']},
     test_suite = 'tests',
     install_requires = requirements,
-    python_requires = '>=3.8',
+    python_requires = '>=3.8, <3.12',
     entry_points = {
         'console_scripts': [
             'excel-marc=dlx.scripts.excel_marc:run',
