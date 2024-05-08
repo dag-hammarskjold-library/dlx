@@ -17,7 +17,7 @@ jsonschema==4.0.0
 lxml==5.2.1
 MarkupSafe==2.1.5
 mongomock==4.1.2
-moto==2.3.1
+moto==5.0.6
 nltk==3.8.1
 packaging==24.0
 pluggy==1.5.0
