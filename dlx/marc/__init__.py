@@ -110,7 +110,11 @@ class MarcSet():
         self.query_params = [args, kwargs]
         Marc = self.record_class
         ac = kwargs.pop('auth_control', False)
-        kwargs.setdefault('collation', Config.marc_index_default_collation)
+
+        if 'collation' not in kwargs and Config.marc_index_default_collation:
+            warn('Collation not set. Using default collation set in config')
+            kwargs['collation'] = Config.marc_index_default_collation
+
         self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.find(*args, **kwargs))
 
         return self
@@ -441,7 +445,10 @@ class Marc(object):
 
     @classmethod
     def from_query(cls, *args, **kwargs):
-        kwargs.setdefault('collation', Config.marc_index_default_collation)
+        if 'collation' not in kwargs and Config.marc_index_default_collation:
+            warn('Collation not set. Using default collation set in config')
+            kwargs['collation'] = Config.marc_index_default_collation
+
         return next(cls.set_class.from_query(*args, **kwargs), None)
 
     @classmethod
@@ -1045,15 +1052,13 @@ class Marc(object):
                             self._logical_fields.setdefault(logical_field, [])
                             self._logical_fields[logical_field].append(value)
 
-        # there can only be one type but all logical fields are expected to be arrays
+        for subtype, match in Config.bib_type_map.items():
+            if self.get_value(*match[:2]) == match[2]:
+                self._logical_fields['_record_type'] = [subtype]
+        
         self._logical_fields.setdefault('_record_type', ['default'])
+        self._logical_fields['_record_type'].append(self.record_type)
 
-        if self.record_type == 'bib':
-        # only bibs currently have types other than default 
-            for type, match in Config.bib_type_map.items():
-                if self.get_value(*match[:2]) == match[2]:
-                    self._logical_fields['_record_type'] = [type]
-                            
         return self._logical_fields
 
     #### utlities

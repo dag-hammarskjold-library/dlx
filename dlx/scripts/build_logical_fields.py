@@ -64,11 +64,12 @@ def build_logical_fields(args):
     inc = 1000
     query = {}
     end = cls().handle.estimated_document_count() #cls.from_query(query).count
+    status = ''
     
     for i in range(start, end, inc):
         updates, browse_updates = [], {}
         
-        for record in cls.from_query(query, sort=[('_id', DESC)], skip=i, limit=inc, projection=dict.fromkeys(tags, 1)):
+        for record in cls.from_query(query, sort=[('_id', DESC)], skip=i, limit=inc, projection=dict.fromkeys(tags, 1), collation=None):
             for field, values in record.logical_fields(*list(names)).items():
                 updates.append(UpdateOne({'_id': record.id}, {'$set': {field: values}}))
                 browse_updates.setdefault(field, [])
@@ -83,28 +84,29 @@ def build_logical_fields(args):
                             {'_id': val}, 
                             {
                                 '$set': {
-                                    'text': f' {scrubbed} ', # leading and tailing space added to help with matching
+                                    'text': f' {scrubbed} ', # leading and trailing space added to help with matching
                                     'words': list(count.keys()),
                                 },
                                 '$unset': {'word_count': ''},
-                                '$addToSet': {'_record_type': record.logical_fields().get('_record_type')[0]}
+                                '$addToSet': {'_record_type': {'$each': [record.logical_fields().get('_record_type')[0], args.type]}}
                             },
                             upsert=True
                         )
                     )
-
-            last_r = r
+            
+            backspace = '\b' * len(status)
             r += 1
-            print('\b' * (len(str(last_r)) + len(str(end)) + 3) + f'{r} / {end}', end='', flush=True)
+            status = f'{r} / {end}'
+            print(backspace + status, end='', flush=True)
 
         if updates:
-            cls().handle.bulk_write(updates)
+            cls().handle.bulk_write(updates, ordered=False)
             c += len(updates)
-            
+                
         if browse_updates:
             for field in logical_fields:
                 if field in browse_updates:
-                    DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field]))
+                    DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field]), ordered=False)
 
     print(f'\nupdated {c} logical fields')
 
@@ -169,7 +171,7 @@ def build_auth_controlled_logical_fields(args):
                             {'_id': val}, 
                             {   
                                 '$setOnInsert': {'_id': val},
-                                '$addToSet': {'_record_type': Bib.from_id(rid).logical_fields(['_record_type']).get('_record_type')[0]}
+                                '$addToSet': {'_record_type': {'$each': [Bib.from_id(rid).logical_fields(['_record_type']).get('_record_type')[0], args.type]}}
                             },
                             upsert=True
                         )
