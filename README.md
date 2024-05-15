@@ -4,13 +4,13 @@
 APIs for performing ETL operations on MARC and file data
 
 ### Requirements:
-* Python 3.7+
+* Python 3.8+
 * Valid MongoDB connection string
 * AWS S3 credentials (file submission only)
 
 ### Installation:
 ```bash
-> pip install git+git://github.com/dag-hammarskjold-library/dlx
+> pip install git+git://github.com/dag-hammarskjold-library/dlx@v1.4.1
 ```
 ### Usage:
 ```python

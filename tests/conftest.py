@@ -1,6 +1,5 @@
 import pytest
 from mongomock import MongoClient as MockClient
-from moto import mock_s3
 from datetime import datetime
 
 @pytest.fixture

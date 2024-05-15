@@ -1808,6 +1808,8 @@ class Diff():
         self.b = list(filter(lambda x: x not in a.fields, b.fields))
         self.c = list(filter(lambda x: x in b.fields, a.fields))
 
+        # todo: check if any duplciated fields are duplicated the same number of times in both
+
 ### Field classes
 
 class Field():

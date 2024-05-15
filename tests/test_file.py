@@ -3,10 +3,10 @@ Tests for dlx.file
 """
 
 import os, time, pytest, responses
-from moto import mock_s3
+from moto import mock_aws
 
 @pytest.fixture
-@mock_s3
+@mock_aws
 def s3():
     from dlx import Config
     from dlx.file import S3
@@ -26,7 +26,7 @@ def tempfile():
     
     return handle
 
-@mock_s3
+@mock_aws
 def test_import_from_handle(db, s3, tempfile):   
     from tempfile import TemporaryFile 
     from dlx import Config, DB
@@ -84,7 +84,7 @@ def test_import_from_handle(db, s3, tempfile):
     assert(len(results)) == 1
     assert results[0]['languages'] == ['AR']
 
-@mock_s3   
+@mock_aws
 def test_import_from_path(db, s3):
     from dlx.file import S3, File, Identifier
     
@@ -96,7 +96,7 @@ def test_import_from_path(db, s3):
     f = File.import_from_path('temp', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
     assert f.id == control
 
-@mock_s3
+@mock_aws
 @responses.activate
 def test_import_from_url(db, s3):
     import requests
@@ -111,7 +111,7 @@ def test_import_from_url(db, s3):
     f = File.import_from_url(url='http://127.0.0.1:9090', identifiers=[Identifier('isbn', '3')], filename='test', languages=['EN'], mimetype='test', source='test')
     assert f.id == control
 
-@mock_s3   
+@mock_aws   
 def test_import_from_binary(db, s3):
     from io import BytesIO
     from dlx.file import File, Identifier, S3
@@ -121,7 +121,7 @@ def test_import_from_binary(db, s3):
     f = File.import_from_binary(b'test data', identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
     assert f.id == control
 
-@mock_s3    
+@mock_aws    
 def test_find(db, s3, tempfile):
     from dlx import Config, DB
     from dlx.file import S3, File, Identifier
@@ -139,7 +139,7 @@ def test_find(db, s3, tempfile):
     f = File.find_one({'_id': 'eb733a00c0c9d336e65691a37ab54293'})
     assert f.id == 'eb733a00c0c9d336e65691a37ab54293'
 
-@mock_s3
+@mock_aws
 def test_find_special(db, s3, tempfile):
     from datetime import datetime
     from dlx import Config, DB
@@ -173,7 +173,7 @@ def test_find_special(db, s3, tempfile):
     result = File.latest_by_identifier_language(ID('isbn', 'x'), 'EN')
     #assert isinstance(result, File) # should work # case-insensitive search using collation not working in mongomock
 
-@mock_s3    
+@mock_aws    
 def test_commit(db, s3, tempfile):
     from pymongo.results import UpdateResult
     from dlx import Config, DB
