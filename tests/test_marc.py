@@ -225,8 +225,8 @@ def test_querydocument(db):
     
     qjson = query.to_json()
     qdict = loads(qjson)
-    assert qdict['245']['$elemMatch']['subfields']['$elemMatch']['code'] == 'a'
-    assert qdict['245']['$elemMatch']['subfields']['$elemMatch']['value'] == 'This'
+    assert qdict['245.subfields']['$elemMatch']['code'] == 'a'
+    assert qdict['245.subfields']['$elemMatch']['value'] == 'This'
     
     query = Query(
         Condition(tag='245', subfields={'a': re.compile(r'(This|Another)'), 'b': 'is the', 'c': 'title'}),
@@ -350,6 +350,10 @@ def test_querystring(db):
     
     # string with wildcard
     query = Query.from_string(f"245__c:*itl*", record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
+
+    # logical field widldcard
+    query = Query.from_string(f"title:*itl*", record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     
     # logical fields
