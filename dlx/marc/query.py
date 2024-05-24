@@ -406,8 +406,10 @@ class Query():
 
                     # regex
                     if isinstance(value, Regex):
-                        matches = DB.handle[f'_index_{field}'].find({'text': value} if isinstance(value, WildcardRegex) else {'_id': value})
-                        values = [x['_id'] for x in matches]
+                        if isinstance(value, WildcardRegex):
+                            q = {'text': value}
+                        else:
+                            q = {'_id': value}
                     # text
                     else:
                         quoted = re.findall(r'"(.+?)"', value)
@@ -420,20 +422,20 @@ class Query():
 
                             if not value.strip():
                                 raise Exception('Search term can\'t contain only negations')
+                            
+                        q = {
+                            '$and': [
+                                {'words': {'$all': Tokenizer.tokenize(value)}}
+                            ]
+                        }
 
-                    q = {
-                        '$and': [
-                            {'words': {'$all': Tokenizer.tokenize(value)}}
-                        ]
-                    }
+                        if negated:
+                            q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
 
-                    if negated:
-                        q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
-
-                    if quoted:
-                        q['$and'].append({'text': Regex(' '.join(quoted))})
+                        if quoted:
+                            q['$and'].append({'text': Regex(' '.join(quoted))})
                     
-                    matches = DB.handle[f'_index_{field}'].find(q)             
+                    matches = DB.handle[f'_index_{field}'].find(q)         
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB

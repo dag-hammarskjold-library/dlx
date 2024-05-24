@@ -351,15 +351,15 @@ def test_querystring(db):
     # string with wildcard
     query = Query.from_string(f"245__c:*itl*", record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 2
-
-    # logical field widldcard
-    query = Query.from_string(f"title:*itl*", record_type='bib')
-    assert len(list(BibSet.from_query(query.compile()))) == 2
     
     # logical fields
     bib = Bib().set('246', 'a', 'This title:').set('246', 'b', 'is a title').commit()
     query = Query.from_string(f'title:\'This title: is a title\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    # logical field widldcard
+    query = Query.from_string(f"title:*is*", record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 3
 
     # NOT
     for bib in BibSet.from_query({}):
