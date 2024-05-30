@@ -78,7 +78,8 @@ class File(object):
             identifiers=identifiers, 
             languages=languages, 
             mimetype=mimetype, 
-            source=source
+            source=source,
+            overwrite=overwrite
         )
 
     @classmethod
@@ -99,7 +100,8 @@ class File(object):
             identifiers=identifiers, 
             languages=languages, 
             mimetype=mimetype, 
-            source=source
+            source=source,
+            overwrite=overwrite
         )
         
     @classmethod
@@ -110,13 +112,14 @@ class File(object):
             identifiers=identifiers, 
             languages=languages, 
             mimetype=mimetype, 
-            source=source
+            source=source,
+            overwrite=overwrite
     )
         
     @classmethod
     def import_from_handle(cls, handle, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
-        '''Import a file using a file-like object. The file is uploaded to the
-        s3 bucket specified in `dlx.Config`. The metadata is stored in the
+        '''Import a file using a file-like object (handle). The file is uploaded to 
+        the s3 bucket specified in `dlx.Config`. The metadata is stored in the
         database
         
         
