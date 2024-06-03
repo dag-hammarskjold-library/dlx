@@ -660,7 +660,7 @@ class Marc(object):
     def delete_field(self, tag_or_field, place=0):
         if isinstance(tag_or_field, (Controlfield, Datafield)):
             field = tag_or_field
-            del self.fields[self.fields.index(field)]
+            self.fields = [f for f in self.fields if f != field]
         elif isinstance(place, int):
             tag = tag_or_field
             i, j = 0, 0
@@ -669,8 +669,7 @@ class Marc(object):
                 if field.tag == tag:
                     if j == place:
                         del self.fields[i]
-
-                        return
+                        return self
 
                     j += 1
         else:
