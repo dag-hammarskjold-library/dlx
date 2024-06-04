@@ -582,6 +582,11 @@ def test_delete_field(bibs):
     bib.delete_field('520', place=1)
     assert len(list(bib.get_fields('520'))) == 1
     assert bib.get_values('520', 'a') == ['Description']
+
+    # delete using field object
+    field = bib.get_field('520')
+    bib.delete_field(field)
+    assert bib.get_fields('520') == []
     
 def test_auth_lookup(db):
     from dlx.marc import Bib, Auth
