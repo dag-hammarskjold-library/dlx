@@ -112,7 +112,7 @@ class MarcSet():
         ac = kwargs.pop('auth_control', False)
 
         if 'collation' not in kwargs and Config.marc_index_default_collation:
-            warn('Collation not set. Using default collation set in config')
+            #warn('Collation not set. Using default collation set in config')
             kwargs['collation'] = Config.marc_index_default_collation
 
         self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.find(*args, **kwargs))
