@@ -181,9 +181,7 @@ class Query():
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
 
                 if modifier == 'not':
-                    q = {
-                        f'{tag}.subfields': {'$not': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}},
-                    }
+                    q = {f'{tag}': {'$elemMatch': {'subfields': {'$not': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
                 else:
                     q = {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}
 
@@ -295,7 +293,7 @@ class Query():
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
 
                 if modifier == 'not':
-                    q = {f'{tag}.subfields.value': {'$not': {'$in': matched_subfield_values}}}
+                    q = {f'{tag}': {'$elemMatch': {'subfields': {'$not': {'$elemMatch': {'value': {'$in': matched_subfield_values}}}}}}}
                 else:
                     q = {f'{tag}.subfields.value': {'$in': matched_subfield_values}}
 
