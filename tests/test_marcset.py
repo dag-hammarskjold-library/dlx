@@ -130,7 +130,7 @@ def test_from_xml(db):
 def test_to_mrc(db):
     from dlx.marc import BibSet
     
-    control = '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header00088r|||a2200049|||4500245002700000650001100027  aAnotherbis thectitle  aHeader'
+    control = '00238r|||a2200109|||45000010002000000080013000022450024000155200016000395200043000556500011000987100019001091controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header00102r|||a2200061|||45000010002000002450027000026500011000292  aAnotherbis thectitle  aHeader'
     assert BibSet.from_query({}).to_mrc() == control
     
 def test_to_mrk(db):

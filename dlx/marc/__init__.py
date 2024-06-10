@@ -1175,6 +1175,8 @@ class Marc(object):
         return json.dumps(mij)
 
     def to_mrc(self, *tags, language=None):
+        self.set('001', None, str(self.id))
+        
         directory = ''
         data = ''
         next_start = 0

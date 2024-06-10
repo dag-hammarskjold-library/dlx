@@ -653,18 +653,18 @@ def test_xml_encoding():
 def test_to_mrc(db):
     from dlx.marc import Bib, Auth
     
-    control = '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header'
+    control = '00238r|||a2200109|||45000010002000000080013000022450024000155200016000395200043000556500011000987100019001091controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header'
 
     bib = Bib.find_one({'_id': 1})
     assert bib.to_mrc() == control
     
-    control = '00049||||a2200037|||4500150001100000  aHeader'
+    control = '00063||||a2200049|||45000010002000001500011000021  aHeader'
    
     auth = Auth.find_one({'_id': 1})
     assert auth.to_mrc() == control
     
     auth.set('994', 'a', 'Titulo').commit()
-    assert bib.to_mrc(language='es') == '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aTitulo  aAnother header'
+    assert bib.to_mrc(language='es') == '00238r|||a2200109|||45000010002000000080013000022450024000155200016000395200043000556500011000987100019001091controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aTitulo  aAnother header'
 
 def test_to_mrk(bibs):
     from dlx.marc import Bib
