@@ -1212,12 +1212,9 @@ class Marc(object):
         return new_leader + directory + data
 
     def to_mrk(self, *tags, language=None):
-        string = ''
-
-        for field in self.get_fields():
-            string += field.to_mrk(language=language) + '\n'
-
-        return string
+        self.set('001', None, str(self.id))
+        
+        return '\n'.join([field.to_mrk(language=language) for field in self.get_fields()]) + '\n'
 
     def to_str(self, *tags, language=None):
         # non-standard format intended to be human readable
