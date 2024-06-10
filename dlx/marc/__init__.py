@@ -1175,6 +1175,8 @@ class Marc(object):
         return json.dumps(mij)
 
     def to_mrc(self, *tags, language=None):
+        self.set('001', None, str(self.id))
+        
         directory = ''
         data = ''
         next_start = 0
@@ -1212,12 +1214,9 @@ class Marc(object):
         return new_leader + directory + data
 
     def to_mrk(self, *tags, language=None):
-        string = ''
-
-        for field in self.get_fields():
-            string += field.to_mrk(language=language) + '\n'
-
-        return string
+        self.set('001', None, str(self.id))
+        
+        return '\n'.join([field.to_mrk(language=language) for field in self.get_fields()]) + '\n'
 
     def to_str(self, *tags, language=None):
         # non-standard format intended to be human readable
@@ -1242,6 +1241,8 @@ class Marc(object):
     def to_xml_raw(self, *tags, language=None, xref_prefix=''):
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = ElementTree.Element('record')
+
+        self.set('001', None, str(self.id))
 
         for field in self.get_fields(*tags):
             if isinstance(field, Controlfield):
