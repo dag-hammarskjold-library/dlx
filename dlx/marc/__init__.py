@@ -1240,6 +1240,8 @@ class Marc(object):
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = ElementTree.Element('record')
 
+        self.set('001', None, str(self.id))
+
         for field in self.get_fields(*tags):
             if isinstance(field, Controlfield):
                 node = ElementTree.SubElement(root, 'controlfield')
