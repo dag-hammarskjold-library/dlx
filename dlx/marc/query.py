@@ -181,9 +181,7 @@ class Query():
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
 
                 if modifier == 'not':
-                    q = {
-                        f'{tag}.subfields': {'$not': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}},
-                    }
+                    q = {f'{tag}': {'$elemMatch': {'subfields': {'$not': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
                 else:
                     q = {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}
 
@@ -295,7 +293,7 @@ class Query():
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
 
                 if modifier == 'not':
-                    q = {f'{tag}.subfields.value': {'$not': {'$in': matched_subfield_values}}}
+                    q = {f'{tag}': {'$elemMatch': {'subfields': {'$not': {'$elemMatch': {'value': {'$in': matched_subfield_values}}}}}}}
                 else:
                     q = {f'{tag}.subfields.value': {'$in': matched_subfield_values}}
 
@@ -371,13 +369,11 @@ class Query():
                     tags = list(Config.auth_authority_controlled.keys())
                 else:
                     raise Exception('"Query().record_type" must be set to "bib" or "auth" to do xref search')
-                    
-                conditions = []
-                
-                for tag in tags:
-                    conditions.append(Raw({f'{tag}.subfields.xref': xref}))
 
-                return Or(*conditions)
+                if modifier == 'not':
+                    return Raw({'$and': [{f'{tag}.subfields.xref': {'$not': {'$eq': xref}}} for tag in tags]})
+                else:
+                    return Raw({'$or': [{f'{tag}.subfields.xref': xref} for tag in tags]})
             
             # logical field
             match = re.match(f'(\\w+):(.*)', token)

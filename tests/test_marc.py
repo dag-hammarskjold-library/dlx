@@ -370,10 +370,14 @@ def test_querystring(db):
     query = Query.from_string(f'NOT 246:\'New title\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 0
 
-    # multi field NOT with text
+    # NOT with text
     bib.set('246', 'a', 'Second alt title', address='+').commit()
     query = Query.from_string(f'NOT 246:New title', record_type='bib')
-    assert len(list(BibSet.from_query(query.compile()))) == 0
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    # NOT xref
+    query = Query.from_string(f'NOT xref:1', record_type='bib')
+    assert BibSet.from_query(query).count == 1
 
     # multi field + text
     bib.set('500','a', 'notes').set('520', 'z', 'Some words in a field').commit()
@@ -384,7 +388,7 @@ def test_querystring(db):
     query = Query.from_string(f"246:'New title' AND some words in a field AND 500:'notes'", record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
-    # invalid query stings
+    # invalid query strings
     from dlx.marc.query import InvalidQueryString
 
     with pytest.raises(InvalidQueryString): Query.from_string('invalid_field:value')
