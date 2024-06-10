@@ -2031,6 +2031,7 @@ class Datafield(Field):
     def to_mrk(self, language=None):
         inds = self.ind1 + self.ind2
         inds = inds.replace(' ', '\\')
+        inds = inds.replace('_', '\\')
 
         string = '={}  {}'.format(self.tag, inds)
 
