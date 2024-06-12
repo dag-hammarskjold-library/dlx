@@ -38,18 +38,19 @@ class Table():
             
         return cls(lol)
         
-    def __init__(self,list_of_lists=None,**kwargs):
-        self.index = {}
-        self.header = []
+    def __init__(self, list_of_lists=None, **kwargs):
+        self.index = {} # data structure that stores the table
+        self.header = [] # list of field names for the header
         
+        # todo: put this in a class method that instantiates the object
         if list_of_lists:
             self.header = list_of_lists[0]
-            
             rowx = 0
+
             for row in list_of_lists[1:len(list_of_lists)]:
                 self.index[rowx] = {}
-                
                 cellx = 0
+
                 for cell in row:
                     field_name = self.header[cellx]
                     self.index[rowx][field_name] = cell
@@ -57,9 +58,14 @@ class Table():
                 
                 rowx += 1
                 
-    def set(self,rowx,field_name,value):
+    def set(self, rowx, field_name, value):
+        self.index.setdefault(rowx, {})
+        self.index[rowx].setdefault(field_name, {})
         self.index[rowx][field_name] = value
-        
+
+        if field_name not in self.header:
+            self.header.append(field_name)
+
         return self 
         
     def get(self,rowx,field_name):
@@ -80,6 +86,7 @@ class Table():
         return output
         
     def to_html(self,**kwargs):
+        # todo: refactor
         rows = []
         
         for row in self.to_list():
@@ -93,7 +100,23 @@ class Table():
         table = f'<table>{to_str}</table>'
         
         return table
+    
+    def to_csv(self):
+        rows = [self.header]
+
+        for i, record in self.index.items():
+            row = []
         
+            for field in self.header:
+                if value := record.get(field):
+                    row.append(value)
+                else:
+                    row.append('')
+            
+            rows.append(row)
+
+        return '\n'.join([','.join(row) for row in rows])
+
 class ISO6391():
     codes = {    
         "aa": "Afar",
