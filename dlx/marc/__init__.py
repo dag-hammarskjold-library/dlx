@@ -112,7 +112,7 @@ class MarcSet():
         ac = kwargs.pop('auth_control', False)
 
         if 'collation' not in kwargs and Config.marc_index_default_collation:
-            warn('Collation not set. Using default collation set in config')
+            #warn('Collation not set. Using default collation set in config')
             kwargs['collation'] = Config.marc_index_default_collation
 
         self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.find(*args, **kwargs))
@@ -1175,6 +1175,8 @@ class Marc(object):
         return json.dumps(mij)
 
     def to_mrc(self, *tags, language=None):
+        self.set('001', None, str(self.id))
+        
         directory = ''
         data = ''
         next_start = 0
@@ -1224,9 +1226,9 @@ class Marc(object):
                 if xref:
                     field.subfields.append(Literal("0", xref))
 
-            string += field.to_mrk(language=language) + '\n'
-
-        return string
+        self.set('001', None, str(self.id))
+        
+        return '\n'.join([field.to_mrk(language=language) for field in self.get_fields()]) + '\n'
 
     def to_str(self, *tags, language=None):
         # non-standard format intended to be human readable
@@ -1251,6 +1253,8 @@ class Marc(object):
     def to_xml_raw(self, *tags, language=None, xref_prefix=''):
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = ElementTree.Element('record')
+
+        self.set('001', None, str(self.id))
 
         for field in self.get_fields(*tags):
             if isinstance(field, Controlfield):
@@ -2040,6 +2044,7 @@ class Datafield(Field):
     def to_mrk(self, language=None):
         inds = self.ind1 + self.ind2
         inds = inds.replace(' ', '\\')
+        inds = inds.replace('_', '\\')
 
         string = '={}  {}'.format(self.tag, inds)
 

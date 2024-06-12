@@ -282,10 +282,14 @@ def test_querystring(db):
     # text indexes don't exist here until commit
     for _ in (1, 2):
         Bib.from_id(_).commit()
+        Auth.from_id(_).commit()
 
     # regex    
-    query = Query.from_string('110__a:\'Another header\'', record_type='auth')
-    assert Auth.from_query(query.compile()).id == 2
+    id = Auth().set('110', 'a', 'string').set('110', 'b', 'part').commit().id
+    query = Query.from_string('110__a:/string$/', record_type='auth')
+    auth = Auth.from_query(query)
+    assert auth
+    assert auth.id == id
     
     # regex authority controlled
     query = Query.from_string('650__a:/[Hh]eader/')
@@ -370,10 +374,14 @@ def test_querystring(db):
     query = Query.from_string(f'NOT 246:\'New title\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 0
 
-    # multi field NOT with text
+    # NOT with text
     bib.set('246', 'a', 'Second alt title', address='+').commit()
     query = Query.from_string(f'NOT 246:New title', record_type='bib')
-    assert len(list(BibSet.from_query(query.compile()))) == 0
+    assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    # NOT xref
+    query = Query.from_string(f'NOT xref:1', record_type='bib')
+    assert BibSet.from_query(query).count == 1
 
     # multi field + text
     bib.set('500','a', 'notes').set('520', 'z', 'Some words in a field').commit()
@@ -384,7 +392,7 @@ def test_querystring(db):
     query = Query.from_string(f"246:'New title' AND some words in a field AND 500:'notes'", record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
-    # invalid query stings
+    # invalid query strings
     from dlx.marc.query import InvalidQueryString
 
     with pytest.raises(InvalidQueryString): Query.from_string('invalid_field:value')
@@ -638,7 +646,7 @@ def test_to_xml(db):
     from dlx.marc import Bib
     from xmldiff import main
     
-    control = '<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record>'
+    control = '<record><controlfield tag="000">leader</controlfield><controlfield tag="001">1</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record>'
     bib = Bib.find_one({'_id': 1})
     assert main.diff_texts(bib.to_xml(), control) == []
     
@@ -646,30 +654,30 @@ def test_xml_encoding():
     from dlx.marc import Bib
     from xmldiff import main
     
-    control = '<record><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record>'
     bib = Bib().set('245', 'a', 'Title with an é')
+    control = f'<record><controlfield tag="001">{bib.id}</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record>'
     assert main.diff_texts(bib.to_xml(), control) == []
     
 def test_to_mrc(db):
     from dlx.marc import Bib, Auth
     
-    control = '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header'
+    control = '00238r|||a2200109|||45000010002000000080013000022450024000155200016000395200043000556500011000987100019001091controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aHeader  aAnother header'
 
     bib = Bib.find_one({'_id': 1})
     assert bib.to_mrc() == control
     
-    control = '00049||||a2200037|||4500150001100000  aHeader'
+    control = '00063||||a2200049|||45000010002000001500011000021  aHeader'
    
     auth = Auth.find_one({'_id': 1})
     assert auth.to_mrc() == control
     
     auth.set('994', 'a', 'Titulo').commit()
-    assert bib.to_mrc(language='es') == '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aTitulo  aAnother header'
+    assert bib.to_mrc(language='es') == '00238r|||a2200109|||45000010002000000080013000022450024000155200016000395200043000556500011000987100019001091controlfield  aThisbis thectitle  aDescription  aAnother descriptionaRepeated subfield  aTitulo  aAnother header'
 
 def test_to_mrk(bibs):
     from dlx.marc import Bib
     
-    control = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n'
+    control = '=000  leader\n=001  1\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n'
 
     bib = Bib.find_one({'_id': 1})
     assert bib.to_mrk() == control
@@ -677,10 +685,11 @@ def test_to_mrk(bibs):
 def test_from_mrk(db):
     from dlx.marc import Bib
     
-    mrk = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n'
+    control = '=000  leader\n=001  1\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n'
 
-    bib = Bib.from_mrk(mrk, auth_control=True)
-    assert bib.to_mrk() == mrk
+    bib = Bib.from_mrk(control, auth_control=True)
+    bib.id = 1
+    assert bib.to_mrk() == control
     assert bib.commit(auth_check=True)
     
 def test_from_json():
