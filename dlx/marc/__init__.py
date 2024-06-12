@@ -1224,7 +1224,9 @@ class Marc(object):
                         xref = sub.xref
 
                 if xref:
-                    field.subfields.append(Literal("0", xref))
+                    sub = field.get_subfields("0")
+                    if len(list(sub)) == 0:
+                        field.subfields.append(Literal("0", xref))
 
         self.set('001', None, str(self.id))
         
