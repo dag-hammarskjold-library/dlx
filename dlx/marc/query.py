@@ -126,7 +126,7 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'_id': value})
+                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'subfields.value': value})
                     matched_subfield_values = []
 
                     for m in matches:
@@ -235,7 +235,7 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'_id': value})
+                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'subfields.value': value})
                     matched_subfield_values = []
 
                     for m in matches:

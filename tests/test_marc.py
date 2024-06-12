@@ -282,10 +282,14 @@ def test_querystring(db):
     # text indexes don't exist here until commit
     for _ in (1, 2):
         Bib.from_id(_).commit()
+        Auth.from_id(_).commit()
 
     # regex    
-    query = Query.from_string('110__a:\'Another header\'', record_type='auth')
-    assert Auth.from_query(query.compile()).id == 2
+    id = Auth().set('110', 'a', 'string').set('110', 'b', 'part').commit().id
+    query = Query.from_string('110__a:/string$/', record_type='auth')
+    auth = Auth.from_query(query)
+    assert auth
+    assert auth.id == id
     
     # regex authority controlled
     query = Query.from_string('650__a:/[Hh]eader/')
