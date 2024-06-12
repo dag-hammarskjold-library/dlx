@@ -115,8 +115,9 @@ class Table():
             for field in self.header:
                 if value := record.get(field):
                     if separator in value:
-                        # todo: escape the separator
-                        pass    
+                        # handle the separator
+                        value.replace('"', '""')
+                        value = f'"{value}"'
                     
                     row.append(value)
                 else:
