@@ -101,7 +101,12 @@ class Table():
         
         return table
     
-    def to_csv(self):
+    def serialize(self, *, separator):
+        valid = (',', '\t')
+
+        if separator not in valid:
+            raise Exception(f'Separator must be in {valid}')
+        
         rows = [self.header]
 
         for i, record in self.index.items():
@@ -109,13 +114,23 @@ class Table():
         
             for field in self.header:
                 if value := record.get(field):
+                    if separator in value:
+                        # todo: escape the separator
+                        pass    
+                    
                     row.append(value)
                 else:
                     row.append('')
             
             rows.append(row)
 
-        return '\n'.join([','.join(row) for row in rows])
+        return '\n'.join([separator.join(row) for row in rows])
+    
+    def to_csv(self):
+        return self.serialize(separator=',')
+    
+    def to_tsv(self):
+        return self.serialize(separator='\t')
 
 class ISO6391():
     codes = {    

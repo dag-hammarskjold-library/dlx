@@ -320,6 +320,9 @@ class MarcSet():
 
     def to_csv(self) -> str:
         return self.to_table().to_csv()
+    
+    def to_tsv(self) -> str:
+        return self.to_table().to_tsv()
 
 class BibSet(MarcSet):
     def __init__(self, *args, **kwargs):
