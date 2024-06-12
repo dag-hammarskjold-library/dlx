@@ -1215,6 +1215,15 @@ class Marc(object):
         string = ''
 
         for field in self.get_fields():
+            if isinstance(field, Datafield):
+                xref = None
+                for sub in field.subfields:
+                    if hasattr(sub, 'xref'):
+                        xref = sub.xref
+
+                if xref:
+                    field.subfields.append(Literal("0", xref))
+
             string += field.to_mrk(language=language) + '\n'
 
         return string
