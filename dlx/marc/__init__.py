@@ -1214,20 +1214,6 @@ class Marc(object):
         return new_leader + directory + data
 
     def to_mrk(self, *tags, language=None):
-        string = ''
-
-        for field in self.get_fields():
-            if isinstance(field, Datafield):
-                xref = None
-                for sub in field.subfields:
-                    if hasattr(sub, 'xref'):
-                        xref = sub.xref
-
-                if xref:
-                    sub = field.get_subfields("0")
-                    if len(list(sub)) == 0:
-                        field.subfields.append(Literal("0", xref))
-
         self.set('001', None, str(self.id))
         
         return '\n'.join([field.to_mrk(language=language) for field in self.get_fields()]) + '\n'
@@ -2048,7 +2034,12 @@ class Datafield(Field):
         inds = inds.replace(' ', '\\')
         inds = inds.replace('_', '\\')
 
-        string = '={}  {}'.format(self.tag, inds)
+        # add first xref found to $0 if $0 doesn't already exist
+        if subfield := next(filter(lambda x: hasattr(x, 'xref'), self.subfields), None):
+            if self.get_subfield('0') is None:
+                self.subfields.append(Literal('0', str(subfield.xref)))
+
+        string = f'={self.tag}  {inds}'
 
         for sub in self.subfields:
             if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
@@ -2056,7 +2047,7 @@ class Datafield(Field):
             else: 
                 value = sub.value
 
-            string += ''.join(['${}{}'.format(sub.code, value)])
+            string += f'${sub.code}{value}'
 
         return string
 
