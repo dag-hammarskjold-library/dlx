@@ -162,6 +162,12 @@ def test_to_str(db):
     control = '000\n   leader\n008\n   controlfield\n245\n   a: This\n   b: is the\n   c: title\n520\n   a: Description\n520\n   a: Another description\n   a: Repeated subfield\n650\n   a: Header\n710\n   a: Another header\n\n000\n   leader\n245\n   a: Another\n   b: is the\n   c: title\n650\n   a: Header\n'
     assert BibSet.from_query({}).to_str() == control
 
+def test_to_csv(db):
+    from dlx.marc import BibSet
+
+    bibset = BibSet.from_query({})
+    assert bibset.to_csv() == '1.245$a,1.245$b,1.245$c,1.520$a,2.520$a,1.650$a,1.710$a\nThis,is the,title,Description,Repeated subfield,Header,Another header\nAnother,is the,title,,,Header,'
+
 def test_from_aggregation(db, bibs):
     from dlx.marc import BibSet, Query
 

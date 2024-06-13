@@ -303,6 +303,27 @@ class MarcSet():
     def to_excel(self, path):
         pass
 
+    def to_table(self) -> Table:
+        table = Table()
+
+        for i, record in enumerate(self.records):
+            i += 1
+
+            for tag in [x for x in record.get_tags() if not re.match('00', x)]:
+                for place, field in enumerate(record.get_fields(tag)):
+                    place += 1
+
+                    for subfield in field.subfields:
+                        table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
+
+        return table
+
+    def to_csv(self) -> str:
+        return self.to_table().to_csv()
+    
+    def to_tsv(self) -> str:
+        return self.to_table().to_tsv()
+
 class BibSet(MarcSet):
     def __init__(self, *args, **kwargs):
         self.handle = DB.bibs
