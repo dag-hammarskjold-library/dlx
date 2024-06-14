@@ -1,6 +1,6 @@
 """dlx.marc"""
 
-import time, re, json, threading
+import time, re, json, threading, copy
 from collections import Counter
 from datetime import datetime
 from warnings import warn
@@ -1196,7 +1196,8 @@ class Marc(object):
         return json.dumps(mij)
 
     def to_mrc(self, *tags, language=None):
-        self.set('001', None, str(self.id))
+        record = copy.deepcopy(self)
+        record.set('001', None, str(record.id))
         
         directory = ''
         data = ''
@@ -1204,7 +1205,7 @@ class Marc(object):
         field_terminator = u'\u001e'
         record_terminator = u'\u001d'
 
-        for f in filter(lambda x: x.tag != '000', self.get_fields(*tags)):
+        for f in filter(lambda x: x.tag != '000', record.get_fields(*tags)):
             text = f.to_mrc(language=language)
             data += text
             field_length = len(text.encode('utf-8'))
@@ -1217,12 +1218,12 @@ class Marc(object):
         base_address = str(leader_dir_len).zfill(5)
         total_len = str(leader_dir_len + len(data.encode('utf-8'))).zfill(5)
 
-        leader = self.get_value('000')
+        leader = record.get_value('000')
 
         if not leader:
             leader = '|' * 24
         elif len(leader) < 24:
-            leader = self.leader.ljust(24, '|')
+            leader = record.leader.ljust(24, '|')
 
         new_leader = total_len \
             + leader[5:9] \
@@ -1235,9 +1236,10 @@ class Marc(object):
         return new_leader + directory + data
 
     def to_mrk(self, *tags, language=None):
-        self.set('001', None, str(self.id))
+        record = copy.deepcopy(self) # so as not to alter the original object's data
+        record.set('001', None, str(record.id))
         
-        return '\n'.join([field.to_mrk(language=language) for field in self.get_fields()]) + '\n'
+        return '\n'.join([field.to_mrk(language=language) for field in record.get_fields()]) + '\n'
 
     def to_str(self, *tags, language=None):
         # non-standard format intended to be human readable
@@ -1260,12 +1262,14 @@ class Marc(object):
         return string
 
     def to_xml_raw(self, *tags, language=None, xref_prefix=''):
+        record = copy.deepcopy(self) # so as not to alter the orginal object's underlying data
+        
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = ElementTree.Element('record')
 
-        self.set('001', None, str(self.id))
+        record.set('001', None, str(record.id))
 
-        for field in self.get_fields(*tags):
+        for field in record.get_fields(*tags):
             if isinstance(field, Controlfield):
                 node = ElementTree.SubElement(root, 'controlfield')
                 node.set('tag', field.tag)
@@ -1290,7 +1294,7 @@ class Marc(object):
                     subnode = ElementTree.SubElement(node, 'subfield')
                     subnode.set('code', sub.code)
 
-                    if language and Config.linked_language_source_tag(self.record_type, field.tag, sub.code, language):
+                    if language and Config.linked_language_source_tag(record.record_type, field.tag, sub.code, language):
                         subnode.text = sub.translated(language)
                         continue   
 
@@ -2051,19 +2055,25 @@ class Datafield(Field):
         return string + term
 
     def to_mrk(self, language=None):
-        inds = self.ind1 + self.ind2
+        field = copy.deepcopy(self) # so as not to alter the original object's data
+        inds = field.ind1 + field.ind2
         inds = inds.replace(' ', '\\')
         inds = inds.replace('_', '\\')
 
-        string = '={}  {}'.format(self.tag, inds)
+        # add first xref found to $0 if $0 doesn't already exist
+        if subfield := next(filter(lambda x: hasattr(x, 'xref'), field.subfields), None):
+            if field.get_subfield('0') is None:
+                field.subfields.append(Literal('0', str(subfield.xref)))
 
-        for sub in self.subfields:
-            if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
+        string = f'={field.tag}  {inds}'
+
+        for sub in field.subfields:
+            if language and Config.linked_language_source_tag(self.record_type, field.tag, sub.code, language):
                 value = sub.translated(language)
             else: 
                 value = sub.value
 
-            string += ''.join(['${}{}'.format(sub.code, value)])
+            string += f'${sub.code}{value}'
 
         return string
 
