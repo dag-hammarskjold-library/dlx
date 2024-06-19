@@ -114,8 +114,9 @@ class Table():
         
             for field in self.header:
                 if value := record.get(field):
-                    if separator in value:
-                        # handle the separator
+                    if separator in value or value[0] == '"' or value[-1] == '"':
+                        # handle the separator or if the value starts or ends with double quote per CSV specification
+                        # https://www.ietf.org/rfc/rfc4180.txt
                         value.replace('"', '""')
                         value = f'"{value}"'
                     
