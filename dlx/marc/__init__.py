@@ -309,6 +309,9 @@ class MarcSet():
         for i, record in enumerate(self.records):
             i += 1
 
+            if not record.get_value('001'):
+                table.set(i, '001', str(record.id))
+
             for tag in [x for x in record.get_tags() if not re.match('00', x)]:
                 for place, field in enumerate(record.get_fields(tag)):
                     place += 1

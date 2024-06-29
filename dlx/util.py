@@ -106,7 +106,7 @@ class Table():
 
         if separator not in valid:
             raise Exception(f'Separator must be in {valid}')
-        
+
         rows = [self.header]
 
         for i, record in self.index.items():
