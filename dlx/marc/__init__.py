@@ -307,7 +307,10 @@ class MarcSet():
         table = Table()
 
         for i, record in enumerate(self.records):
+            # field names in the table header are the in the form of f{place}.{tag}${subfield_code}
+            # each record is one table row
             i += 1
+            table.set(i, '1.001', str(record.id))
 
             for tag in [x for x in record.get_tags() if not re.match('00', x)]:
                 for place, field in enumerate(record.get_fields(tag)):
@@ -315,6 +318,8 @@ class MarcSet():
 
                     for subfield in field.subfields:
                         table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
+
+        table.header = sorted(table.header, key=lambda x: x[2:5])
 
         return table
 
