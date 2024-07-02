@@ -109,7 +109,7 @@ class Table():
 
         rows = [self.header]
 
-        for i, record in self.index.items():
+        for i, record in sorted(self.index.items()):
             row = []
         
             for field in self.header:
