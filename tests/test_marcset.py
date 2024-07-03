@@ -167,8 +167,8 @@ def test_to_csv(db):
 
     bibset = BibSet.from_query({})
     bibset.records = list(bibset.records)
-    [bib.set('001', None, str(bib.id)) for bib in bibset.records]
-    assert bibset.to_csv() == '1.001,1.245$a,1.245$b,1.245$c,1.520$a,2.520$a,1.650$a,1.710$a\n1,This,is the,title,Description,Repeated subfield,Header,Another header\n2,Another,is the,title,,,Header,'
+    #[bib.set('001', None, str(bib.id)) for bib in bibset.records]
+    assert bibset.to_csv(write_id=True) == '1.001,1.245$a,1.245$b,1.245$c,1.520$a,2.520$a,1.650$a,1.710$a\n1,This,is the,title,Description,Repeated subfield,Header,Another header\n2,Another,is the,title,,,Header,'
 
 def test_from_aggregation(db, bibs):
     from dlx.marc import BibSet, Query

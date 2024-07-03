@@ -276,7 +276,7 @@ class MarcSet():
 
     # serializations
 
-    def to_mrc(self):
+    def to_mrc(self, *, write_id=False):
         # todo: stream instead of queue in memory
         mrc = ''
 
@@ -285,16 +285,16 @@ class MarcSet():
 
         return mrc
 
-    def to_xml(self, xref_prefix=''):
+    def to_xml(self, *, xref_prefix='', write_id=False):
         # todo: stream instead of queue in memory
         root = ElementTree.Element('collection')
 
         for record in self.records:
-            root.append(record.to_xml_raw(xref_prefix=xref_prefix))
+            root.append(record.to_xml_raw(xref_prefix=xref_prefix, write_id=write_id))
 
         return ElementTree.tostring(root, encoding='utf-8').decode('utf-8')
 
-    def to_mrk(self):
+    def to_mrk(self, *, write_id=False):
         return '\n'.join([r.to_mrk() for r in self.records])
         
     def to_str(self):
@@ -303,7 +303,7 @@ class MarcSet():
     def to_excel(self, path):
         pass
 
-    def to_table(self) -> Table:
+    def to_table(self, *, write_id=False) -> Table:
         table = Table()
 
         for i, record in enumerate(self.records):
@@ -311,7 +311,9 @@ class MarcSet():
             # each record is one table row
             i += 1
             
-            if field := record.get_field('001'):
+            if write_id:
+                table.set(i, '1.001', str(record.id))
+            elif field := record.get_field('001'):
                 table.set(i, '1.001', field.value)
                 # ignore any other controlfields
 
@@ -326,11 +328,11 @@ class MarcSet():
 
         return table
 
-    def to_csv(self) -> str:
-        return self.to_table().to_csv()
+    def to_csv(self, *, write_id=False) -> str:
+        return self.to_table(write_id=write_id).to_csv()
     
-    def to_tsv(self) -> str:
-        return self.to_table().to_tsv()
+    def to_tsv(self, *, write_id=False) -> str:
+        return self.to_table(write_id=write_id).to_tsv()
 
 class BibSet(MarcSet):
     def __init__(self, *args, **kwargs):
@@ -1203,8 +1205,12 @@ class Marc(object):
 
         return json.dumps(mij)
 
-    def to_mrc(self, *tags, language=None):
+    def to_mrc(self, *tags, language=None, write_id=False):
         record = copy.deepcopy(self)
+
+        if write_id:
+            record.set('001', None, str(record.id))
+
         directory = ''
         data = ''
         next_start = 0
@@ -1241,8 +1247,11 @@ class Marc(object):
 
         return new_leader + directory + data
 
-    def to_mrk(self, *tags, language=None):
+    def to_mrk(self, *tags, language=None, write_id=False):
         record = copy.deepcopy(self) # so as not to alter the original object's data
+
+        if write_id:
+            record.set('001', None, str(record.id))
         
         return '\n'.join([field.to_mrk(language=language) for field in record.get_fields()]) + '\n'
 
@@ -1266,8 +1275,11 @@ class Marc(object):
 
         return string
 
-    def to_xml_raw(self, *tags, language=None, xref_prefix=''):
+    def to_xml_raw(self, *tags, language=None, xref_prefix='', write_id=False):
         record = copy.deepcopy(self) # so as not to alter the orginal object's underlying data
+
+        if write_id:
+            record.set('001', None, str(record.id))
         
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = ElementTree.Element('record')
