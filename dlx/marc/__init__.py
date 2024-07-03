@@ -310,7 +310,10 @@ class MarcSet():
             # field names in the table header are the in the form of f{place}.{tag}${subfield_code}
             # each record is one table row
             i += 1
-            table.set(i, '1.001', str(record.id))
+            
+            if field := record.get_field('001'):
+                table.set(i, '1.001', field.value)
+                # ignore any other controlfields
 
             for tag in [x for x in record.get_tags() if not re.match('00', x)]:
                 for place, field in enumerate(record.get_fields(tag)):
@@ -1202,8 +1205,6 @@ class Marc(object):
 
     def to_mrc(self, *tags, language=None):
         record = copy.deepcopy(self)
-        record.set('001', None, str(record.id))
-        
         directory = ''
         data = ''
         next_start = 0
@@ -1242,7 +1243,6 @@ class Marc(object):
 
     def to_mrk(self, *tags, language=None):
         record = copy.deepcopy(self) # so as not to alter the original object's data
-        record.set('001', None, str(record.id))
         
         return '\n'.join([field.to_mrk(language=language) for field in record.get_fields()]) + '\n'
 
@@ -1271,8 +1271,6 @@ class Marc(object):
         
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = ElementTree.Element('record')
-
-        record.set('001', None, str(record.id))
 
         for field in record.get_fields(*tags):
             if isinstance(field, Controlfield):
