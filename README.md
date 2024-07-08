@@ -10,7 +10,7 @@ APIs for performing ETL operations on MARC and file data
 
 ### Installation:
 ```bash
-> pip install git+git://github.com/dag-hammarskjold-library/dlx@v1.4.1
+> pip install git+git://github.com/dag-hammarskjold-library/dlx@<latest release>
 ```
 ### Usage:
 ```python
