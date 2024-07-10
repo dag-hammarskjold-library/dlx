@@ -91,8 +91,13 @@ def auths():
 @pytest.fixture
 def db(bibs, auths) -> MockClient: 
     from dlx import DB
+    from dlx.marc import Auth
+
     # Connects to and resets the database
     DB.connect('mongomock://localhost')
+
+    # reset the caches
+    Auth._cache = {}
     
     DB.bibs.drop()
     DB.handle['bib_history'].drop()
