@@ -947,10 +947,17 @@ class Marc(object):
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
         
         if result.acknowledged:
-            # clear the caches in case there is a new auth value
             if isinstance(self, Auth):
-                for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
+                # clear these caches
+                for cache in ('_xcache', '_pcache', '_langcache'):
                     setattr(Auth, cache, {})
+
+                # update this cache
+                Auth._cache[self.id] = {}
+
+                if hf := self.heading_field:
+                    for subfield in hf.subfields:
+                        Auth._cache[self.id][subfield.code] = self.heading_value(subfield.code)
 
             # auth attached records update
             def update_attached_records(auth):
@@ -1011,7 +1018,7 @@ class Marc(object):
                 raise AuthInUse()
         
             for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
-                setattr(Auth, cache, {})
+                getattr(Auth, cache)[self.id] = {}
 
         def update_browse_collections():
             try:
@@ -1506,6 +1513,8 @@ class Auth(Marc):
 
     @classmethod
     def lookup(cls, xref, code, language=None):
+        '''Returns the authotiry controlled value for an xref and subfield code'''
+
         if language:
             cached = Auth._langcache.get(xref, {}).get(code, {}).get(language, None)
         else:
@@ -1531,14 +1540,14 @@ class Auth(Marc):
 
     @classmethod
     def xlookup(cls, tag, code, value, *, record_type):
+        '''Returns all the xrefs that match a given value in the given tag and subfield code'''
+
         auth_tag = Config.authority_source_tag(record_type, tag, code)
 
         if auth_tag is None:
             return
 
-        cached = Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None)
-
-        if cached:
+        if cached := Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None):
             return cached
 
         query = Query(Condition(auth_tag, {code: value}, record_type='auth'))
