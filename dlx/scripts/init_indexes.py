@@ -128,6 +128,13 @@ def run():
                 index_col.create_index('text')
             )
             indexes.append(
+                index_col.create_index(
+                    'text',
+                    name='text_collated',
+                    collation=Config.marc_index_default_collation
+                )
+            )
+            indexes.append(
                 index_col.create_index('words')
             )
             indexes.append(
