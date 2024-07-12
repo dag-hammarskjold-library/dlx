@@ -1498,14 +1498,16 @@ class Auth(Marc):
         total, chars = DB.auths.estimated_document_count(), 0
 
         for i, auth in enumerate(AuthSet.from_query({})):
+            j = i + 1
+
             for subfield in auth.heading_field.subfields:
                 if auth.id in Auth._cache:
                     Auth._cache[auth.id][subfield.code] = subfield.value
                 else:
                     Auth._cache[auth.id] = {subfield.code: subfield.value}
 
-            if (i + 1) % 1000 == 0 or i - 1 == total:
-                status = f'Building auth cache: {i} / {total}'
+            if j % 1000 == 0 or j == total:
+                status = f'Building auth cache: {j} / {total}'
                 print(('\b' * chars) + status, end='', flush=True)
                 chars = len(status)
 
