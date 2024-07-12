@@ -7,7 +7,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    types: [ opened ]
+    types: [ opened, synchronize ] # runs when opened and updated
 
 jobs:
   build:
