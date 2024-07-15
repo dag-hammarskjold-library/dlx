@@ -748,7 +748,7 @@ class Marc(object):
         else:
             # record has been created with an id that doesn't exist yet
             # this actually shouldn't be allowed but is needed for certain existing tests to pass
-            warn(f'{self.record_type} {self.id} is being created with a user-specified ID')
+            if DB.database_name != 'testing': Config.warn(f'{self.record_type} {self.id} is being created with a user-specified ID')
             self.created = self.updated
             self.created_user = self.user
 
@@ -767,7 +767,12 @@ class Marc(object):
                             raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
 
         if auth_check: auth_validate()
-        
+
+        # clear the cache for any found xrefs so the calculated fields are up to date
+        for field in self.datafields:
+            for subfield in [x for x in field.subfields if hasattr(x, 'xref')]:
+                Auth._cache.get(subfield.xref, {})[subfield.code] = None
+            
         # maintenance functions
         # update field text indexes
         def index_field_text(*, threaded=True):
@@ -823,7 +828,7 @@ class Marc(object):
             thread1.start()
         
         # add logical fields
-        def calculate_logical_fields():
+        def index_logical_fields():
             try:
                 if previous_state:
                     # check old values to delete from browse collection
@@ -865,14 +870,14 @@ class Marc(object):
                             DB.handle[f'_index_{logical_field}'].bulk_write(updates)
 
                 # insert all the new data's logical fields into the index
-                for logical_field, old_values in self.logical_fields().items():
+                for logical_field, values in self.logical_fields().items():
                     if logical_field == '_record_type':
                         continue
                     
                     # text/browse indexes
                     updates = []
 
-                    for val in old_values:
+                    for val in values:
                         scrubbed = Tokenizer.scrub(val)
                         words = Tokenizer.tokenize(scrubbed)
                         count = Counter(words)
@@ -895,10 +900,15 @@ class Marc(object):
         for field, vals in self.logical_fields().items(): 
             data[field] = vals
 
+        # get rid of any logical fields in the data that no longer exist
+        for field in (Config.bib_logical_fields if self.record_type == 'bib' else Config.auth_logical_fields).keys():
+            if field not in self.logical_fields():
+                self.data.pop(field, None)
+
         if DB.database_name == 'testing':
-            calculate_logical_fields()
+            index_logical_fields()
         else:
-            thread2 = threading.Thread(target=calculate_logical_fields, args=[])
+            thread2 = threading.Thread(target=index_logical_fields, args=[])
             thread2.setDaemon(False) # stop the thread after complete
             thread2.start()
 
@@ -946,22 +956,24 @@ class Marc(object):
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
         
-        if result.acknowledged:
-            if isinstance(self, Auth):
-                # clear these caches
-                for cache in ('_xcache', '_pcache', '_langcache'):
-                    setattr(Auth, cache, {})
+        if not result.acknowledged:
+            raise Exception('Commit failed')
+        
+        if isinstance(self, Auth):
+            # clear these caches
+            for cache in ('_xcache', '_pcache', '_langcache'):
+                setattr(Auth, cache, {})
 
-                # update this cache
-                Auth._cache[self.id] = {}
+            # update this cache
+            Auth._cache[self.id] = {}
 
-                if hf := self.heading_field:
-                    for subfield in hf.subfields:
-                        Auth._cache[self.id][subfield.code] = self.heading_value(subfield.code)
+            if hf := self.heading_field:
+                for subfield in hf.subfields:
+                    Auth._cache[self.id][subfield.code] = self.heading_value(subfield.code)
 
-            # auth attached records update
-            def update_attached_records(auth):
-                try:
+        # auth attached records update
+        def update_attached_records(auth):
+            try:
                     if auth.record_type != 'auth': raise Exception('Record type must be auth')
 
                     for record in auth.list_attached():
@@ -987,11 +999,11 @@ class Marc(object):
                             subthread = threading.Thread(target=do_update, args=[])
                             subthread.setDaemon(False) # stop the thread after complete
                             subthread.start()
-                except Exception as err:
+            except Exception as err:
                     LOGGER.exception(err)
 
-            if isinstance(self, Auth) and update_attached == True:
-                if previous_state:
+        if isinstance(self, Auth) and update_attached == True:
+            if previous_state:
                     # only update attached record if the heading field changed
                     # don't check indicators
                     previous = Auth(previous_state)
@@ -1007,10 +1019,8 @@ class Marc(object):
                             thread4 = threading.Thread(target=update_attached_records, args=[self])
                             thread4.setDaemon(False) # stop the thread after complete
                             thread4.start()
-            
-            return self
-            
-        raise Exception('Commit failed')
+        
+        return self
 
     def delete(self, user='admin'):
         if isinstance(self, Auth):
@@ -1079,7 +1089,7 @@ class Marc(object):
         for logical_field, tags in logical_fields.items():
             if names and logical_field not in names:
                 continue
-                
+            
             for tag, subfield_groups in tags.items():
                 for group in subfield_groups:
                     for field in self.get_fields(tag):
