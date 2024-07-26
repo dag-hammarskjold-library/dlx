@@ -762,12 +762,25 @@ def test_diff(db):
     
     bib1, bib2 = Bib.from_id(1), Bib.from_id(2)
     diff = bib1.diff(bib2)
+    
     assert isinstance(diff, Diff)
+    assert diff.records == (bib1, bib2)
     assert len(diff.a) == 5
     assert len(diff.b) == 1
     assert len(diff.c) == 2
+    assert len(diff.d) == 0
+
+    bib1.set('999', 'a', 'abc', address='+')
+    bib1.set('999', 'a', 'xyz', address='+')
+    bib2.set('999', 'a', 'xyz', address='+')
+    bib2.set('999', 'a', 'abc', address='+')
     
-    for field in diff.a + diff.b + diff.c:
+    assert len(Diff(bib1, bib2).d) == 2
+
+    bib2.set('999', 'a', 'abc', address='+')
+    assert len(Diff(bib1, bib2).e) == 1
+    
+    for field in diff.a + diff.b + diff.c + diff.d:
         assert isinstance(field, Field)
         
 def test_blank_fields(db):

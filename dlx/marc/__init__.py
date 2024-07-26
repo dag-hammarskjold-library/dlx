@@ -1712,14 +1712,10 @@ class Auth(Marc):
         
         def count(lookup_class, xref):
             tags = list(Config.bib_authority_controlled.keys()) if lookup_class == Bib else list(Config.auth_authority_controlled.keys())
-            
-            total = 0
-            
-            for tag in tags:
-                total += lookup_class.count_documents({f'{tag}.subfields.xref': xref})
-                
-            return total
-        
+            set_class = BibSet if lookup_class == Bib else AuthSet
+
+            return set_class.from_query({'$or': [{f'{tag}.subfields.xref': xref} for tag in tags]}).count
+
         if usage_type is None:
             total = 0
             
@@ -1849,27 +1845,33 @@ class Diff():
         The fields unique to record "b"
     c : list(dlx.marc.Field)
         The fields common to both records
+    d : list(dlx.marc.Field)
+        Fields that are common to both records but in a different order
+    e : list(dlx.marc.Field)
+        Fields that are duplicated in both records a different number of times
     """
 
-    def __init__(self, a, b):
-        """Initilizes the object. Sets attribute "a" to a list of the fields 
-        unique to record a. Sets attribute "b" to a list of the fields unique 
-        to record b. Sets attribute "c" to a list of the fields common to both 
-        records. 
+    def __init__(self, a: Marc, b: Marc) -> None:
+        assert all([isinstance(x, Marc) for x in (a, b)])
+        self.records = (a, b)
 
-        Positional arguments
-        --------------------
-        a : Marc
-        b : Marc
-        """
-        assert isinstance(a, Marc)
-        assert isinstance(b, Marc)
-
+        # fields unique to record a
         self.a = list(filter(lambda x: x not in b.fields, a.fields))
+        
+        # fields unique to record b
         self.b = list(filter(lambda x: x not in a.fields, b.fields))
+        
+        # fields commone to both records
         self.c = list(filter(lambda x: x in b.fields, a.fields))
+        
+        # field orders are different
+        self.d = [x for x in self.c if self.records[0].get_fields(x.tag).index(x) != self.records[1].get_fields(x.tag).index(x)]
 
-        # todo: check if any duplciated fields are duplicated the same number of times in both
+        # fields that are duplicated a different number of times 
+        a_fields = Counter([x.to_mrk() for x in a.fields])
+        b_fields = Counter([x.to_mrk() for x in b.fields])
+
+        self.e = [field for field in self.c if a_fields[field.to_mrk()] != b_fields[field.to_mrk()]]
 
 ### Field classes
 
