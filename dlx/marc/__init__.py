@@ -1884,6 +1884,9 @@ class Controlfield(Field):
     def __eq__(self, other):
         if not isinstance(other, Controlfield):
             return False
+        
+        if self.tag != other.tag:
+            return False
 
         return self.value == other.value
 
@@ -1909,6 +1912,9 @@ class Datafield(Field):
         if not isinstance(other, Datafield):
             return False
 
+        if self.tag != other.tag:
+            return False
+        
         return self.to_dict() == other.to_dict()
 
     @classmethod
