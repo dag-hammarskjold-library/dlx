@@ -1,5 +1,6 @@
 import sys, json, re, copy
 from datetime import datetime, timedelta
+from uuid import uuid1
 from warnings import warn
 from nltk import PorterStemmer
 from bson import SON, Regex
@@ -14,7 +15,7 @@ class InvalidQueryString(Exception):
 class WildcardRegex(Regex):
     # for differentiating regex to run against text index vs actual value
     def __init__(self, string=None):
-        super().__init__(string)
+        super().__init__(string, 'i')
     
 class Query():
     @classmethod
@@ -91,9 +92,12 @@ class Query():
                     # special string for checking if field exists
                     return string
 
-                string = string.replace('*', '1234wildcard4321')
-                string = '^ ?' + Tokenizer.scrub(string)
-                string = string.replace('1234wildcard4321', '.*?')
+                placeholder = str(uuid1()).replace('-', '')
+                string = string.replace('*', placeholder)
+                string = re.escape(string)
+                string = string.replace(placeholder, '.*')
+                string = string if string[0:2] == '.*' else '^' + string
+                string = string if string[-2:] == '.*' else string + '$'
 
                 return WildcardRegex(string)
             else:
@@ -126,13 +130,13 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'subfields.value': value})
+                    matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
                     matched_subfield_values = []
 
                     for m in matches:
                         matched_subfield_values += list(
                             filter(
-                                lambda y: re.search(value.pattern, Tokenizer.scrub(y)) if isinstance(value, WildcardRegex) else re.search(value.pattern, y, flags=value.flags), 
+                                lambda y: re.search(value.pattern, y, flags=value.flags), 
                                 [x['value'] for x in filter(lambda z: z['code'] == code, m['subfields'])]
                             )
                         )
@@ -179,7 +183,7 @@ class Query():
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
-
+                
                 if modifier == 'not':
                     q = {f'{tag}': {'$elemMatch': {'subfields': {'$not': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
                 else:
@@ -193,7 +197,11 @@ class Query():
 
                         xrefs = map(
                             lambda x: x['_id'], 
-                            DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
+                            DB.auths.find(
+                                {f'{source_tag}.subfields.value': {'$in': matched_subfield_values}},
+                                projection={'_id': 1},
+                                collation=Config.marc_index_default_collation
+                            )
                         )
                         xrefs = list(xrefs)
 
@@ -235,13 +243,13 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    matches = DB.handle[f'_index_{tag}'].find({'text': value} if isinstance(value, WildcardRegex) else {'subfields.value': value})
+                    matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
                     matched_subfield_values = []
-
+                    
                     for m in matches:
                         matched_subfield_values += list(
                             filter(
-                                lambda y: re.search(value.pattern, Tokenizer.scrub(y)) if isinstance(value, WildcardRegex) else re.search(value.pattern, y, flags=value.flags), 
+                                lambda y: re.match(value.pattern, y, flags=value.flags), 
                                 [x['value'] for x in m['subfields']]
                             )
                         )
@@ -259,11 +267,7 @@ class Query():
                         if not value.strip():
                             raise Exception('Search term can\'t contain only negations')
 
-                    q = {
-                        '$and': [
-                            {'words': {'$all': Tokenizer.tokenize(value)}}
-                        ]
-                    }
+                    q = {'$and': [{'words': {'$all': Tokenizer.tokenize(value)}}]}
 
                     if negated:
                         q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
@@ -304,7 +308,11 @@ class Query():
 
                     xrefs = map(
                         lambda x: x['_id'], 
-                        DB.auths.find({f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}, {'_id': 1})
+                        DB.auths.find(
+                            {f'{source_tag}.subfields.value': {'$in': matched_subfield_values}},
+                            projection={'_id': 1},
+                            collation=Config.marc_index_default_collation
+                        )
                     )
                     xrefs = list(xrefs)
 
@@ -419,11 +427,7 @@ class Query():
                             if not value.strip():
                                 raise Exception('Search term can\'t contain only negations')
                             
-                        q = {
-                            '$and': [
-                                {'words': {'$all': Tokenizer.tokenize(value)}}
-                            ]
-                        }
+                        q = {'$and': [{'words': {'$all': Tokenizer.tokenize(value)}}]}
 
                         if negated:
                             q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
