@@ -780,8 +780,13 @@ def test_diff(db):
     bib2.set('999', 'a', 'abc', address='+')
     assert len(Diff(bib1, bib2).e) == 1
     
-    for field in diff.a + diff.b + diff.c + diff.d:
+    for field in diff.a + diff.b + diff.c + diff.d + diff.e:
         assert isinstance(field, Field)
+
+    assert diff.is_diff()
+
+    diff = Diff(Bib().set('500', 'a', 'ok'), Bib().set('500', 'a', 'ok'))
+    assert diff.is_diff() == False
         
 def test_blank_fields(db):
     from dlx.marc import Bib
