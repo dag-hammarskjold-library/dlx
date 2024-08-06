@@ -1183,6 +1183,11 @@ class Marc(object):
     def diff(self, other):
         return Diff(self, other)
 
+    def is_diff(self, other):
+        """Returns True if the other record is different"""
+
+        return Diff(self, other).different
+
     #### serializations
 
     def to_bson(self):
@@ -1839,6 +1844,12 @@ class Diff():
 
     Atrributes
     ----------
+    records : list(dlx.marc.Marc)
+        List of the two records being compared
+    different : bool
+        True if the records are different, else False
+    same :
+        True if the records are the same, else False
     a : list(dlx.marc.Field)
         The fields unique to record "a"
     b : list(dlx.marc.Field)
@@ -1851,7 +1862,7 @@ class Diff():
         Fields that are duplicated in both records a different number of times
     """
 
-    def __init__(self, a: Marc, b: Marc) -> None:
+    def __init__(self, a: Marc, b: Marc):
         assert all([isinstance(x, Marc) for x in (a, b)])
         self.records = (a, b)
 
@@ -1861,7 +1872,7 @@ class Diff():
         # fields unique to record b
         self.b = list(filter(lambda x: x not in a.fields, b.fields))
         
-        # fields commone to both records
+        # fields common to both records
         self.c = list(filter(lambda x: x in b.fields, a.fields))
         
         # field orders are different
@@ -1872,6 +1883,10 @@ class Diff():
         b_fields = Counter([x.to_mrk() for x in b.fields])
 
         self.e = [field for field in self.c if a_fields[field.to_mrk()] != b_fields[field.to_mrk()]]
+
+        # boolean record equality check
+        self.different = True if self.a or self.b or self.d or self.e else False
+        self.same = not self.different
 
 ### Field classes
 
