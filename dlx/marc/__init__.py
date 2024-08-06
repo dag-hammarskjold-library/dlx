@@ -324,7 +324,15 @@ class MarcSet():
                     for subfield in field.subfields:
                         table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
 
-        table.header = sorted(table.header, key=lambda x: x[2:5])
+        # sort the table header
+        table.header = sorted(
+            table.header, 
+            key=lambda x: ( 
+                (re.match('\d+\.(\w+)', x)).group(1), # sort by tag
+                int(re.match('(\d+)\.', x).group(1)), # sort by prefix group
+                (re.match('.*\$?(\w)?', x)).group(1) # sort by subfield code
+            )
+        )
 
         return table
 
