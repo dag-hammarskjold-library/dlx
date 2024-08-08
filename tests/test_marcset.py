@@ -130,20 +130,20 @@ def test_from_xml(db):
 def test_to_mrc(db):
     from dlx.marc import BibSet
     
-    control = '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107\x1econtrolfield\x1e  \x1faThis\x1fbis the\x1fctitle\x1e  \x1faDescription\x1e  \x1faAnother description\x1faRepeated subfield\x1e  \x1faHeader\x1e  \x1faAnother header\x1e\x1d00088r|||a2200049|||4500245002700000650001100027\x1e  \x1faAnother\x1fbis the\x1fctitle\x1e  \x1faHeader\x1e\x1d'
+    control = '00238r|||a2200109|||4500001000200000008001300002245002400015520001600039520004300055650001100098710001900109\x1e1\x1econtrolfield\x1e  \x1faThis\x1fbis the\x1fctitle\x1e  \x1faDescription\x1e  \x1faAnother description\x1faRepeated subfield\x1e  \x1faHeader\x1e  \x1faAnother header\x1e\x1d00102r|||a2200061|||4500001000200000245002700002650001100029\x1e2\x1e  \x1faAnother\x1fbis the\x1fctitle\x1e  \x1faHeader\x1e\x1d'
     assert BibSet.from_query({}).to_mrc() == control
     
 def test_to_mrk(db):
     from dlx.marc import BibSet
     
-    control = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader$01\n=710  \\\\$aAnother header$02\n\n=000  leader\n=245  \\\\$aAnother$bis the$ctitle\n=650  \\\\$aHeader$01\n'
+    control = '=000  leader\n=001  1\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader$01\n=710  \\\\$aAnother header$02\n\n=000  leader\n=001  2\n=245  \\\\$aAnother$bis the$ctitle\n=650  \\\\$aHeader$01\n'
     assert BibSet.from_query({}).to_mrk() == control
     
 def test_to_xml(db):
     from dlx.marc import BibSet
     from xmldiff import main
     
-    control = '<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield></record></collection>'
+    control = '<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="001">1</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><controlfield tag="001">2</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield></record></collection>'
     assert main.diff_texts(BibSet.from_query({}).to_xml(), control) == []
     
 def test_xml_encoding():
@@ -154,7 +154,7 @@ def test_xml_encoding():
     control = f'<collection><record><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record></collection>'
     bibset = BibSet()
     bibset.records = [bib]
-    assert main.diff_texts(bibset.to_xml(), control) == []
+    assert main.diff_texts(bibset.to_xml(write_id=False), control) == []
      
 def test_to_str(db):
     from dlx.marc import BibSet
