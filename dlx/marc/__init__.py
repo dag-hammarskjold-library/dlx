@@ -276,16 +276,16 @@ class MarcSet():
 
     # serializations
 
-    def to_mrc(self, *, write_id=False):
+    def to_mrc(self, *, write_id=True):
         # todo: stream instead of queue in memory
         mrc = ''
 
         for record in self.records:
-            mrc += record.to_mrc()
+            mrc += record.to_mrc(write_id=write_id)
 
         return mrc
 
-    def to_xml(self, *, xref_prefix='', write_id=False):
+    def to_xml(self, *, xref_prefix='', write_id=True):
         # todo: stream instead of queue in memory
         root = ElementTree.Element('collection')
 
@@ -294,8 +294,8 @@ class MarcSet():
 
         return ElementTree.tostring(root, encoding='utf-8').decode('utf-8')
 
-    def to_mrk(self, *, write_id=False):
-        return '\n'.join([r.to_mrk() for r in self.records])
+    def to_mrk(self, *, write_id=True):
+        return '\n'.join([r.to_mrk(write_id=write_id) for r in self.records])
         
     def to_str(self):
         return '\n'.join([r.to_str() for r in self.records])
@@ -303,7 +303,7 @@ class MarcSet():
     def to_excel(self, path):
         pass
 
-    def to_table(self, *, write_id=False) -> Table:
+    def to_table(self, *, write_id=True) -> Table:
         table = Table()
 
         for i, record in enumerate(self.records):
@@ -336,10 +336,10 @@ class MarcSet():
 
         return table
 
-    def to_csv(self, *, write_id=False) -> str:
+    def to_csv(self, *, write_id=True) -> str:
         return self.to_table(write_id=write_id).to_csv()
     
-    def to_tsv(self, *, write_id=False) -> str:
+    def to_tsv(self, *, write_id=True) -> str:
         return self.to_table(write_id=write_id).to_tsv()
 
 class BibSet(MarcSet):
@@ -1235,7 +1235,7 @@ class Marc(object):
 
         return json.dumps(mij)
 
-    def to_mrc(self, *tags, language=None, write_id=False):
+    def to_mrc(self, *tags, language=None, write_id=True):
         record = copy.deepcopy(self)
 
         if write_id:
@@ -1277,7 +1277,7 @@ class Marc(object):
 
         return new_leader + directory + data
 
-    def to_mrk(self, *tags, language=None, write_id=False):
+    def to_mrk(self, *tags, language=None, write_id=True):
         record = copy.deepcopy(self) # so as not to alter the original object's data
 
         if write_id:
@@ -1305,7 +1305,7 @@ class Marc(object):
 
         return string
 
-    def to_xml_raw(self, *tags, language=None, xref_prefix='', write_id=False):
+    def to_xml_raw(self, *tags, language=None, xref_prefix='', write_id=True):
         record = copy.deepcopy(self) # so as not to alter the orginal object's underlying data
 
         if write_id:
@@ -1352,8 +1352,8 @@ class Marc(object):
 
         return root
 
-    def to_xml(self, *tags, language=None, xref_prefix=''):
-        return ElementTree.tostring(self.to_xml_raw(language=language, xref_prefix=xref_prefix), encoding='utf-8').decode('utf-8')
+    def to_xml(self, *tags, language=None, xref_prefix='', write_id=True):
+        return ElementTree.tostring(self.to_xml_raw(write_id= write_id, language=language, xref_prefix=xref_prefix), encoding='utf-8').decode('utf-8')
 
     def to_jmarcnx(self):
         xrec = type(self)()
