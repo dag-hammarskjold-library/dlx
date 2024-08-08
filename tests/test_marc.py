@@ -646,7 +646,7 @@ def test_to_xml(db):
     from dlx.marc import Bib
     from xmldiff import main
     
-    control = '<record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record>'
+    control = '<record><controlfield tag="000">leader</controlfield><controlfield tag="001">1</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record>'
     bib = Bib.find_one({'_id': 1})
     assert main.diff_texts(bib.to_xml(), control) == []
     
@@ -656,12 +656,12 @@ def test_xml_encoding():
     
     bib = Bib().set('245', 'a', 'Title with an é')
     control = f'<record><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Title with an é</subfield></datafield></record>'
-    assert main.diff_texts(bib.to_xml(), control) == []
+    assert main.diff_texts(bib.to_xml(write_id=False), control) == []
     
 def test_to_mrc(db):
     from dlx.marc import Bib, Auth
     
-    control = '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107\x1econtrolfield\x1e  \x1faThis\x1fbis the\x1fctitle\x1e  \x1faDescription\x1e  \x1faAnother description\x1faRepeated subfield\x1e  \x1faHeader\x1e  \x1faAnother header\x1e\x1d'
+    control = '00238r|||a2200109|||4500001000200000008001300002245002400015520001600039520004300055650001100098710001900109\x1e1\x1econtrolfield\x1e  \x1faThis\x1fbis the\x1fctitle\x1e  \x1faDescription\x1e  \x1faAnother description\x1faRepeated subfield\x1e  \x1faHeader\x1e  \x1faAnother header\x1e\x1d'
 
     bib = Bib.find_one({'_id': 1})
     assert bib.to_mrc() == control
@@ -669,15 +669,15 @@ def test_to_mrc(db):
     control = '00049||||a2200037|||4500150001100000\x1e  \x1faHeader\x1e\x1d'
    
     auth = Auth.find_one({'_id': 1})
-    assert auth.to_mrc() == control
+    assert auth.to_mrc(write_id=False) == control
     
     auth.set('994', 'a', 'Titulo').commit()
-    assert bib.to_mrc(language='es') == '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107\x1econtrolfield\x1e  \x1faThis\x1fbis the\x1fctitle\x1e  \x1faDescription\x1e  \x1faAnother description\x1faRepeated subfield\x1e  \x1faTitulo\x1e  \x1faAnother header\x1e\x1d'
+    assert bib.to_mrc(language='es', write_id=False) == '00224r|||a2200097|||4500008001300000245002400013520001600037520004300053650001100096710001900107\x1econtrolfield\x1e  \x1faThis\x1fbis the\x1fctitle\x1e  \x1faDescription\x1e  \x1faAnother description\x1faRepeated subfield\x1e  \x1faTitulo\x1e  \x1faAnother header\x1e\x1d'
 
 def test_to_mrk(bibs):
     from dlx.marc import Bib
     
-    control = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader$01\n=710  \\\\$aAnother header$02\n'
+    control = '=000  leader\n=001  1\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader$01\n=710  \\\\$aAnother header$02\n'
 
     bib = Bib.find_one({'_id': 1})
     assert bib.to_mrk() == control
