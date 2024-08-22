@@ -1603,8 +1603,7 @@ class Auth(Marc):
         query = Query(Condition(auth_tag, dict(zip([x.code for x in subfields], [x.value for x in subfields])), record_type='auth'))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
-
-        Auth._xcache.setdefault('multi', {}).setdefault(values, {})[auth_tag] = values
+        Auth._xcache.setdefault('multi', {}).setdefault(values, {})[auth_tag] = xrefs
 
         return xrefs
 
