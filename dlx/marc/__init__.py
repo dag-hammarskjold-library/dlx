@@ -1595,7 +1595,7 @@ class Auth(Marc):
             return
 
         values = ''.join([x.value for x in subfields])
-        cached = Auth._xcache.get('multi', {}).get(values, {}).get(auth_tag, {})
+        cached = Auth._xcache.get('__multi__', {}).get(values, {}).get(auth_tag, {})
         
         if cached:
             return cached
@@ -1603,7 +1603,7 @@ class Auth(Marc):
         query = Query(Condition(auth_tag, dict(zip([x.code for x in subfields], [x.value for x in subfields])), record_type='auth'))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
-        Auth._xcache.setdefault('multi', {}).setdefault(values, {})[auth_tag] = xrefs
+        Auth._xcache.setdefault('__multi__', {}).setdefault(values, {})[auth_tag] = xrefs
 
         return xrefs
 
