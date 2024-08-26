@@ -920,3 +920,21 @@ def test_list_attached(db, bibs, auths):
     assert len(auth.list_attached(usage_type='bib')) == 2
     assert auth.list_attached()[0].id == 1
     assert auth.list_attached()[1].id == 2
+
+def test_resolve_ambiguous(db):
+    from dlx.marc import Bib, Auth, AmbiguousAuthValue, Literal
+
+    auth = Auth().set('100', 'a', 'ambiguous').commit()
+    Auth().set('100', 'a', 'ambiguous').set('100', 'b', 'xyz').commit()
+
+    assert len(Auth.xlookup('700', 'a', 'ambiguous', record_type='bib')) == 2
+
+    xref = Auth.resolve_ambiguous(
+        tag='700', 
+        subfields=[Literal(code='a', value='ambiguous')],
+        record_type='bib'
+    )
+
+    assert xref == auth.id
+
+

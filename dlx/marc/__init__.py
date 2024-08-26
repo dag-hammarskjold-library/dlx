@@ -1628,7 +1628,6 @@ class Auth(Marc):
                     if [(x.code, x.value) for x in subfields] ==  auth_subfields:
                         exact_matches.append(xref)
 
-                if len(exact_matches) == 1:
                     Auth._acache.setdefault(subfields_str, exact_matches[0])
 
                     return exact_matches[0]
