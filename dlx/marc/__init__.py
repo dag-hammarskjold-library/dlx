@@ -1605,7 +1605,7 @@ class Auth(Marc):
         return xrefs
 
     @classmethod
-    def resolve_ambiguous(cls, *, tag: str, subfields: list, record_type: str) -> int | None:
+    def resolve_ambiguous(cls, *, tag: str, subfields: list, record_type: str) -> int:
         '''Determines if there is an exact authority match for specific subfields'''
 
         subfields_str = str([(x.code, x.value) for x in subfields])
