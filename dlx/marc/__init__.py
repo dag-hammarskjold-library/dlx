@@ -1375,10 +1375,6 @@ class Marc(object):
 
     #### de-serializations
 
-    @classmethod
-    def resolve_ambiguous(cls, subfields):
-        pass
-
     def from_mij(self, string):
         pass
 
@@ -1512,6 +1508,7 @@ class Auth(Marc):
     _xcache = {}
     _pcache = {}
     _langcache = {}
+    _acache = {}
 
     @classmethod
     def build_cache(cls):
@@ -1595,7 +1592,7 @@ class Auth(Marc):
             return
 
         values = ''.join([x.value for x in subfields])
-        cached = Auth._xcache.get('multi', {}).get(values, {}).get(auth_tag, {})
+        cached = Auth._xcache.get('__multi__', {}).get(values, {}).get(auth_tag, {})
         
         if cached:
             return cached
@@ -1603,10 +1600,40 @@ class Auth(Marc):
         query = Query(Condition(auth_tag, dict(zip([x.code for x in subfields], [x.value for x in subfields])), record_type='auth'))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
-
-        Auth._xcache.setdefault('multi', {}).setdefault(values, {})[auth_tag] = values
+        Auth._xcache.setdefault('__multi__', {}).setdefault(values, {})[auth_tag] = xrefs
 
         return xrefs
+
+    @classmethod
+    def resolve_ambiguous(cls, *, tag: str, subfields: list, record_type: str) -> int:
+        '''Determines if there is an exact authority match for specific subfields'''
+
+        subfields_str = str([(x.code, x.value) for x in subfields])
+
+        if xref := Auth._acache.get(subfields_str):
+            return xref
+
+        if matches := cls.xlookup_multi(tag, subfields, record_type=record_type):
+            if len(matches) == 1:
+                Auth._acache.setdefault(subfields_str, matches[0])
+
+                return matches[0]
+            elif len(matches) > 1:
+                exact_matches = []
+
+                for xref in matches:
+                    auth_subfields = cls.from_id(xref).heading_field.subfields
+                    auth_subfields = [(x.code, x.value) for x in auth_subfields]
+
+                    if [(x.code, x.value) for x in subfields] ==  auth_subfields:
+                        exact_matches.append(xref)
+
+                    if exact_matches:
+                        Auth._acache.setdefault(subfields_str, exact_matches[0])
+
+                        return exact_matches[0]
+                
+        return None
 
     @classmethod
     def partial_lookup(cls, tag, code, string, *, record_type, limit=25):
