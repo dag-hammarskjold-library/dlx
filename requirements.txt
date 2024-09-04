@@ -18,7 +18,7 @@ lxml==5.2.1
 MarkupSafe==2.1.5
 mongomock==4.1.2
 moto==5.0.8
-nltk==3.9
+nltk==3.9.1
 packaging==24.0
 pluggy==1.5.0
 pycparser==2.22
