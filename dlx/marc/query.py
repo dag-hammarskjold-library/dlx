@@ -15,7 +15,7 @@ class InvalidQueryString(Exception):
 class WildcardRegex(Regex):
     # for differentiating regex to run against text index vs actual value
     def __init__(self, string=None):
-        super().__init__(string, 'i')
+        super().__init__(string)
     
 class Query():
     @classmethod
@@ -96,7 +96,7 @@ class Query():
                 string = string.replace('*', placeholder)
                 string = re.escape(string)
                 string = string.replace(placeholder, '.*')
-                string = string if string[0:2] == '.*' else '^' + string
+                string = string if string[0:2] == '.*' else '^ ' + string # the "text" field in pseudo indexes starts with a space 
                 string = string if string[-2:] == '.*' else string + '$'
 
                 return WildcardRegex(string)
