@@ -361,9 +361,12 @@ def test_querystring(db):
     query = Query.from_string(f'title:\'This title: is a title\'', record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 1
 
-    # logical field widldcard
+    # logical field wildcard
     query = Query.from_string(f"title:*is*", record_type='bib')
     assert len(list(BibSet.from_query(query.compile()))) == 3
+
+    query = Query.from_string(f"title:this*", record_type='bib')
+    assert len(list(BibSet.from_query(query.compile()))) == 2
 
     # NOT
     for bib in BibSet.from_query({}):
