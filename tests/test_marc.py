@@ -378,9 +378,9 @@ def test_querystring(db):
     assert len(list(BibSet.from_query(query.compile()))) == 0
 
     # NOT with text
-    bib.set('246', 'a', 'Second alt title', address='+').commit()
+    bib.set('246', 'a', 'Edited alt title', address='+').commit()
     query = Query.from_string(f'NOT 246:New title', record_type='bib')
-    assert len(list(BibSet.from_query(query.compile()))) == 1
+    assert len(list(BibSet.from_query(query.compile()))) == 0
 
     # NOT xref
     query = Query.from_string(f'NOT xref:1', record_type='bib')
