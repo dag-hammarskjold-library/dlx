@@ -15,7 +15,7 @@ class InvalidQueryString(Exception):
 class WildcardRegex(Regex):
     # for differentiating regex to run against text index vs actual value
     def __init__(self, string=None):
-        super().__init__(string)
+        super().__init__(string, 'i')
     
 class Query():
     @classmethod
@@ -96,7 +96,7 @@ class Query():
                 string = string.replace('*', placeholder)
                 string = re.escape(string)
                 string = string.replace(placeholder, '.*')
-                string = string if string[0:2] == '.*' else '^ ' + string # the "text" field in pseudo indexes starts with a space 
+                string = string if string[0:2] == '.*' else '^' + string
                 string = string if string[-2:] == '.*' else string + '$'
 
                 return WildcardRegex(string)
@@ -130,7 +130,12 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                    if isinstance(value, WildcardRegex):
+                        new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern))  # pseudo index text field starts with a space
+                        matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
+                    else:
+                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+
                     matched_subfield_values = []
 
                     for m in matches:
@@ -185,7 +190,7 @@ class Query():
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
                 
                 if modifier == 'not':
-                    q = {f'{tag}': {'$elemMatch': {'subfields': {'$not': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
+                    q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
                 else:
                     q = {f'{tag}.subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}
 
@@ -243,7 +248,12 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                    if isinstance(value, WildcardRegex):
+                        new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern)) # pseudo index text field starts with a space
+                        matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
+                    else:
+                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                    
                     matched_subfield_values = []
                     
                     for m in matches:
@@ -297,7 +307,7 @@ class Query():
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
 
                 if modifier == 'not':
-                    q = {f'{tag}': {'$elemMatch': {'subfields': {'$not': {'$elemMatch': {'value': {'$in': matched_subfield_values}}}}}}}
+                    q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'value': {'$in': matched_subfield_values}}}}}}}
                 else:
                     q = {f'{tag}.subfields.value': {'$in': matched_subfield_values}}
 
@@ -411,7 +421,8 @@ class Query():
                     # regex
                     if isinstance(value, Regex):
                         if isinstance(value, WildcardRegex):
-                            q = {'text': value}
+                            new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern)) # pseudo index text field starts with a space
+                            q = {'text': Regex(new_pattern)}
                         else:
                             q = {'_id': value}
                     # text
