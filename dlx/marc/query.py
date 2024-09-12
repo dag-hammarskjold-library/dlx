@@ -134,7 +134,8 @@ class Query():
                         new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern))  # pseudo index text field starts with a space
                         matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
                     else:
-                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                        #matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                        return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
 
                     matched_subfield_values = []
 
@@ -252,7 +253,8 @@ class Query():
                         new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern)) # pseudo index text field starts with a space
                         matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
                     else:
-                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                        #matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                        return TagOnly(tag, value, modifier=modifier, record_type=self.record_type)
                     
                     matched_subfield_values = []
                     
