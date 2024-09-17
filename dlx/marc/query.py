@@ -15,7 +15,7 @@ class InvalidQueryString(Exception):
 class WildcardRegex(Regex):
     # for differentiating regex to run against text index vs actual value
     def __init__(self, string=None):
-        super().__init__(string)
+        super().__init__(string, 'i')
     
 class Query():
     @classmethod
@@ -88,6 +88,7 @@ class Query():
                 else:
                     return Regex(string[1:-1])
             elif '*' in string:
+                # create regex pattern using wildcard character
                 if string == '*':
                     # special string for checking if field exists
                     return string
@@ -96,7 +97,7 @@ class Query():
                 string = string.replace('*', placeholder)
                 string = re.escape(string)
                 string = string.replace(placeholder, '.*')
-                string = string if string[0:2] == '.*' else '^ ' + string # the "text" field in pseudo indexes starts with a space 
+                string = string if string[0:2] == '.*' else '^' + string
                 string = string if string[-2:] == '.*' else string + '$'
 
                 return WildcardRegex(string)
@@ -131,8 +132,9 @@ class Query():
                 # regex
                 if isinstance(value, Regex):
                     if isinstance(value, WildcardRegex):
-                        new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern))  # pseudo index text field starts with a space
-                        matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
+                        #new_pattern = re.sub(r'^\^', '^ ', value.pattern)  # pseudo index text field starts with a space
+                        #matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
+                        matches = DB.handle[f'_index_{tag}'].find({'subfields': {'$elemMatch': {'code': code, 'value': value}}})
                     else:
                         #matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
                         return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
@@ -250,8 +252,9 @@ class Query():
                 # regex
                 if isinstance(value, Regex):
                     if isinstance(value, WildcardRegex):
-                        new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern)) # pseudo index text field starts with a space
-                        matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
+                        new_pattern = re.sub(r'\^', '^ ', value.pattern).lower() # pseudo index text field starts with a space
+                        #matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
+                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
                     else:
                         #matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
                         return TagOnly(tag, value, modifier=modifier, record_type=self.record_type)
@@ -423,7 +426,7 @@ class Query():
                     # regex
                     if isinstance(value, Regex):
                         if isinstance(value, WildcardRegex):
-                            new_pattern = Tokenizer.scrub(re.sub(r'\^', ' ', value.pattern)) # pseudo index text field starts with a space
+                            new_pattern = re.sub(r'\^', '^ ', value.pattern) # pseudo index text field starts with a space
                             q = {'text': Regex(new_pattern)}
                         else:
                             q = {'_id': value}
