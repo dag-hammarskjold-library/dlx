@@ -210,6 +210,15 @@ class Config():
     }
     
     auth_logical_fields = {
+        'heading': {
+            '100': ['abcdq'],
+            '110': ['abcdfgkn'],
+            '111': ['acdegknq'],
+            '150': ['a'],
+            '130': ['adfgklnp'],
+            '190': ['bc'],
+            '191': ['abcd'],
+        },
         'subject': {
             '100': ['abcdq'],
             '400': ['a'],
