@@ -26,14 +26,13 @@ def run():
         pass
     else:
         DB.connect(args.connect, database=args.database)
-
-    print('building auth cache...')
-    Auth.build_cache()
+    
     build_logical_fields(args)
     #build_auth_controlled_logical_fields(args) # disabled
     
     if args.type == 'auth':
-        calculate_auth_use()
+        #calculate_auth_use() # disabled
+        pass
 
     return True
 
@@ -41,7 +40,15 @@ def build_logical_fields(args):
     cls = BibSet if args.type == 'bib' else AuthSet
     auth_controlled = Config.bib_authority_controlled if cls == BibSet else Config.auth_authority_controlled
     logical_fields = Config.bib_logical_fields if cls == BibSet else Config.auth_logical_fields
+    auth_controlled_logical_fields = Config.auth_controlled_bib_logical_fields() if args.type == 'bib' else Config.auth_controlled_auth_logical_fields()
     tags, names = [], []
+
+    if args.fields and any([x in auth_controlled_logical_fields for x in args.fields]):
+        print('Building auth_cache...')
+        Auth.build_cache()
+    elif args.fields is None and auth_controlled_logical_fields:
+        print('Building auth_cache...')
+        Auth.build_cache()
 
     for field, d in list(logical_fields.items()):
         #if field not in auth_controlled: #Config.auth_controlled_bib_logical_fields():
