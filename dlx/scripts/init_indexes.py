@@ -56,7 +56,7 @@ def run():
                 collation=Config.marc_index_default_collation
             )
         )
-        indexes.append(col.create_index('_record_type', collation=Config.marc_index_default_collation))
+        indexes.append(col.create_index('_record_type_collated', collation=Config.marc_index_default_collation))
 
         print(f'creating text indexes...')
         indexes.append(col.create_index('words', collation=Config.marc_index_default_collation))
