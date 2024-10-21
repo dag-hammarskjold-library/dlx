@@ -38,6 +38,6 @@ tomli==2.0.1
 tqdm==4.66.5
 urllib3==1.26.19
 Werkzeug==3.0.4
-xlrd==1.2.0
+xlrd==2.0.1
 xmldiff==2.4
 xmltodict==0.13.0
