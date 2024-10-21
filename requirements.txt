@@ -1,5 +1,5 @@
 attrs==23.2.0
-boto3==1.34.100
+boto3==1.35.45
 botocore==1.34.100
 certifi==2024.7.4
 cffi==1.16.0
