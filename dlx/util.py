@@ -61,7 +61,12 @@ class Table():
     def set(self, rowx, field_name, value):
         self.index.setdefault(rowx, {})
         self.index[rowx].setdefault(field_name, {})
-        self.index[rowx][field_name] = value
+
+        if existing := self.index[rowx].get(field_name):
+            # if this is a repeated subfield, append the next value 
+            self.index[rowx][field_name] += f'||{value}'
+        else:
+            self.index[rowx][field_name] = value
 
         if field_name not in self.header:
             self.header.append(field_name)
