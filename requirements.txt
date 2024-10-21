@@ -35,7 +35,7 @@ s3transfer==0.10.3
 sentinels==1.0.0
 six==1.16.0
 tomli==2.0.1
-tqdm==4.66.4
+tqdm==4.66.5
 urllib3==1.26.19
 Werkzeug==3.0.3
 xlrd==1.2.0
