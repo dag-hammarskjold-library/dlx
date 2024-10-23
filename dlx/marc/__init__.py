@@ -135,6 +135,20 @@ class MarcSet():
         return cls.from_query({'_id' : {'$in': ids}})
 
     @classmethod
+    def sort_table_header(cls, header: list) -> list:
+        # Sorts the header of a MarcSet in until.Table form for use in 
+        # (de)serialization
+
+        return sorted(
+            header, 
+            key=lambda x: ( 
+                (re.match('\d+\.(\w+)', x)).group(1), # sort by tag
+                int(re.match('(\d+)\.', x).group(1)), # sort by prefix group
+                (re.match('.*\$?(\w)?', x)).group(1) # sort by subfield code
+            )
+        )
+
+    @classmethod
     def from_table(cls, table, auth_control=True, auth_flag=False, field_check=None):
         # does not support repeated subfield codes
         self = cls()
@@ -144,7 +158,12 @@ class MarcSet():
         for temp_id in table.index.keys():
             record = cls().record_class()
 
-            for field_name in table.index[temp_id].keys():
+            # Sort the headers so that subfield $0 is always first for use in 
+            # subsequent subfields
+            header_fields = list(table.index[temp_id].keys())
+            header_fields = MarcSet.sort_table_header(header_fields)
+
+            for field_name in header_fields:
                 instance = 0
                 value = table.index[temp_id][field_name]
 
@@ -169,6 +188,7 @@ class MarcSet():
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
 
+                # flag if specified field value is already in the system
                 if field_check and field_check == tag + (code or ''):
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
                         exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
@@ -325,14 +345,7 @@ class MarcSet():
                         table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
 
         # sort the table header
-        table.header = sorted(
-            table.header, 
-            key=lambda x: ( 
-                (re.match('\d+\.(\w+)', x)).group(1), # sort by tag
-                int(re.match('(\d+)\.', x).group(1)), # sort by prefix group
-                (re.match('.*\$?(\w)?', x)).group(1) # sort by subfield code
-            )
-        )
+        table.header = MarcSet.sort_table_header(table_header)
 
         return table
 

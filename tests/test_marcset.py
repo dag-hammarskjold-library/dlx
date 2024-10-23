@@ -86,7 +86,7 @@ def test_from_table(db):
     from dlx.util import Table
     
     t = Table([
-        ['246a',  '1.246$b',  '1.269c',    '2.269c'],
+        ['1.246$a',  '1.246$b',  '1.269$c', '2.269$c'],
         ['title', 'subtitle', '1999-12-31','repeated'],
         ['title2','subtitle2','2000-01-01','repeated'],
     ])
