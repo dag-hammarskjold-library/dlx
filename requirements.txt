@@ -19,7 +19,7 @@ MarkupSafe==2.1.5
 mongomock==4.1.2
 moto==5.0.8
 nltk==3.9.1
-packaging==24.0
+packaging==24.1
 pluggy==1.5.0
 pycparser==2.22
 pymongo==4.6.3
