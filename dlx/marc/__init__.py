@@ -321,8 +321,16 @@ class MarcSet():
                 for place, field in enumerate(record.get_fields(tag)):
                     place += 1
 
+                    xref = None
+
                     for subfield in field.subfields:
                         table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
+                        if hasattr(subfield, 'xref'):
+                            xref = subfield.xref
+                    
+                    if xref:
+                        field.subfields.append(Literal('0', str(xref)))
+            print(record.to_str())
 
         # sort the table header
         table.header = sorted(
