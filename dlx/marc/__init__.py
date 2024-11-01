@@ -188,6 +188,14 @@ class MarcSet():
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
 
+                # if the subfield field is authority-controlled, use subfield 
+                # $0 as the xref. $0 will be the first subfield in the field if
+                # it exists, because the header has been sorted.
+                if Config.is_authority_controlled(self.record_type, tag, code):
+                    if field := record.get_field(tag, place=instance):
+                        if subfield := field.get_subfield('0'):
+                            value = subfield.xref
+
                 # flag if specified field value is already in the system
                 if field_check and field_check == tag + (code or ''):
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
