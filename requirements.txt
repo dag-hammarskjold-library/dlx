@@ -39,5 +39,5 @@ tqdm==4.66.5
 urllib3==1.26.19
 Werkzeug==3.0.4
 xlrd==2.0.1
-xmldiff==2.4
+xmldiff==2.7.0
 xmltodict==0.13.0
