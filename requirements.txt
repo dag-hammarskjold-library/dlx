@@ -37,7 +37,7 @@ six==1.16.0
 tomli==2.0.2
 tqdm==4.66.5
 urllib3==1.26.19
-Werkzeug==3.0.6
+Werkzeug==3.1.0
 xlrd==2.0.1
 xmldiff==2.7.0
 xmltodict==0.13.0
