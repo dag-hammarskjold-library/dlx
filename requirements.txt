@@ -14,7 +14,7 @@ jmespath==1.0.1
 joblib==1.4.2
 jsonschema==4.0.0
 lxml==5.2.1
-MarkupSafe==2.1.5
+MarkupSafe==3.0.2
 mongomock==4.1.2
 moto==5.0.8
 nltk==3.9.1
