@@ -136,9 +136,49 @@ def test_from_mrk(db):
 def test_from_xml(db):
     from dlx.marc import BibSet
     
-    string = '<collection><record><controlfield tag="000">leader</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record><record><controlfield tag="000">leader</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">Another</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield></record></collection>'
-    bibset = BibSet.from_xml(string)
+    string = '''
+        <collection>
+            <record>
+                <controlfield tag="000">leader</controlfield>
+                <controlfield tag="008">controlfield</controlfield>
+                <datafield ind1=" " ind2=" " tag="245">
+                    <subfield code="a">This</subfield>
+                    <subfield code="b">is the</subfield>
+                    <subfield code="c">title</subfield>
+                </datafield><datafield ind1=" " ind2=" " tag="520">
+                    <subfield code="a">Description</subfield>
+                </datafield>
+                <datafield ind1=" " ind2=" " tag="520">
+                    <subfield code="a">Another description</subfield>
+                    <subfield code="a">Repeated subfield</subfield>
+                </datafield>
+                <datafield ind1=" " ind2=" " tag="650">
+                    <subfield code="a">Header</subfield>
+                    <subfield code="0">1</subfield>
+                </datafield>
+                <datafield ind1=" " ind2=" " tag="710">
+                    <subfield code="a">Another header</subfield>
+                    <subfield code="0">2</subfield>
+                </datafield>
+            </record>
+            <record>
+                <controlfield tag="000">leader</controlfield>
+                <datafield ind1=" " ind2=" " tag="245">
+                    <subfield code="a">Another</subfield>
+                    <subfield code="b">is the</subfield>
+                    <subfield code="c">title</subfield>
+                </datafield>
+                <datafield ind1=" " ind2=" " tag="650">
+                    <subfield code="a">head</subfield>
+                    <subfield code="0">1</subfield>
+                </datafield>
+            </record>
+        </collection>
+    '''
+
+    bibset = BibSet.from_xml(string, auth_control=True)
     assert len(bibset.records) == 2
+    assert bibset.records[1].get_value('650', 'a') == 'Header'
         
 def test_to_mrc(db):
     from dlx.marc import BibSet

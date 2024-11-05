@@ -248,7 +248,7 @@ class MarcSet():
         
     @classmethod
     def from_xml(cls, string, auth_control=False):
-        return cls.from_xml_raw(ElementTree.fromstring(string))
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
 
     @classmethod
     def from_mrk(cls, string, *, auth_control=True):
@@ -1461,26 +1461,43 @@ class Marc(object):
         return self
     
     @classmethod
-    def from_xml_raw(cls, root, *, auth_control=False):
+    def from_xml_raw(cls, root, *, auth_control=True):
         assert isinstance(root, ElementTree.Element)
         self = cls()
             
-        for c in filter(lambda x: re.search('controlfield$', x.tag), root):
-            self.set(c.attrib['tag'], None, c.text)
+        for node in filter(lambda x: re.search('controlfield$', x.tag), root):
+            self.set(node.attrib['tag'], None, node.text)
 
-        for d in filter(lambda x: re.search('datafield$', x.tag), root):
-            field = Datafield(record_type=cls.record_type, tag=d.attrib['tag'], ind1=d.attrib['ind1'], ind2=d.attrib['ind2'])
+        for field_node in filter(lambda x: re.search('datafield$', x.tag), root):
+            field = Datafield(record_type=cls.record_type, tag=field_node.attrib['tag'], ind1=field_node.attrib['ind1'], ind2=field_node.attrib['ind2'])
+            tag_nodes = filter(lambda x: re.search('subfield$', x.tag), field_node)
+
+            # capture the xref if any
+            xref = None
+
+            for subfield_node in copy.deepcopy(tag_nodes): # use a copy to prevent the iterating orginal
+                if subfield_node.attrib['code'] == '0':
+                    xref = int(subfield_node.text)
+
+            # iterate though nodes and set the marc values
+            for subfield_node in tag_nodes:
+                if Config.is_authority_controlled(self.record_type, field.tag, subfield_node.attrib['code']):
+                    value = xref if xref else subfield_node.text
+                else:
+                    value = subfield_node.text
+
+                # .set handles auth control
+                field.set(subfield_node.attrib['code'], value, auth_control=auth_control, place='+')
             
-            for s in filter(lambda x: re.search('subfield$', x.tag), d):
-                field.set(s.attrib['code'], s.text, auth_control=auth_control, place='+')
+            field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
                 
             self.fields.append(field)
             
         return self
         
     @classmethod
-    def from_xml(cls, string):
-        return cls.from_xml_raw(ElementTree.fromstring(string))
+    def from_xml(cls, string, auth_control=True):
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
 
     @classmethod
     def from_json(cls, string, auth_control=False):
