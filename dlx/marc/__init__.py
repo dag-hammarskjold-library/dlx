@@ -136,7 +136,7 @@ class MarcSet():
 
     @classmethod
     def sort_table_header(cls, header: list) -> list:
-        # Sorts the header of a MarcSet in until.Table form for use in 
+        # Sorts the header of a MarcSet in util.Table for for use in 
         # (de)serialization
 
         return sorted(
@@ -144,7 +144,7 @@ class MarcSet():
             key=lambda x: ( 
                 (re.match('\d+\.(\w+)', x)).group(1), # sort by tag
                 int(re.match('(\d+)\.', x).group(1)), # sort by prefix group
-                (re.match('.*\$?(\w)?', x)).group(1) # sort by subfield code
+                (re.match('\d\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
             )
         )
 
@@ -166,13 +166,9 @@ class MarcSet():
             for field_name in header_fields:
                 instance = 0
                 value = table.index[temp_id][field_name]
-
-                if value == '':
-                    continue
-
-                match = re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name))
-
-                if match:
+                
+                # parse the column header into tag, code and place
+                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name)):
                     if match.group(1):
                         instance = int(match.group(2))
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
@@ -184,17 +180,20 @@ class MarcSet():
                     exceptions.append('Invalid column header "{}"'.format(field_name))
                     continue
 
-                if record.get_value(tag, code, address=[instance,0]):
+                if record.get_value(tag, code, address=[instance, 0]):
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
 
                 # if the subfield field is authority-controlled, use subfield 
                 # $0 as the xref. $0 will be the first subfield in the field if
                 # it exists, because the header has been sorted.
+                xref = None
+
                 if Config.is_authority_controlled(self.record_type, tag, code):
                     if field := record.get_field(tag, place=instance):
                         if subfield := field.get_subfield('0'):
-                            value = subfield.xref
+                            xref = int(subfield.value)
+                            value = Auth.lookup(xref, code)
 
                 # flag if specified field value is already in the system
                 if field_check and field_check == tag + (code or ''):
@@ -202,16 +201,22 @@ class MarcSet():
                         exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
                         continue
 
+                # update the marc object
                 if record.get_field(tag, place=instance):
                     try:
-                        record.set(tag, code, value, address=[instance], auth_control=auth_control)
+                        record.set(tag, code, xref if xref else value, address=[instance], auth_control=auth_control)
                     except Exception as e:
                         exceptions.append(str(e))
                 else:
                     try:
-                        record.set(tag, code, value, address=['+'], auth_control=auth_control)
+                        record.set(tag, code, xref if xref else value, address=['+'], auth_control=auth_control)
                     except Exception as e:
                         exceptions.append(str(e))
+
+                # if this is the last cell in the row, delete any subfield $0
+                if header_fields.index(field_name) == len(header_fields) - 1:
+                    field = record.get_field(tag, instance)
+                    field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.records.append(record)
 
@@ -353,7 +358,7 @@ class MarcSet():
                         table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
 
         # sort the table header
-        table.header = MarcSet.sort_table_header(table_header)
+        table.header = MarcSet.sort_table_header(table.header)
 
         return table
 

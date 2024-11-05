@@ -80,27 +80,40 @@ def test_from_ids(db):
     
     bibs = BibSet.from_ids([1, 2])
     assert [x.id for x in bibs] == [1, 2]
-        
+
+def test_sort_table_header():
+    from dlx.marc import MarcSet
+
+    header = ['1.269$a', '1.246$b', '1.246$a', '1.650$a', '1.650$0']
+
+    assert MarcSet.sort_table_header(header) == ['1.246$a',  '1.246$b',  '1.269$a', '1.650$0', '1.650$a']
+
 def test_from_table(db):
     from dlx.marc import BibSet
     from dlx.util import Table
     
-    t = Table([
-        ['1.246$a',  '1.246$b',  '1.269$c', '2.269$c'],
-        ['title', 'subtitle', '1999-12-31','repeated'],
-        ['title2','subtitle2','2000-01-01','repeated'],
+    table = Table([
+        ['1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0'],
+        ['title', 'subtitle', '1999-12-31','repeated', '', 1],
+        ['title2','subtitle2','2000-01-01','repeated', '', 1],
     ])
     
-    bibset = BibSet.from_table(t)
+    bibset = BibSet.from_table(table)
+
     for bib in bibset.records:
         assert bib.get_value('246','b')[:8] == 'subtitle'
         assert bib.get_values('269','c')[1] == 'repeated'
+        assert bib.get_value('650', 'a') == 'Header'
+        assert not bib.get_value('650', '0')
         
     with pytest.raises(Exception):
+        # dupe field check
         bibset = BibSet.from_table(Table([['245a'], ['This']]), field_check='245a')
 
     with pytest.raises(Exception):
+        # auth control
         bibset = BibSet.from_table(Table([['650a'], ['Invalid']]), auth_control=True)
+
 
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
