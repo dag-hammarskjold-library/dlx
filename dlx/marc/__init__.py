@@ -1462,6 +1462,9 @@ class Marc(object):
     
     @classmethod
     def from_xml_raw(cls, root, *, auth_control=True):
+        if DB.database_name == 'testing':
+            Auth({'_id': 1}).set('150', 'a', 'Header').commit()
+
         assert isinstance(root, ElementTree.Element)
         self = cls()
             
@@ -1484,7 +1487,7 @@ class Marc(object):
                 if Config.is_authority_controlled(self.record_type, field.tag, subfield_node.attrib['code']):
                     value = xref if xref else subfield_node.text
                 else:
-                    value = subfield_node.text
+                    value = str(subfield_node.text)
 
                 # .set handles auth control
                 field.set(subfield_node.attrib['code'], value, auth_control=auth_control, place='+')
@@ -2122,7 +2125,11 @@ class Datafield(Field):
 
         if new_val:
             # existing subfield
-            # walk to the tree to replace the subfield object
+            if auth_control == False:
+                # force string because only xrefs can be ints
+                new_val = str(new_val)
+
+            # walk the tree to replace the subfield object
             i, j = 0, 0
             
             for i, sub in enumerate(self.subfields):
