@@ -1,5 +1,5 @@
 attrs==23.2.0
-boto3==1.35.45
+boto3==1.35.53
 certifi==2024.7.4
 cffi==1.16.0
 charset-normalizer==3.3.2
@@ -36,7 +36,7 @@ six==1.16.0
 tomli==2.0.2
 tqdm==4.66.5
 urllib3==1.26.19
-Werkzeug==3.0.6
+Werkzeug==3.1.0
 xlrd==2.0.1
 xmldiff==2.7.0
 xmltodict==0.13.0
