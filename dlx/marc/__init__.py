@@ -1421,7 +1421,7 @@ class Marc(object):
             directory = directory[12:]
 
     @classmethod
-    def from_mrk(cls, string, auth_control=True):
+    def from_mrk(cls, string: str, auth_control=True):
         self = cls()
 
         for line in filter(None, string.split('\n')):
@@ -1436,9 +1436,19 @@ class Marc(object):
                 field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
                 fallback = {}
                 ambiguous = []
+                
+                # capture the xref from subfield $0, if exists
+                if match := re.search('\$0(\d+)', rest[2:]):
+                    xref = int(match.group(1))
+                else:
+                    xref = None
 
+                # parse the subfields
                 for chunk in filter(None, rest[2:].split('$')):
                     code, value = chunk[0], chunk[1:]
+
+                    if Config.is_authority_controlled(self.record_type, tag, code):
+                        value = xref
 
                     try:
                         field.set(code, value, place='+', auth_control=auth_control)
@@ -1446,6 +1456,8 @@ class Marc(object):
                         fallback[code] = value
                         ambiguous.append(Literal(code, value))
 
+                # attempt to use multiple subfields to resolve ambiguity. may 
+                # be deprecated in the future
                 if fallback and len(fallback) > 1:
                     xrefs = Auth.xlookup_multi(tag, ambiguous, record_type=cls.record_type)
                     
@@ -1454,7 +1466,10 @@ class Marc(object):
                             for code in fallback.keys():
                                 field.set(code, xrefs[0], place='+')
                     elif len(xrefs) > 1:
-                        raise AmbiguousAuthValue('bib', field.tag, '*', str(fallback))
+                        raise AmbiguousAuthValue('bib', field.tag, '*', str(fallback))       
+            
+                # remove subfield $0
+                field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.fields.append(field)
 

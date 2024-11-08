@@ -129,9 +129,10 @@ def test_from_excel():
 def test_from_mrk(db):
     from dlx.marc import BibSet
 
-    control = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader\n=710  \\\\$aAnother header\n\n=000  leader\n=245  \\\\$aAnother$bis the$ctitle\n=650  \\\\$aHeader\n'
+    control = '=000  leader\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aWill be replaced because of xref$01\n=710  \\\\$aAnother header\n\n=000  leader\n=245  \\\\$aAnother$bis the$ctitle\n=650  \\\\$aHeader\n'
     bibs = BibSet.from_mrk(control)
     assert(len(bibs.records)) == 2
+    assert bibs.records[0].get_value('650', 'a') == 'Header'
 
 def test_from_xml(db):
     from dlx.marc import BibSet
