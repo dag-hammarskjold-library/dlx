@@ -63,7 +63,7 @@ class Table():
         self.index[rowx].setdefault(field_name, {})
 
         if existing := self.index[rowx].get(field_name):
-            # if this is a repeated subfield, append the next value 
+            # if this is a repeated field, append the next value into this cell
             self.index[rowx][field_name] += f'||{value}'
         else:
             self.index[rowx][field_name] = value
