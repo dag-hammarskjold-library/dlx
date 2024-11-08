@@ -131,13 +131,15 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
+                    if DB.handle[f'_index_{tag}'].estimated_document_count() > 100_000 and len(value.pattern) < 8:
+                        # this is likely to be faster querying directly against the record collection
+                        return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
+
                     if isinstance(value, WildcardRegex):
-                        #new_pattern = re.sub(r'^\^', '^ ', value.pattern)  # pseudo index text field starts with a space
-                        #matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
                         matches = DB.handle[f'_index_{tag}'].find({'subfields': {'$elemMatch': {'code': code, 'value': value}}})
                     else:
-                        #matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
-                        return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
+                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                        #return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
 
                     matched_subfield_values = []
 
@@ -190,7 +192,13 @@ class Query():
                     matched_subfield_values = list(set(filtered))      
 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
+                    if isinstance(value, Regex):
+                        # fall back to normal regex
+                        return Condition(tag, {code: value}, modifier=modifier, record_type=record_type)
+                    
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
+                elif len(matched_subfield_values) == 0:
+                    return Raw({'_id': 0}, modifier=modifier, record_type=record_type) # query that matches no documents
                 
                 if modifier == 'not':
                     q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
@@ -251,14 +259,11 @@ class Query():
 
                 # regex
                 if isinstance(value, Regex):
-                    if isinstance(value, WildcardRegex):
-                        new_pattern = re.sub(r'\^', '^ ', value.pattern).lower() # pseudo index text field starts with a space
-                        #matches = DB.handle[f'_index_{tag}'].find({'text': Regex(new_pattern)})
-                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
-                    else:
-                        #matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
+                    if DB.handle[f'_index_{tag}'].estimated_document_count() > 100_000 and len(value.pattern) < 8:
+                        # this is likely to be faster querying directly against the record collection
                         return TagOnly(tag, value, modifier=modifier, record_type=self.record_type)
                     
+                    matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
                     matched_subfield_values = []
                     
                     for m in matches:
@@ -309,8 +314,14 @@ class Query():
                     matched_subfield_values = filtered
                 
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
-                    raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
+                    if isinstance(value, Regex):
+                        # fall back to normal regex
+                        return TagOnly(tag, value, modifier=modifier, record_type=record_type)
 
+                    raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
+                elif len(matched_subfield_values) == 0:
+                    return Raw({'_id': 0}, modifier=modifier, record_type=record_type) # query that matches no documents
+                
                 if modifier == 'not':
                     q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'value': {'$in': matched_subfield_values}}}}}}}
                 else:
@@ -425,11 +436,8 @@ class Query():
 
                     # regex
                     if isinstance(value, Regex):
-                        if isinstance(value, WildcardRegex):
-                            new_pattern = re.sub(r'\^', '^ ', value.pattern) # pseudo index text field starts with a space
-                            q = {'text': Regex(new_pattern)}
-                        else:
-                            q = {'_id': value}
+                        q = {'_id': value}
+
                     # text
                     else:
                         quoted = re.findall(r'"(.+?)"', value)
@@ -451,11 +459,17 @@ class Query():
                         if quoted:
                             q['$and'].append({'text': Regex(' '.join(quoted))})
                     
-                    matches = DB.handle[f'_index_{field}'].find(q)         
+                    matches = DB.handle[f'_index_{field}'].find(q)
                     values = [x['_id'] for x in matches]
 
                     if sys.getsizeof(values) > 1e6: # 1 MB
+                        if isinstance(value, Regex):
+                            # fall back to normal regex
+                            return Raw({field: value}, modifier=modifier, record_type=record_type)
+                
                         raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
+                    elif len(values) == 0:
+                        return Raw({'_id': 0})
 
                     if modifier == 'not':
                         return Raw({field: {'$not': {'$in': values}}}, record_type=record_type)
