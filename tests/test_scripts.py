@@ -69,9 +69,13 @@ def test_auth_merge(db):
     assert Auth.from_id(2) is None
 
 def test_import_marc(db, bibs, auths):
+    from dlx import DB
+    from dlx.marc import Auth
     from dlx.scripts import marc_import
 
     control = os.path.dirname(__file__) + '/marc.mrk'
+
+    # these functions do not hve access to the fixture data for auth validation
 
     assert marc_import.run(
         connect='mongomock://localhost', 
