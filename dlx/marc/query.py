@@ -198,7 +198,7 @@ class Query():
                     
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
                 elif len(matched_subfield_values) == 0:
-                    return Raw({'_id': 0}, modifier=modifier, record_type=record_type) # query that matches no documents
+                    return Raw({'_id': 0}, record_type=record_type) # query that matches no documents
                 
                 if modifier == 'not':
                     q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
@@ -320,7 +320,7 @@ class Query():
 
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
                 elif len(matched_subfield_values) == 0:
-                    return Raw({'_id': 0}, modifier=modifier, record_type=record_type) # query that matches no documents
+                    return Raw({'_id': 0}, record_type=record_type) # query that matches no documents
                 
                 if modifier == 'not':
                     q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'value': {'$in': matched_subfield_values}}}}}}}
@@ -469,7 +469,7 @@ class Query():
                 
                         raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
                     elif len(values) == 0:
-                        return Raw({'_id': 0})
+                        return Raw({'_id': 0}, record_type=record_type) # query that matches no documents
 
                     if modifier == 'not':
                         return Raw({field: {'$not': {'$in': values}}}, record_type=record_type)
