@@ -135,6 +135,20 @@ class MarcSet():
         return cls.from_query({'_id' : {'$in': ids}})
 
     @classmethod
+    def sort_table_header(cls, header: list) -> list:
+        # Sorts the header of a MarcSet in util.Table for for use in 
+        # (de)serialization
+
+        return sorted(
+            header, 
+            key=lambda x: ( 
+                (re.match('\d+\.(\w+)', x)).group(1), # sort by tag
+                int(re.match('(\d+)\.', x).group(1)), # sort by prefix group
+                (re.match('\d\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
+            )
+        )
+
+    @classmethod
     def from_table(cls, table, auth_control=True, auth_flag=False, field_check=None):
         # does not support repeated subfield codes
         self = cls()
@@ -144,16 +158,17 @@ class MarcSet():
         for temp_id in table.index.keys():
             record = cls().record_class()
 
-            for field_name in table.index[temp_id].keys():
+            # Sort the headers so that subfield $0 is always first for use in 
+            # subsequent subfields
+            header_fields = list(table.index[temp_id].keys())
+            header_fields = MarcSet.sort_table_header(header_fields)
+
+            for field_name in header_fields:
                 instance = 0
                 value = table.index[temp_id][field_name]
-
-                if value == '':
-                    continue
-
-                match = re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name))
-
-                if match:
+                
+                # parse the column header into tag, code and place
+                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name)):
                     if match.group(1):
                         instance = int(match.group(2))
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
@@ -165,25 +180,43 @@ class MarcSet():
                     exceptions.append('Invalid column header "{}"'.format(field_name))
                     continue
 
-                if record.get_value(tag, code, address=[instance,0]):
+                if record.get_value(tag, code, address=[instance, 0]):
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
 
+                # if the subfield field is authority-controlled, use subfield 
+                # $0 as the xref. $0 will be the first subfield in the field if
+                # it exists, because the header has been sorted.
+                xref = None
+
+                if Config.is_authority_controlled(self.record_type, tag, code):
+                    if field := record.get_field(tag, place=instance):
+                        if subfield := field.get_subfield('0'):
+                            xref = int(subfield.value)
+                            value = Auth.lookup(xref, code)
+
+                # flag if specified field value is already in the system
                 if field_check and field_check == tag + (code or ''):
                     if self.record_class.find_one(Condition(tag, {code: value}).compile()):
                         exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
                         continue
 
+                # update the marc object
                 if record.get_field(tag, place=instance):
                     try:
-                        record.set(tag, code, value, address=[instance], auth_control=auth_control)
+                        record.set(tag, code, xref if xref else value, address=[instance], auth_control=auth_control)
                     except Exception as e:
                         exceptions.append(str(e))
                 else:
                     try:
-                        record.set(tag, code, value, address=['+'], auth_control=auth_control)
+                        record.set(tag, code, xref if xref else value, address=['+'], auth_control=auth_control)
                     except Exception as e:
                         exceptions.append(str(e))
+
+                # if this is the last cell in the row, delete any subfield $0
+                if header_fields.index(field_name) == len(header_fields) - 1:
+                    field = record.get_field(tag, instance)
+                    field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.records.append(record)
 
@@ -215,7 +248,7 @@ class MarcSet():
         
     @classmethod
     def from_xml(cls, string, auth_control=False):
-        return cls.from_xml_raw(ElementTree.fromstring(string))
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
 
     @classmethod
     def from_mrk(cls, string, *, auth_control=True):
@@ -321,18 +354,19 @@ class MarcSet():
                 for place, field in enumerate(record.get_fields(tag)):
                     place += 1
 
+                    xref = None
+
                     for subfield in field.subfields:
                         table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
+                        
+                        if hasattr(subfield, 'xref'):
+                            xref = subfield.xref
+                    
+                    if xref:
+                        table.set(i, f'{place}.{field.tag}$0', str(xref))
 
         # sort the table header
-        table.header = sorted(
-            table.header, 
-            key=lambda x: ( 
-                (re.match('\d+\.(\w+)', x)).group(1), # sort by tag
-                int(re.match('(\d+)\.', x).group(1)), # sort by prefix group
-                (re.match('.*\$?(\w)?', x)).group(1) # sort by subfield code
-            )
-        )
+        table.header = MarcSet.sort_table_header(table.header)
 
         return table
 
@@ -1395,7 +1429,7 @@ class Marc(object):
             directory = directory[12:]
 
     @classmethod
-    def from_mrk(cls, string, auth_control=True):
+    def from_mrk(cls, string: str, auth_control=True):
         self = cls()
 
         for line in filter(None, string.split('\n')):
@@ -1410,9 +1444,19 @@ class Marc(object):
                 field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
                 fallback = {}
                 ambiguous = []
+                
+                # capture the xref from subfield $0, if exists
+                if match := re.search('\$0(\d+)', rest[2:]):
+                    xref = int(match.group(1))
+                else:
+                    xref = None
 
+                # parse the subfields
                 for chunk in filter(None, rest[2:].split('$')):
                     code, value = chunk[0], chunk[1:]
+
+                    if Config.is_authority_controlled(self.record_type, tag, code):
+                        value = xref
 
                     try:
                         field.set(code, value, place='+', auth_control=auth_control)
@@ -1420,6 +1464,8 @@ class Marc(object):
                         fallback[code] = value
                         ambiguous.append(Literal(code, value))
 
+                # attempt to use multiple subfields to resolve ambiguity. may 
+                # be deprecated in the future
                 if fallback and len(fallback) > 1:
                     xrefs = Auth.xlookup_multi(tag, ambiguous, record_type=cls.record_type)
                     
@@ -1428,33 +1474,56 @@ class Marc(object):
                             for code in fallback.keys():
                                 field.set(code, xrefs[0], place='+')
                     elif len(xrefs) > 1:
-                        raise AmbiguousAuthValue('bib', field.tag, '*', str(fallback))
+                        raise AmbiguousAuthValue('bib', field.tag, '*', str(fallback))       
+            
+                # remove subfield $0
+                field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.fields.append(field)
 
         return self
     
     @classmethod
-    def from_xml_raw(cls, root, *, auth_control=False):
+    def from_xml_raw(cls, root, *, auth_control=True):
+        if DB.database_name == 'testing':
+            Auth({'_id': 1}).set('150', 'a', 'Header').commit()
+
         assert isinstance(root, ElementTree.Element)
         self = cls()
             
-        for c in filter(lambda x: re.search('controlfield$', x.tag), root):
-            self.set(c.attrib['tag'], None, c.text)
+        for node in filter(lambda x: re.search('controlfield$', x.tag), root):
+            self.set(node.attrib['tag'], None, node.text)
 
-        for d in filter(lambda x: re.search('datafield$', x.tag), root):
-            field = Datafield(record_type=cls.record_type, tag=d.attrib['tag'], ind1=d.attrib['ind1'], ind2=d.attrib['ind2'])
+        for field_node in filter(lambda x: re.search('datafield$', x.tag), root):
+            field = Datafield(record_type=cls.record_type, tag=field_node.attrib['tag'], ind1=field_node.attrib['ind1'], ind2=field_node.attrib['ind2'])
+            tag_nodes = filter(lambda x: re.search('subfield$', x.tag), field_node)
+
+            # capture the xref if any
+            xref = None
+
+            for subfield_node in copy.deepcopy(tag_nodes): # use a copy to prevent the iterating orginal
+                if subfield_node.attrib['code'] == '0':
+                    xref = int(subfield_node.text)
+
+            # iterate though nodes and set the marc values
+            for subfield_node in tag_nodes:
+                if Config.is_authority_controlled(self.record_type, field.tag, subfield_node.attrib['code']):
+                    value = xref if xref else subfield_node.text
+                else:
+                    value = str(subfield_node.text)
+
+                # .set handles auth control
+                field.set(subfield_node.attrib['code'], value, auth_control=auth_control, place='+')
             
-            for s in filter(lambda x: re.search('subfield$', x.tag), d):
-                field.set(s.attrib['code'], s.text, auth_control=auth_control, place='+')
+            field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
                 
             self.fields.append(field)
             
         return self
         
     @classmethod
-    def from_xml(cls, string):
-        return cls.from_xml_raw(ElementTree.fromstring(string))
+    def from_xml(cls, string, auth_control=True):
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
 
     @classmethod
     def from_json(cls, string, auth_control=False):
@@ -2079,7 +2148,11 @@ class Datafield(Field):
 
         if new_val:
             # existing subfield
-            # walk to the tree to replace the subfield object
+            if auth_control == False:
+                # force string because only xrefs can be ints
+                new_val = str(new_val)
+
+            # walk the tree to replace the subfield object
             i, j = 0, 0
             
             for i, sub in enumerate(self.subfields):
