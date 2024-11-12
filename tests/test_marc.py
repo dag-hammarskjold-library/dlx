@@ -83,46 +83,46 @@ def test_commit(db, bibs, auths):
     from bson import ObjectId
     from jsonschema.exceptions import ValidationError
 
-    for bib in [Bib(x) for x in bibs]:
-        assert bib.commit() == bib
+    for linked_bib in [Bib(x) for x in bibs]:
+        assert linked_bib.commit() == linked_bib
         
     for auth in [Auth(x) for x in auths]:
         assert auth.commit() == auth
         
-    bib = Bib()
-    assert bib.commit() == bib
-    assert isinstance(bib.updated, datetime)
-    assert bib.user == 'admin'
-    assert bib.history()[0].to_dict() == bib.to_dict()
-    assert bib.history()[0].user == 'admin'
+    linked_bib = Bib()
+    assert linked_bib.commit() == linked_bib
+    assert isinstance(linked_bib.updated, datetime)
+    assert linked_bib.user == 'admin'
+    assert linked_bib.history()[0].to_dict() == linked_bib.to_dict()
+    assert linked_bib.history()[0].user == 'admin'
     # there are two bibs before this in the db from conftest
     assert Bib.max_id() == 3
 
     # new audit attributes
-    assert bib.created == bib.updated
-    assert bib.created_user == 'admin'
-    bib.commit(user='different user')
-    assert bib.created != bib.updated
-    bib.created = 'string'
-    bib.commit()
-    assert isinstance(bib.created, datetime) # can't change created
-    assert bib.created_user == 'admin'
+    assert linked_bib.created == linked_bib.updated
+    assert linked_bib.created_user == 'admin'
+    linked_bib.commit(user='different user')
+    assert linked_bib.created != linked_bib.updated
+    linked_bib.created = 'string'
+    linked_bib.commit()
+    assert isinstance(linked_bib.created, datetime) # can't change created
+    assert linked_bib.created_user == 'admin'
 
     # new text attributes
-    bib.set('245', 'a', 'TESTING TESTING 1234')
-    bib.commit()
-    assert bib.text == 'testing testing 1234'
-    assert bib.words == ['test', 'test', '1234']
+    linked_bib.set('245', 'a', 'TESTING TESTING 1234')
+    linked_bib.commit()
+    assert linked_bib.text == 'testing testing 1234'
+    assert linked_bib.words == ['test', 'test', '1234']
 
     # id incrementer
     Bib().commit()
-    bib = Bib().commit()
-    assert bib.id == Bib.max_id() == 5
+    linked_bib = Bib().commit()
+    assert linked_bib.id == Bib.max_id() == 5
     
     # don't reuse id
-    bib.delete()
-    bib = Bib().commit()
-    assert bib.id == 6
+    linked_bib.delete()
+    linked_bib = Bib().commit()
+    assert linked_bib.id == 6
     
     # max id resets
     DB.bibs.drop()
@@ -133,26 +133,36 @@ def test_commit(db, bibs, auths):
     
     # json schema validation
     with pytest.raises(ValidationError):
-        bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': ' ', 'value': 'Subfield code is a space'}]}]})
-        bib.commit()
+        linked_bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': ' ', 'value': 'Subfield code is a space'}]}]})
+        linked_bib.commit()
 
     # update attached records
-    auth = Auth()
+    auth = Auth().set('150', 'a', 'to be updated').commit()
     bibs = [Bib().set('650', 'a', auth.id).commit() for i in range(10)]
-    auths = [Auth().set('550', 'a', auth.id).commit() for i in range(10)]
+    auths = [Auth().set('150', 'a', 'related').set('550', 'a', auth.id).commit() for i in range(10)]
     auth.set('150', 'a', 'updated')
     auth.commit(user='test auth update')
+
+    assert len(auth.list_attached()) == 20
     
-    for bib in auth.list_attached():
-        assert bib.get_value('650', 'a') == 'updated'
-        assert bib.user == 'test auth update'
+    for linked_bib in auth.list_attached(usage_type='bib'):
+        assert linked_bib.get_value('650', 'a') == 'updated'
+        assert linked_bib.user == 'test auth update'
 
         # log
-        assert DB.handle['auth_linked_update_log'].find_one({'record_type': 'bib', 'record_id': bib.id})['triggered_by'] == auth.id
+        assert DB.handle['auth_linked_update_log'].find_one({'record_type': 'bib', 'record_id': linked_bib.id})['triggered_by'] == auth.id
 
-    for auth in auth.list_attached():
-        assert auth.get_value('550', 'a') == 'updated'
-        assert auth.user == 'test auth update'
+    for linked_auth in auth.list_attached(usage_type='auth'):
+        assert linked_auth.get_value('550', 'a') == 'updated'
+        assert linked_auth.user == 'test auth update'
+
+    # tag change
+    auth.heading_field.tag = '100'
+    auth.commit()
+
+    for linked_bib in auth.list_attached(usage_type='bib'):
+        assert linked_bib.get_field('600')
+        assert linked_bib.get_field('650') is None
 
 def test_delete(db):
     from dlx import DB

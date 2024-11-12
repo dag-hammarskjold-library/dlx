@@ -854,6 +854,7 @@ class Marc(object):
                 return ' '.join(all_text)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         # all-text
         self.text = index_field_text(threaded=False)
@@ -937,6 +938,7 @@ class Marc(object):
                     DB.handle[f'_index_{logical_field}'].bulk_write(updates)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         # assign logical fields here
         for field, vals in self.logical_fields().items(): 
@@ -987,6 +989,7 @@ class Marc(object):
                 history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         if DB.database_name == 'testing':
             save_history()
@@ -1001,6 +1004,7 @@ class Marc(object):
         if not result.acknowledged:
             raise Exception('Commit failed')
         
+        # manage caches
         if isinstance(self, Auth):
             # clear these caches
             for cache in ('_xcache', '_pcache', '_langcache'):
@@ -1016,33 +1020,44 @@ class Marc(object):
         # auth attached records update
         def update_attached_records(auth):
             try:
-                    if auth.record_type != 'auth': raise Exception('Record type must be auth')
+                if auth.record_type != 'auth': raise Exception('Record type must be auth')
 
-                    for record in auth.list_attached():
-                        def do_update():
-                            try:
-                                if isinstance(record, Auth):
-                                    # prevent feedback loops
-                                    if auth.id in [x.id for x in record.list_attached(usage_type='auth')]:
-                                        record.commit(user=auth.user, auth_check=False, update_attached=False)
-                                        return
+                for record in auth.list_attached():
+                    def do_update():
+                        try:
+                            if isinstance(record, Auth):
+                                # prevent feedback loops
+                                if auth.id in [x.id for x in record.list_attached(usage_type='auth')]:
+                                    record.commit(user=auth.user, auth_check=False, update_attached=False)
+                                    return
 
-                                record.commit(user=auth.user, auth_check=False)
-                            except Exception as err:
-                                LOGGER.exception(err)
+                            # if the heading field tag changed, change the tag in linked record
+                            if old_tag := Auth(previous_state).heading_field.tag:
+                                if old_tag != self.heading_field.tag:
+                                    for field in record.datafields:
+                                        for subfield in filter(lambda x: hasattr(x, 'xref'), field.subfields):
+                                            if subfield.xref == self.id:
+                                                new_tag = field.tag[0] + self.heading_field.tag[1:]
+                                                field.tag = new_tag
 
-                            # for debugging
-                            DB.handle['auth_linked_update_log'].insert_one({'record_type': record.record_type, 'record_id': record.id, 'action': 'updated', 'triggered_by': auth.id, 'time': datetime.now()})
+                            record.commit(user=auth.user, auth_check=False)
+                        except Exception as err:
+                            LOGGER.exception(err)
+                            raise err
 
-                        if 1: #DB.database_name == 'testing':
-                            do_update()
-                        else:
-                            # subthreading here doesn't work ?
-                            subthread = threading.Thread(target=do_update, args=[])
-                            subthread.setDaemon(False) # stop the thread after complete
-                            subthread.start()
+                        # for debugging
+                        DB.handle['auth_linked_update_log'].insert_one({'record_type': record.record_type, 'record_id': record.id, 'action': 'updated', 'triggered_by': auth.id, 'time': datetime.now()})
+
+                    if 1: #DB.database_name == 'testing':
+                        do_update()
+                    else:
+                        # subthreading here doesn't work ?
+                        subthread = threading.Thread(target=do_update, args=[])
+                        subthread.setDaemon(False) # stop the thread after complete
+                        subthread.start()
             except Exception as err:
                     LOGGER.exception(err)
+                    raise err
 
         if isinstance(self, Auth) and update_attached == True:
             if previous_state:
@@ -1053,7 +1068,7 @@ class Marc(object):
                     heading_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, self.heading_field.subfields))]
                     prev_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, previous.heading_field.subfields))]
 
-                    if heading_serialized != prev_serialized:
+                    if heading_serialized != prev_serialized or self.heading_field.tag != previous.heading_field.tag:
                         # the heading has changed
                         if DB.database_name == 'testing': 
                             update_attached_records(self)
@@ -1093,6 +1108,7 @@ class Marc(object):
                         DB.handle[f'_index_{field}'].bulk_write(updates)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         if DB.database_name == 'testing': 
             update_browse_collections()
@@ -1765,9 +1781,6 @@ class Auth(Marc):
         -------
         dlx.marc.Datafield
         """
-        
-        if self._heading_field:
-            return self._heading_field
             
         self._heading_field = next(filter(lambda field: field.tag[0:1] == '1', self.fields), None)
         
@@ -1842,7 +1855,7 @@ class Auth(Marc):
     def list_attached(self, usage_type=None):
         """List the records attached to this auth record"""
 
-        def list_records(lookup_class, xref):
+        def list_records(lookup_class, xref: int) -> list[Marc]:
             tags = list(Config.bib_authority_controlled.keys()) if lookup_class == BibSet else list(Config.auth_authority_controlled.keys())
             return [record for tag in tags for record in lookup_class.from_query({f'{tag}.subfields.xref': xref})]
 
@@ -1906,6 +1919,7 @@ class Auth(Marc):
                             record.commit(user=user, auth_check=False)
                         except Exception as err:
                             LOGGER.exception(err)
+                            raise err
 
                         # for debugging
                         DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now()})
