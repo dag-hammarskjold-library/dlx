@@ -290,6 +290,9 @@ def test_querystring(db):
     auth = Auth.from_query(query)
     assert auth
     assert auth.id == id
+    query = Query.from_string('110__b:/^part/', record_type='auth')
+    auth = Auth.from_query(query)
+    assert auth.id == id
     
     # regex authority controlled
     query = Query.from_string('650__a:/[Hh]eader/')
