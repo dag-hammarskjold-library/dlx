@@ -854,6 +854,7 @@ class Marc(object):
                 return ' '.join(all_text)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         # all-text
         self.text = index_field_text(threaded=False)
@@ -937,6 +938,7 @@ class Marc(object):
                     DB.handle[f'_index_{logical_field}'].bulk_write(updates)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         # assign logical fields here
         for field, vals in self.logical_fields().items(): 
@@ -987,6 +989,7 @@ class Marc(object):
                 history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         if DB.database_name == 'testing':
             save_history()
@@ -1040,6 +1043,7 @@ class Marc(object):
                             record.commit(user=auth.user, auth_check=False)
                         except Exception as err:
                             LOGGER.exception(err)
+                            raise err
 
                         # for debugging
                         DB.handle['auth_linked_update_log'].insert_one({'record_type': record.record_type, 'record_id': record.id, 'action': 'updated', 'triggered_by': auth.id, 'time': datetime.now()})
@@ -1053,6 +1057,7 @@ class Marc(object):
                         subthread.start()
             except Exception as err:
                     LOGGER.exception(err)
+                    raise err
 
         if isinstance(self, Auth) and update_attached == True:
             if previous_state:
@@ -1103,6 +1108,7 @@ class Marc(object):
                         DB.handle[f'_index_{field}'].bulk_write(updates)
             except Exception as err:
                 LOGGER.exception(err)
+                raise err
 
         if DB.database_name == 'testing': 
             update_browse_collections()
@@ -1913,6 +1919,7 @@ class Auth(Marc):
                             record.commit(user=user, auth_check=False)
                         except Exception as err:
                             LOGGER.exception(err)
+                            raise err
 
                         # for debugging
                         DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now()})
