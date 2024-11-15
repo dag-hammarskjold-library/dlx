@@ -2,7 +2,7 @@
 
 import time, re, json, threading, copy
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from warnings import warn
 from xml.etree import ElementTree
 import jsonschema
@@ -726,7 +726,7 @@ class Marc(object):
         date_tag, date_code = Config.date_field
         pub_date = self.get_value(date_tag, date_code)
         pub_year = pub_date[0:4].ljust(4, '|')
-        cat_date = datetime.utcnow().strftime('%y%m%d')
+        cat_date = datetime.now(timezone.utc).strftime('%y%m%d')
 
         self.set('008', None, cat_date + text[6] + pub_year + text[11:])
 
@@ -770,7 +770,7 @@ class Marc(object):
         self.id = type(self)._increment_ids() if new_record else self.id
         self.validate()
         data = self.to_bson()
-        self.updated = data['updated'] = datetime.utcnow()
+        self.updated = data['updated'] = datetime.now(timezone.utc)
         self.user = data['user'] = user
         previous_state = (DB.bibs if self.record_type == 'bib' else DB.auths).find_one({'_id': self.id})
         
@@ -977,7 +977,7 @@ class Marc(object):
                     record_history['_id'] = self.id
 
                     if new_record:
-                        record_history['created'] = SON({'user': user, 'time': datetime.utcnow()})
+                        record_history['created'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
 
                     # capture previous state if record originated in another db
                     if previous_state:
@@ -1124,7 +1124,7 @@ class Marc(object):
             record_history = SON()
             record_history['history'] = [self.to_bson()]
 
-        record_history['deleted'] = SON({'user': user, 'time': datetime.utcnow()})
+        record_history['deleted'] = SON({'user': user, 'time': datetime.now(timezone.utc())}
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
 
         return type(self).handle().delete_one({'_id': self.id})
