@@ -889,10 +889,10 @@ class Marc(object):
                         for value in old_values:
                             if value in new_values: continue    
 
-                            found_bibs = list(DB.bibs.find({logical_field: value}, limit=2))
+                            found_bibs = list(DB.bibs.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
                             bibcount = len(found_bibs)
                             if bibcount > 1: continue
-                            found_auths = list(DB.auths.find({logical_field: value}, limit=2))
+                            found_auths = list(DB.auths.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
                             authcount = len(found_auths)
                             if authcount > 1: continue
 
@@ -1097,8 +1097,8 @@ class Marc(object):
                     updates = []
 
                     for val in values:
-                        bibcount = len(list(DB.bibs.find({field: val}, limit=2)))
-                        authcount = len(list(DB.auths.find({field: val}, limit=2)))
+                        bibcount = len(list(DB.bibs.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
+                        authcount = len(list(DB.auths.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
 
                         if bibcount + authcount in [0, 1]:
                             # this record is the only instance of the value
