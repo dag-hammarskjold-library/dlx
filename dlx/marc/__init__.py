@@ -1445,7 +1445,7 @@ class Marc(object):
             directory = directory[12:]
 
     @classmethod
-    def from_mrk(cls, string: str, auth_control=True):
+    def from_mrk(cls, string: str, auth_control=True, delete_subfield_zero=True):
         self = cls()
 
         for line in filter(None, string.split('\n')):
@@ -1458,7 +1458,6 @@ class Marc(object):
             else:
                 ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
                 field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
-                fallback = {}
                 ambiguous = []
                 
                 # capture the xref from subfield $0, if exists
@@ -1472,35 +1471,30 @@ class Marc(object):
                     code, value = chunk[0], chunk[1:]
 
                     if Config.is_authority_controlled(self.record_type, tag, code):
-                        value = xref
+                        value = xref if xref else value
 
                     try:
                         field.set(code, value, place='+', auth_control=auth_control)
                     except(AmbiguousAuthValue):
-                        fallback[code] = value
                         ambiguous.append(Literal(code, value))
-
-                # attempt to use multiple subfields to resolve ambiguity. may 
-                # be deprecated in the future
-                if fallback and len(fallback) > 1:
-                    xrefs = Auth.xlookup_multi(tag, ambiguous, record_type=cls.record_type)
-                    
-                    if xrefs:
-                        if len(xrefs) == 1:
-                            for code in fallback.keys():
-                                field.set(code, xrefs[0], place='+')
-                    elif len(xrefs) > 1:
-                        raise AmbiguousAuthValue('bib', field.tag, '*', str(fallback))       
+                
+                # attempt to use multiple subfields to resolve ambiguity
+                if ambiguous:
+                    if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
+                        field.set(code, xref, place='+', auth_control=auth_control)
+                    else:
+                        raise AmbiguousAuthValue('bib', field.tag, '*', str([x.to_str() for x in ambiguous]))
             
                 # remove subfield $0
-                field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
+                if delete_subfield_zero:
+                    field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.fields.append(field)
 
         return self
     
     @classmethod
-    def from_xml_raw(cls, root, *, auth_control=True):
+    def from_xml_raw(cls, root: ElementTree.Element, *, auth_control=True, delete_subfield_zero=True):
         if DB.database_name == 'testing':
             Auth({'_id': 1}).set('150', 'a', 'Header').commit()
 
@@ -1511,7 +1505,8 @@ class Marc(object):
             self.set(node.attrib['tag'], None, node.text)
 
         for field_node in filter(lambda x: re.search('datafield$', x.tag), root):
-            field = Datafield(record_type=cls.record_type, tag=field_node.attrib['tag'], ind1=field_node.attrib['ind1'], ind2=field_node.attrib['ind2'])
+            tag = field_node.attrib['tag']
+            field = Datafield(record_type=cls.record_type, tag=tag, ind1=field_node.attrib['ind1'], ind2=field_node.attrib['ind2'])
             tag_nodes = filter(lambda x: re.search('subfield$', x.tag), field_node)
 
             # capture the xref if any
@@ -1519,19 +1514,34 @@ class Marc(object):
 
             for subfield_node in copy.deepcopy(tag_nodes): # use a copy to prevent the iterating orginal
                 if subfield_node.attrib['code'] == '0':
-                    xref = int(subfield_node.text)
+                    xref = int(''.join([x for x in subfield_node.text if ord(x) >= 48 and ord(x) <= 57]))
 
             # iterate though nodes and set the marc values
+            ambiguous = []
+
             for subfield_node in tag_nodes:
-                if Config.is_authority_controlled(self.record_type, field.tag, subfield_node.attrib['code']):
+                code = subfield_node.attrib['code']
+
+                if auth_control and Config.is_authority_controlled(self.record_type, field.tag, subfield_node.attrib['code']):
                     value = xref if xref else subfield_node.text
                 else:
                     value = str(subfield_node.text)
 
-                # .set handles auth control
-                field.set(subfield_node.attrib['code'], value, auth_control=auth_control, place='+')
+                # .set handles auth control. 
+                try:
+                    field.set(code, value, auth_control=auth_control, place='+')
+                except(AmbiguousAuthValue):
+                    ambiguous.append(Literal(code, value))
+
+                # attempt to use multiple subfields to resolve ambiguity
+                if ambiguous:
+                    if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
+                        field.set(code, xref, auth_control=auth_control, place='+')
+                    else:
+                        raise AmbiguousAuthValue('bib', tag, '*', str([x.to_str() for x in ambiguous]))
             
-            field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
+            if delete_subfield_zero:
+                field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
                 
             self.fields.append(field)
             
@@ -1690,7 +1700,7 @@ class Auth(Marc):
         return xrefs
 
     @classmethod
-    def resolve_ambiguous(cls, *, tag: str, subfields: list, record_type: str) -> int:
+    def resolve_ambiguous(cls, *, tag: str, subfields: list['Subfield'], record_type: str) -> int:
         '''Determines if there is an exact authority match for specific subfields'''
 
         subfields_str = str([(x.code, x.value) for x in subfields])
@@ -1710,7 +1720,7 @@ class Auth(Marc):
                     auth_subfields = cls.from_id(xref).heading_field.subfields
                     auth_subfields = [(x.code, x.value) for x in auth_subfields]
 
-                    if [(x.code, x.value) for x in subfields] ==  auth_subfields:
+                    if [(x.code, x.value) for x in subfields] == auth_subfields:
                         exact_matches.append(xref)
 
                     if exact_matches:
