@@ -962,4 +962,22 @@ def test_resolve_ambiguous(db):
 
     assert xref == auth.id
 
+def test_history(db):
+    from datetime import datetime
+    from dlx.marc import Bib, Auth, BibHistory, AuthHistory, Query
 
+    bib = Bib().set('245', 'a', 'new record').commit()
+    query = Query.from_string("245__a:'new record'")
+    assert next(BibHistory.from_query(query), None).id == bib.id
+
+    bib.delete()
+    hist = next(BibHistory.find_deleted(query), None)
+    assert hist == bib.id
+
+    assert next(
+        BibHistory.deleted_by_date(
+            datetime.fromisoformat('1999-12-31'), 
+            datetime.fromisoformat('2999-12-31') # set in the future because the delete is too fast here
+        ), 
+        None
+    ) == bib.id
