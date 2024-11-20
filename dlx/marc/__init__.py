@@ -1,13 +1,13 @@
 """dlx.marc"""
 
-import time, re, json, threading, copy
+import time, re, json, threading, copy, typing
 from collections import Counter
 from datetime import datetime, timezone
 from warnings import warn
 from xml.etree import ElementTree
 import jsonschema
 from bson import SON, Regex
-from pymongo import ReturnDocument, UpdateOne, DeleteOne
+from pymongo import ReturnDocument, UpdateOne, DeleteOne, CursorType
 from pymongo.collation import Collation
 from dlx.config import Config
 from dlx.db import DB
@@ -273,9 +273,7 @@ class MarcSet():
 
     @property
     def count(self):
-        import types
-        
-        if isinstance(self.records, (map, types.GeneratorType)):
+        if isinstance(self.records, (map, typing.Generator)):
             args, kwargs = self.query_params
 
             if isinstance(args[0], list):
@@ -1124,7 +1122,7 @@ class Marc(object):
             record_history = SON()
             record_history['history'] = [self.to_bson()]
 
-        record_history['deleted'] = SON({'user': user, 'time': datetime.now(timezone.utc())}
+        record_history['deleted'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
 
         return type(self).handle().delete_one({'_id': self.id})
@@ -2005,6 +2003,56 @@ class Diff():
         # boolean record equality check
         self.different = True if self.a or self.b or self.d or self.e else False
         self.same = not self.different
+
+class History():
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_query(cls, query: Query, **kwargs) -> typing.Generator[None, CursorType, Marc]:
+        '''Yields history reords that mtch the query as Marc objects'''
+
+        self = cls()
+        handle = DB.handle[self.record_type + '_history']
+
+
+        for doc in handle.find({'history': {'$elemMatch': query.compile()}}, **kwargs):
+            for version in doc['history']:
+                yield self.record_class(version)
+
+    @classmethod
+    def find_deleted(cls, query: Query, **kwargs) -> typing.Generator[None, CursorType, int]:
+        '''Yields the ids of deleted records matching the query'''
+
+        self = cls()
+        handle = DB.handle[self.record_type + '_history']
+
+        for doc in handle.find({'history': {'$elemMatch': query.compile()}}, **kwargs):
+            if doc.get('deleted'):
+                yield doc['_id']
+
+    @classmethod
+    def deleted_by_date(cls, date_from: datetime, date_to: datetime = datetime.now(timezone.utc)) -> typing.Generator[None, CursorType, Marc]:
+        '''Yields the ids of records delete between the given dates'''
+
+        self = cls()
+        handle = DB.handle[self.record_type + '_history']
+
+        for doc in handle.find({'deleted.time': {'$gte': date_from, '$lt': date_to}}):
+            if d:= doc.get('deleted'):
+                yield doc['_id']
+
+class BibHistory(History):
+    def __init__(self):
+        self.record_class = Bib
+        self.record_type = 'bib'
+        super().__init__()
+
+class AuthHistory(History):
+    def __init(self):
+        self.record_class = Auth
+        self.record_type = 'auth'
+        super().__init__()
 
 ### Field classes
 
