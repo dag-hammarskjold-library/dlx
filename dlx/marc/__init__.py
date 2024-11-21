@@ -149,7 +149,7 @@ class MarcSet():
         )
 
     @classmethod
-    def from_table(cls, table, auth_control=True, auth_flag=False, field_check=None):
+    def from_table(cls, table, auth_control=True, auth_flag=False, field_check=None, delete_subfield_zero=True):
         # does not support repeated subfield codes
         self = cls()
         self.records = []
@@ -202,21 +202,29 @@ class MarcSet():
                         continue
 
                 # update the marc object
-                if record.get_field(tag, place=instance):
-                    try:
-                        record.set(tag, code, xref if xref else value, address=[instance], auth_control=auth_control)
-                    except Exception as e:
-                        exceptions.append(str(e))
-                else:
-                    try:
-                        record.set(tag, code, xref if xref else value, address=['+'], auth_control=auth_control)
-                    except Exception as e:
-                        exceptions.append(str(e))
+                field = record.get_field(tag, place=instance)
+                address = [instance] if field else ['+']
+                ambiguous = []
+
+                try:
+                    record.set(tag, code, xref if xref else value, address=address, auth_control=auth_control)
+                except AmbiguousAuthValue as e:
+                    ambiguous.push(Literal(code, value))     
+                except Exception as e:
+                    exceptions.append(str(e))
+                
+                # attempt to use multiple subfields to resolve ambiguity
+                if ambiguous:
+                    if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
+                        field.set(code, xref, place='+', auth_control=auth_control)
+                    else:
+                        exceptions.append(str(AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.to_str() for x in ambiguous]))))
 
                 # if this is the last cell in the row, delete any subfield $0
                 if header_fields.index(field_name) == len(header_fields) - 1:
-                    field = record.get_field(tag, instance)
-                    field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
+                    if delete_subfield_zero:
+                        field = record.get_field(tag, instance)
+                        field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.records.append(record)
 
@@ -1481,7 +1489,7 @@ class Marc(object):
                     if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
                         field.set(code, xref, place='+', auth_control=auth_control)
                     else:
-                        raise AmbiguousAuthValue('bib', field.tag, '*', str([x.to_str() for x in ambiguous]))
+                        raise AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.to_str() for x in ambiguous]))
             
                 # remove subfield $0
                 if delete_subfield_zero:
@@ -1536,7 +1544,7 @@ class Marc(object):
                     if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
                         field.set(code, xref, auth_control=auth_control, place='+')
                     else:
-                        raise AmbiguousAuthValue('bib', tag, '*', str([x.to_str() for x in ambiguous]))
+                        raise AmbiguousAuthValue(self.record_type, tag, '*', str([x.to_str() for x in ambiguous]))
             
             if delete_subfield_zero:
                 field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
