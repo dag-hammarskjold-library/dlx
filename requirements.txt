@@ -5,7 +5,7 @@ mongomock==4.3.0
 moto==5.0.21
 nltk==3.9.1
 pymongo==4.10.1
-pytest==8.3.3
+pytest==8.3.4
 requests>=2.32.2
 responses==0.25.3
 xlrd==2.0.1
