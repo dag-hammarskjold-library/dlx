@@ -1904,8 +1904,8 @@ class Auth(Marc):
             raise Exception("Losing record must be of type Auth")
 
         # for debugging
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'losing', 'time': datetime.now(timezone.utc)})
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'gaining', 'time': datetime.now(timezone.utc)})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'losing', 'time': datetime.now(timezone.utc), 'user': user})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'gaining', 'time': datetime.now(timezone.utc), 'user': user})
 
         def update_records(record_type, gaining, losing):
             authmap = getattr(Config, f'{record_type}_authority_controlled')
@@ -1954,7 +1954,7 @@ class Auth(Marc):
                             raise err
 
                         # for debugging
-                        DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now(timezone.utc)})
+                        DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now(timezone.utc), 'user': user})
 
                     t = threading.Thread(target=do_commit, args=[])
                     t.setDaemon(False) # stop the thread after complete
@@ -1983,11 +1983,11 @@ class Auth(Marc):
         losing_record.delete(user)
 
         # add to history
-        DB.handle['auth_history'].update_one({'_id': losing_record.id}, {'$set': {'merged': {'into': self.id, 'time': datetime.now(timezone.utc)}}})
+        DB.handle['auth_history'].update_one({'_id': losing_record.id}, {'$set': {'merged': {'into': self.id, 'time': datetime.now(timezone.utc), user: user}}})
 
         # for debugging
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'deleted', 'time': datetime.now(timezone.utc)})
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'merge complete', 'time': datetime.now(timezone.utc)})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'deleted', 'time': datetime.now(timezone.utc), 'user': user})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'merge complete', 'time': datetime.now(timezone.utc), 'user': user})
 
 class Diff():
     """Compare two Marc objects.
