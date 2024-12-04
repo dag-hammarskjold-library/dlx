@@ -869,7 +869,7 @@ class Marc(object):
         #count = Counter(data['words'])
         #self.word_count = [{'stem': k, 'count': v} for k, v in count.items()]
 
-        if DB.database_name == 'testing':
+        if DB.database_name == 'testing' or Config.threading == False:
             index_field_text()
         else:
             thread1 = threading.Thread(target=index_field_text, args=[])
@@ -965,7 +965,7 @@ class Marc(object):
             if field not in self.logical_fields():
                 self.data.pop(field, None)
 
-        if DB.database_name == 'testing':
+        if DB.database_name == 'testing' or Config.threading == False:
             index_logical_fields()
         else:
             thread2 = threading.Thread(target=index_logical_fields, args=[])
@@ -1007,7 +1007,7 @@ class Marc(object):
                 LOGGER.exception(err)
                 raise err
 
-        if DB.database_name == 'testing':
+        if DB.database_name == 'testing' or Config.threading == False:
             save_history()
         else:
             thread3 = threading.Thread(target=save_history, args=[])
@@ -1086,7 +1086,7 @@ class Marc(object):
 
                     if heading_serialized != prev_serialized or self.heading_field.tag != previous.heading_field.tag:
                         # the heading has changed
-                        if DB.database_name == 'testing': 
+                        if DB.database_name == 'testing' or Config.threading == False: 
                             update_attached_records(self)
                         else:
                             thread4 = threading.Thread(target=update_attached_records, args=[self])
@@ -1131,7 +1131,7 @@ class Marc(object):
                 LOGGER.exception(err)
                 raise err
 
-        if DB.database_name == 'testing': 
+        if DB.database_name == 'testing' or Config.threading == False: 
             update_browse_collections()
         else:
             thread = threading.Thread(target=update_browse_collections, args=[])
@@ -1516,7 +1516,7 @@ class Marc(object):
     
     @classmethod
     def from_xml_raw(cls, root: ElementTree.Element, *, auth_control=True, delete_subfield_zero=True):
-        if DB.database_name == 'testing':
+        if DB.database_name == 'testing' or Config.threading == False:
             Auth({'_id': 1}).set('150', 'a', 'Header').commit()
 
         assert isinstance(root, ElementTree.Element)
