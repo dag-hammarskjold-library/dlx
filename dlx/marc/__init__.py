@@ -893,14 +893,24 @@ class Marc(object):
                         updates = []
 
                         for value in old_values:
-                            if value in new_values: continue    
+                            if value in new_values: continue
 
-                            found_bibs = list(DB.bibs.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
-                            bibcount = len(found_bibs)
-                            if bibcount > 1: continue
-                            found_auths = list(DB.auths.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
-                            authcount = len(found_auths)
-                            if authcount > 1: continue
+                            bibcount, authcount = 0, 0 
+                            
+                            if logical_field in Config.bib_logical_fields:
+                                found_bibs = list(DB.bibs.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
+                                bibcount = len(found_bibs)
+                                
+                                if bibcount > 1: 
+                                    continue
+
+                            if logical_field in Config.bib_logical_fields:
+                            
+                                found_auths = list(DB.auths.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
+                                authcount = len(found_auths)
+                                
+                                if authcount > 1:
+                                    continue
 
                             if bibcount + authcount == 0:
                                 # no records exist with this value
@@ -1052,7 +1062,7 @@ class Marc(object):
                             raise err
 
                         # for debugging
-                        DB.handle['auth_linked_update_log'].insert_one({'record_type': record.record_type, 'record_id': record.id, 'action': 'updated', 'triggered_by': auth.id, 'time': datetime.now()})
+                        DB.handle['auth_linked_update_log'].insert_one({'record_type': record.record_type, 'record_id': record.id, 'action': 'updated', 'triggered_by': auth.id, 'time': datetime.now(timezone.utc)})
 
                     if 1: #DB.database_name == 'testing':
                         do_update()
@@ -1103,10 +1113,15 @@ class Marc(object):
                     updates = []
 
                     for val in values:
-                        bibcount = len(list(DB.bibs.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
-                        authcount = len(list(DB.auths.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
+                        count = 0
 
-                        if bibcount + authcount in [0, 1]:
+                        if field in Config.bib_logical_fields:
+                            count += len(list(DB.bibs.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
+                        
+                        if field in Config.auth_logical_fields:
+                            count += len(list(DB.auths.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
+
+                        if count in [0, 1]:
                             # this record is the only instance of the value
                             updates.append(DeleteOne({'_id': val}))
 
@@ -1889,8 +1904,8 @@ class Auth(Marc):
             raise Exception("Losing record must be of type Auth")
 
         # for debugging
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'losing', 'time': datetime.now()})
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'gaining', 'time': datetime.now()})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'losing', 'time': datetime.now(timezone.utc)})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'gaining', 'time': datetime.now(timezone.utc)})
 
         def update_records(record_type, gaining, losing):
             authmap = getattr(Config, f'{record_type}_authority_controlled')
@@ -1899,9 +1914,10 @@ class Auth(Marc):
             conditions = []
                  
             for ref_tag, d in authmap.items():
-                for subfield_code, auth_tag in d.items():
-                    if auth_tag == losing.heading_field.tag:
-                        conditions.append(Raw({f'{ref_tag}.subfields.xref': losing.id}, record_type=record_type))
+                #for subfield_code, auth_tag in d.items():
+                #    if auth_tag == losing.heading_field.tag:
+                
+                conditions.append(Raw({f'{ref_tag}.subfields.xref': losing.id}, record_type=record_type))
 
             if len(conditions) == 0:
                 return 0
@@ -1938,7 +1954,7 @@ class Auth(Marc):
                             raise err
 
                         # for debugging
-                        DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now()})
+                        DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now(timezone.utc)})
 
                     t = threading.Thread(target=do_commit, args=[])
                     t.setDaemon(False) # stop the thread after complete
@@ -1951,11 +1967,11 @@ class Auth(Marc):
         changed = 0
         
         for record_type in ('bib', 'auth'):
-            changed += update_records(record_type, self, losing_record)    
+            changed += update_records(record_type, self, losing_record)
         
         i = 0
 
-        while losing_record.in_use(usage_type='bib') or losing_record.in_use(usage_type='auth'):
+        while changed > 0 and losing_record.in_use(usage_type='bib') or losing_record.in_use(usage_type='auth'):
             # wait for all the links to be updated, otherwise the delete fails
             i += 1
 
@@ -1967,11 +1983,11 @@ class Auth(Marc):
         losing_record.delete(user)
 
         # add to history
-        DB.handle['auth_history'].update_one({'_id': losing_record.id}, {'$set': {'merged': {'into': self.id, 'time': datetime.now()}}})
+        DB.handle['auth_history'].update_one({'_id': losing_record.id}, {'$set': {'merged': {'into': self.id, 'time': datetime.now(timezone.utc)}}})
 
         # for debugging
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'deleted', 'time': datetime.now()})
-        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'merge complete', 'time': datetime.now()})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': losing_record.id, 'action': 'deleted', 'time': datetime.now(timezone.utc)})
+        DB.handle['merge_log'].insert_one({'record_type': 'auth', 'record_id': self.id, 'action': 'merge complete', 'time': datetime.now(timezone.utc)})
 
 class Diff():
     """Compare two Marc objects.
