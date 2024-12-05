@@ -1,4 +1,4 @@
-version = '1.4.19'
+version = '1.4.20'
 
 import sys
 from setuptools import setup, find_packages
