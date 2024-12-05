@@ -183,39 +183,39 @@ def test_delete(db):
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth
     
-    bib = Bib.find_one({'_id': 1})
+    bib = Bib.from_query({'_id': 1})
     assert bib.id == 1
     assert isinstance(bib, Bib)
     
-    auth = Auth.find_one({'_id': 1})
+    auth = Auth.from_query({'_id': 1})
     assert auth.id == 1
     assert isinstance(auth, Auth)
         
 @pytest.mark.skip(reason='deprecated')
 def test_find(db):
-    from dlx.marc import Bib, Auth
+    from dlx.marc import Bib, BibSet, Auth, AuthSet
         
-    bibs = Bib.find({})
+    bibs = BibSet.from_query({})
     assert inspect.isgenerator(bibs)
     assert len(list(bibs)) == 2
     
-    for bib in Bib.find({}):
+    for bib in BibSet.from_query({}):
         assert isinstance(bib, Bib)
     
-    auths = Auth.find({})
+    auths = AuthSet.from_query({})
     assert inspect.isgenerator(auths)
     assert len(list(auths)) == 2
     
-    for auth in Auth.find({}):
+    for auth in AuthSet.from_query({}):
         assert isinstance(auth, Auth)
         
-    auths = Auth.find({'_id': 1})
+    auths = AuthSet.from_query({'_id': 1})
     assert len(list(auths)) == 1
         
-    auths = Auth.find({}, limit=1)
+    auths = AuthSet.from_query({}, limit=1)
     assert len(list(auths)) == 1
     
-    auths = Auth.find({}, limit=0, skip=1, projection={})
+    auths = AuthSet.from_query({}, limit=0, skip=1, projection={})
     assert len(list(auths)) == 1
         
 def test_from_id(db, bibs, auths):
@@ -224,13 +224,18 @@ def test_from_id(db, bibs, auths):
     assert Bib.from_id(2).id == 2
     
 def test_querydocument(db):
-    from dlx.marc import Bib, Auth
+    from dlx.marc import Bib, BibSet, Auth, AuthSet
     from dlx.marc.query import Query, Condition, Or, TagOnly
     from bson import SON
     from json import loads
     import re
+
+    class BibCondition(Condition):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.record_type = 'bib'
     
-    query = Query(Condition(tag='245', subfields={'a': 'This'}))
+    query = Query(Condition(tag='245', subfields={'a': 'This'}, record_type='bib'))
     assert isinstance(query.compile(), SON)
     
     qjson = query.to_json()
@@ -240,30 +245,30 @@ def test_querydocument(db):
     
     query = Query(
         Condition(tag='245', subfields={'a': re.compile(r'(This|Another)'), 'b': 'is the', 'c': 'title'}),
-        Condition(tag='650', modifier='exists'),
+        BibCondition(tag='650', modifier='exists'),
         Or(
-            Condition(tag='710', modifier='exists'),
+            BibCondition(tag='710', modifier='exists'),
             Condition(tag='520', modifier='not_exists')
         )
     )
-    assert len(list(Bib.find(query.compile()))) == 2
+    assert len(list(BibSet.from_query(query.compile()))) == 2
     
     query = Query(
         Condition(tag='110', subfields={'a': 'Another header'}, record_type='auth'),
     )
 
-    assert len(list(Auth.find(query.compile()))) == 1
-    assert Auth.find_one(query.compile()).id == 2
+    assert len(list(AuthSet.from_query(query.compile()))) == 1
+    assert Auth.from_query(query.compile()).id == 2
 
     query = Query(
-        TagOnly('245', 'This')
+        TagOnly('245', 'This', record_type='bib')
     )
-    assert len(list(Bib.find(query.compile()))) == 1
+    assert len(list(BibSet.from_query(query.compile()))) == 1
 
     query = Query(
-        TagOnly('245', 'This', modifier='not')
+        TagOnly('245', 'This', modifier='not', record_type='bib')
     )
-    assert len(list(Bib.find(query.compile()))) == 1
+    assert len(list(BibSet.from_query(query.compile()))) == 1
 
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
@@ -272,7 +277,7 @@ def test_from_query(db):
     assert bib.id == 2
 
 def test_querystring(db):
-    from datetime import datetime
+    from datetime import datetime, timezone
     from bson import Regex
     from dlx.marc import BibSet, Bib, Auth, Query
 
@@ -356,7 +361,7 @@ def test_querystring(db):
     query = Query.from_string('updated>1900-01-01')
     assert len(list(BibSet.from_query(query.compile()))) == 3
 
-    query = Query.from_string(f'updated:{(datetime.utcnow()).strftime("%Y-%m-%d")}')
+    query = Query.from_string(f'updated:{(datetime.now(timezone.utc)).strftime("%Y-%m-%d")}')
     assert len(list(BibSet.from_query(query.compile()))) == 3
     
     # xref
@@ -606,7 +611,7 @@ def test_set_008(bibs):
 def test_delete_field(bibs):
     from dlx.marc import Bib
     
-    bib = Bib.find_one({'_id': 1})
+    bib = Bib.from_query({'_id': 1})
     bib.delete_field('008')
     assert list(bib.get_fields('008')) == []
     bib.delete_field('500')
@@ -630,13 +635,13 @@ def test_auth_lookup(db):
     with pytest.raises(KeyError):
         Auth._cache[1]
     
-    bib = Bib.find_one({'_id': 1})
+    bib = Bib.from_query({'_id': 1})
     assert bib.get_xref('650', 'a') == 1
     assert bib.get_value('650', 'a') == 'Header'
     
     assert Auth._cache[1]['a'] == 'Header'
    
-    auth = Auth.find_one({'_id': 1})
+    auth = Auth.from_query({'_id': 1})
     auth.set('150', 'a', 'Changed').commit()
     assert bib.get_value('650', 'a') == 'Changed'
     
@@ -672,7 +677,7 @@ def test_to_xml(db):
     from xmldiff import main
     
     control = '<record><controlfield tag="000">leader</controlfield><controlfield tag="001">1</controlfield><controlfield tag="008">controlfield</controlfield><datafield ind1=" " ind2=" " tag="245"><subfield code="a">This</subfield><subfield code="b">is the</subfield><subfield code="c">title</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Description</subfield></datafield><datafield ind1=" " ind2=" " tag="520"><subfield code="a">Another description</subfield><subfield code="a">Repeated subfield</subfield></datafield><datafield ind1=" " ind2=" " tag="650"><subfield code="a">Header</subfield><subfield code="0">1</subfield></datafield><datafield ind1=" " ind2=" " tag="710"><subfield code="a">Another header</subfield><subfield code="0">2</subfield></datafield></record>'
-    bib = Bib.find_one({'_id': 1})
+    bib = Bib.from_query({'_id': 1})
     assert main.diff_texts(bib.to_xml(), control) == []
     
 def test_xml_encoding():
@@ -688,12 +693,12 @@ def test_to_mrc(db):
     
     control = '00238r|||a2200109|||4500001000200000008001300002245002400015520001600039520004300055650001100098710001900109\x1e1\x1econtrolfield\x1e  \x1faThis\x1fbis the\x1fctitle\x1e  \x1faDescription\x1e  \x1faAnother description\x1faRepeated subfield\x1e  \x1faHeader\x1e  \x1faAnother header\x1e\x1d'
 
-    bib = Bib.find_one({'_id': 1})
+    bib = Bib.from_query({'_id': 1})
     assert bib.to_mrc() == control
     
     control = '00049||||a2200037|||4500150001100000\x1e  \x1faHeader\x1e\x1d'
    
-    auth = Auth.find_one({'_id': 1})
+    auth = Auth.from_query({'_id': 1})
     assert auth.to_mrc(write_id=False) == control
     
     auth.set('994', 'a', 'Titulo').commit()
@@ -704,7 +709,7 @@ def test_to_mrk(bibs):
     
     control = '=000  leader\n=001  1\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader$01\n=710  \\\\$aAnother header$02\n'
 
-    bib = Bib.find_one({'_id': 1})
+    bib = Bib.from_query({'_id': 1})
     assert bib.to_mrk() == control
 
 def test_from_mrk(db):

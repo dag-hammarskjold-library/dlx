@@ -194,11 +194,11 @@ class Query():
                 if sys.getsizeof(matched_subfield_values) > 1e6: # 1 MB
                     if isinstance(value, Regex):
                         # fall back to normal regex
-                        return Condition(tag, {code: value}, modifier=modifier, record_type=record_type)
+                        return Condition(tag, {code: value}, modifier=modifier)
                     
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
                 elif len(matched_subfield_values) == 0:
-                    return Raw({'_id': 0}, record_type=record_type) # query that matches no documents
+                    return Raw({'_id': 0}) # query that matches no documents
                 
                 if modifier == 'not':
                     q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'code': code, 'value': {'$in': matched_subfield_values}}}}}}}
@@ -244,7 +244,7 @@ class Query():
                     except ValueError:
                         raise InvalidQueryString(f'ID must be a number')
                 elif tag[:2] == '00':
-                    return Raw({tag: value}, record_type=record_type)
+                    return Raw({tag: value})
 
                 # exists
                 if value == '*':
@@ -253,7 +253,7 @@ class Query():
                 # exact match
                 if not isinstance(value, Regex):
                     if value[0] == '\'' and value[-1] == '\'':
-                        return TagOnly(tag, value[1:-1], modifier=modifier)
+                        return TagOnly(tag, value[1:-1], modifier=modifier, record_type=record_type)
                     elif value[0] == '\'' and value[-1] != '\'':
                         raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
@@ -320,7 +320,7 @@ class Query():
 
                     raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{tag}". Try narrowing the search')
                 elif len(matched_subfield_values) == 0:
-                    return Raw({'_id': 0}, record_type=record_type) # query that matches no documents
+                    return Raw({'_id': 0}) # query that matches no documents
                 
                 if modifier == 'not':
                     q = {f'{tag}': {'$not': {'$elemMatch': {'subfields': {'$elemMatch': {'value': {'$in': matched_subfield_values}}}}}}}
@@ -360,7 +360,7 @@ class Query():
                 value = match.group(1)
                 
                 try:
-                    return Raw({'_id': int(value)}, record_type=record_type)
+                    return Raw({'_id': int(value)})
                 except ValueError:
                     raise InvalidQueryString(f'ID must be a number')
 
@@ -428,7 +428,7 @@ class Query():
 
                     # exact match
                     if value[0] == '\'' and value[-1] == '\'':
-                        return Raw({field: value[1:-1] }, record_type=record_type)
+                        return Raw({field: value[1:-1] })
                     elif value[0] == '\'' and value[-1] != '\'':
                         raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
@@ -465,16 +465,16 @@ class Query():
                     if sys.getsizeof(values) > 1e6: # 1 MB
                         if isinstance(value, Regex):
                             # fall back to normal regex
-                            return Raw({field: value}, modifier=modifier, record_type=record_type)
+                            return Raw({field: value}, modifier=modifier)
                 
                         raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
                     elif len(values) == 0:
-                        return Raw({'_id': 0}, record_type=record_type) # query that matches no documents
+                        return Raw({'_id': 0}) # query that matches no documents
 
                     if modifier == 'not':
-                        return Raw({field: {'$not': {'$in': values}}}, record_type=record_type)
+                        return Raw({field: {'$not': {'$in': values}}})
                     else:
-                        return Raw({field: {'$in': values}}, record_type=record_type)
+                        return Raw({field: {'$in': values}})
                 else:
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
 
@@ -573,7 +573,7 @@ class Query():
 
 class QueryDocument(Query):
     def __init__(self, *args, **kwargs):
-        warn('dlx.marc.QueryDocument is deprecated. Use dlx.marc.Query instead')
+        warn('dlx.marc.QueryDocument is deprecated. Use dlx.marc.Query instead', DeprecationWarning)
         
         super().__init__(*args, **kwargs)
         
@@ -650,10 +650,16 @@ class Condition(object):
                 raise Exception('Invalid modifier: "{}"'.format(mod))
 
     def compile(self):
+        # if self.tag in [x for x in Config.bib_authority_controlled.keys()] + [x for x in Config.auth_authority_controlled.keys()]:
+        
         if not self.record_type:
-            warn('Record type is not set for query condition. Defaulting to bib')
-            self.record_type = 'bib'
+            if self.tag in [x for x in Config.bib_authority_controlled.keys()] + [x for x in Config.auth_authority_controlled.keys()]:
+                warn('Record type is not set for query condition. Defaulting to bib')
+
+                print(self.tag)
             
+            self.record_type = 'bib'    
+        
         tag = self.tag
         subconditions = []
 
@@ -665,7 +671,8 @@ class Condition(object):
                 subconditions.append(
                     SON({'$elemMatch': {'code': code, 'value': val}})
                 )
-            else:     
+            else:
+                  
                 if isinstance(val, int):
                     xrefs = [val]
                 else:
@@ -736,9 +743,9 @@ class Text():
             data.update({'words': {'$all': words}})
 
         if len(quoted) > 1:
-            data['$and'] = [{'text': Regex(f'\s{Tokenizer.scrub(x)}\s')} for x in quoted]
+            data['$and'] = [{'text': Regex(rf'\s{Tokenizer.scrub(x)}\s')} for x in quoted]
         elif len(quoted) == 1:
-            data['text'] = Regex(f'\s{Tokenizer.scrub(quoted[0])}\s')
+            data['text'] = Regex(rf'\s{Tokenizer.scrub(quoted[0])}\s')
 
         # use the text index for these cases
         text_searches = []
@@ -784,7 +791,9 @@ class TagOnly():
         if record_type:
             self.record_type = record_type
         else:
-            warn('Record type is not set for query condition. Defaulting to bib')
+            if tag in list(Config.bib_authority_controlled.keys()) + list(Config.auth_authority_controlled.keys()):
+                warn('Record type is not set for query condition. Defaulting to bib')
+            
             self.record_type = 'bib'
             
         auth_ctrl = Config.bib_authority_controlled if self.record_type == 'bib' else Config.auth_authority_controlled
