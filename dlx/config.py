@@ -288,6 +288,9 @@ class Config():
     # the collation used in the MDB CE indexes on the bibs and auths collections
     marc_index_default_collation = {'locale': 'en', 'strength': 1, 'numericOrdering': True}
 
+    # control subthreading of database actions on Marc.commit() and Auth.merge() for debugging
+    threading = True
+
     # utility functions
     @staticmethod
     def is_authority_controlled(record_type, tag, code):
