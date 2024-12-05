@@ -1,4 +1,5 @@
 import os, requests, hashlib
+from warnings import warn 
 from datetime import datetime, timezone
 from io import BytesIO
 from json import dumps
@@ -69,7 +70,7 @@ class Identifier(object):
 
 class File(object):
     @classmethod    
-    def import_from_path(cls, path, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
+    def import_from_path(cls, path, *, identifiers, languages, mimetype, source, filename=None, overwrite=False, user=None):
         fh = open(path, 'rb')
         
         return cls.import_from_handle(
@@ -79,11 +80,12 @@ class File(object):
             languages=languages, 
             mimetype=mimetype, 
             source=source,
-            overwrite=overwrite
+            overwrite=overwrite,
+            user=None
         )
 
     @classmethod
-    def import_from_url(cls, url, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
+    def import_from_url(cls, url, *, identifiers, languages, mimetype, source, filename=None, overwrite=False, user=None):
         hasher = hashlib.md5()
         fh = TemporaryFile('wb+')
         response = requests.get(url, stream=True)
@@ -101,11 +103,12 @@ class File(object):
             languages=languages, 
             mimetype=mimetype, 
             source=source,
-            overwrite=overwrite
+            overwrite=overwrite,
+            user=None
         )
         
     @classmethod
-    def import_from_binary(cls, data, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
+    def import_from_binary(cls, data, *, identifiers, languages, mimetype, source, filename=None, overwrite=False, user=None):
         return cls.import_from_handle(
             BytesIO(data), 
             filename=filename, 
@@ -113,11 +116,12 @@ class File(object):
             languages=languages, 
             mimetype=mimetype, 
             source=source,
-            overwrite=overwrite
+            overwrite=overwrite,
+            user=user
     )
         
     @classmethod
-    def import_from_handle(cls, handle, *, identifiers, languages, mimetype, source, filename=None, overwrite=False):
+    def import_from_handle(cls, handle, *, identifiers, languages, mimetype, source, filename=None, overwrite=False, user=None):
         '''Import a file using a file-like object (handle). The file is uploaded to 
         the s3 bucket specified in `dlx.Config`. The metadata is stored in the
         database
@@ -159,7 +163,8 @@ class File(object):
             system but with different languages
         '''
         
-        ###
+        if user is None:
+            warn('Uploading a file without the `user` param is deprecated', DeprecationWarning  )
         
         if len(identifiers) == 0 or len(languages) == 0:
             raise ValueError('Params `identifiers` and `languages` cannot be an empty list')
@@ -210,6 +215,7 @@ class File(object):
                     'source': source,
                     'timestamp': datetime.now(timezone.utc),
                     'uri': '{}.s3.amazonaws.com/{}'.format(S3.bucket, checksum),
+                    'user': user
                 }
             )
             
@@ -341,6 +347,7 @@ class File(object):
         self.timestamp = doc['timestamp']
         self.uri = doc['uri']
         self.updated = doc.get('updated')
+        self.user = doc.get('user')
         
     @property
     def checksum(self):
@@ -366,7 +373,8 @@ class File(object):
                 ('size', self.size),
                 ('source', self.source),
                 ('timestamp', self.timestamp),
-                ('uri', self.uri)
+                ('uri', self.uri),
+                ('user', self.user)
             ]
         )
         

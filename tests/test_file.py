@@ -36,7 +36,15 @@ def test_import_from_handle(db, s3, tempfile):
     handle = TemporaryFile()
     handle.write(b'some data')
     handle.seek(0)
-    File.import_from_handle(handle, identifiers=[Identifier('isbn', '1')], filename='fn.ext', languages=['EN'], mimetype='application/dlx', source='test')
+    File.import_from_handle(
+        handle, 
+        identifiers=[Identifier('isbn', '1')], 
+        filename='fn.ext', 
+        languages=['EN'], 
+        mimetype='application/dlx', 
+        source='test',
+        user='test'
+    )
     
     results = list(DB.files.find({'identifiers': {'type': 'isbn', 'value': '1'}}))
     assert(len(results)) == 1
@@ -45,6 +53,7 @@ def test_import_from_handle(db, s3, tempfile):
     assert results[0]['mimetype'] == 'application/dlx'
     assert results[0]['source'] == 'test'
     assert results[0]['uri'] == '{}.s3.amazonaws.com/{}'.format(S3.bucket, results[0]['_id'])
+    assert results[0]['user'] == 'test'
     
     with TemporaryFile() as fh:
         S3.client.download_fileobj(S3.bucket, results[0]['_id'], fh)

@@ -142,9 +142,9 @@ class MarcSet():
         return sorted(
             header, 
             key=lambda x: ( 
-                (re.match('\d+\.(\w+)', x)).group(1), # sort by tag
-                int(re.match('(\d+)\.', x).group(1)), # sort by prefix group
-                (re.match('\d\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
+                (re.match(r'\d+\.(\w+)', x)).group(1), # sort by tag
+                int(re.match(r'(\d+)\.', x).group(1)), # sort by prefix group
+                (re.match(r'\d\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
             )
         )
 
@@ -445,7 +445,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.match_id() is deprecated. Use dlx.marc.Marc.from_id() instead')
+        warn('dlx.marc.Marc.match_id() is deprecated. Use dlx.marc.Marc.from_id() instead', DeprecationWarning)
 
         return cls.find_one(filter={'_id' : idx})
 
@@ -459,7 +459,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.match_ids() is deprecated. Use dlx.marc.MarcSet.from_ids() instead')
+        warn('dlx.marc.Marc.match_ids() is deprecated. Use dlx.marc.MarcSet.from_ids() instead', DeprecationWarning)
 
         return cls.find(filter={'_id' : {'$in' : [*ids]}})
 
@@ -469,7 +469,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.match() is deprecated. Use dlx.marc.MarcSet.from_query() instead')
+        warn('dlx.marc.Marc.match() is deprecated. Use dlx.marc.MarcSet.from_query() instead', DeprecationWarning)
 
         pymongo_kwargs = {}
 
@@ -502,7 +502,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.MarcSet.from_query() instead')
+        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.MarcSet.from_query() instead', DeprecationWarning)
 
         cursor = cls.handle().find(*args, **kwargs)
 
@@ -515,7 +515,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.find() is deprecated. Use dlx.marc.Marc.from_query() instead')
+        warn('dlx.marc.Marc.find_one() is deprecated. Use dlx.marc.Marc.from_query() instead', DeprecationWarning)
 
         found = cls.handle().find_one(*args, **kwargs)
 
@@ -525,7 +525,7 @@ class Marc(object):
     @classmethod
     def from_query(cls, *args, **kwargs):
         if 'collation' not in kwargs and Config.marc_index_default_collation:
-            warn('Collation not set. Using default collation set in config')
+            #warn('Collation not set. Using default collation set in config')
             kwargs['collation'] = Config.marc_index_default_collation
 
         return next(cls.set_class.from_query(*args, **kwargs), None)
@@ -536,7 +536,7 @@ class Marc(object):
         Deprecated
         """
 
-        warn('dlx.marc.Marc.count_documents() is deprecated. Use dlx.marc.MarcSet.count instead')
+        warn('dlx.marc.Marc.count_documents() is deprecated. Use dlx.marc.MarcSet.count instead', DeprecationWarning)
 
         return cls.handle().count_documents(*args, **kwargs)
 
@@ -563,7 +563,7 @@ class Marc(object):
         return list(filter(lambda x: x.tag[:2] != '00', sorted(self.fields, key=lambda x: x.tag)))
 
     def parse(self, doc, *, auth_control=False):
-        for tag in filter(lambda x: re.match('^(\d{3}|[A-Z]{3})', x), doc.keys()):
+        for tag in filter(lambda x: re.match(r'^(\d{3}|[A-Z]{3})', x), doc.keys()):
             if tag == '000':
                 self.leader = doc['000'][0]
 
@@ -873,7 +873,6 @@ class Marc(object):
             index_field_text()
         else:
             thread1 = threading.Thread(target=index_field_text, args=[])
-            thread1.setDaemon(False) # stop the thread after complete
             thread1.start()
         
         # add logical fields
@@ -959,7 +958,6 @@ class Marc(object):
             index_logical_fields()
         else:
             thread2 = threading.Thread(target=index_logical_fields, args=[])
-            thread2.setDaemon(False) # stop the thread after complete
             thread2.start()
 
         # history
@@ -1001,7 +999,6 @@ class Marc(object):
             save_history()
         else:
             thread3 = threading.Thread(target=save_history, args=[])
-            thread3.setDaemon(False) # stop the thread after complete
             thread3.start()
 
         # commit
@@ -1059,7 +1056,6 @@ class Marc(object):
                     else:
                         # subthreading here doesn't work ?
                         subthread = threading.Thread(target=do_update, args=[])
-                        subthread.setDaemon(False) # stop the thread after complete
                         subthread.start()
             except Exception as err:
                     LOGGER.exception(err)
@@ -1080,7 +1076,6 @@ class Marc(object):
                             update_attached_records(self)
                         else:
                             thread4 = threading.Thread(target=update_attached_records, args=[self])
-                            thread4.setDaemon(False) # stop the thread after complete
                             thread4.start()
         
         return self
@@ -1120,7 +1115,6 @@ class Marc(object):
             update_browse_collections()
         else:
             thread = threading.Thread(target=update_browse_collections, args=[])
-            thread.setDaemon(False) # stop the thread after complete
             thread.start()
         
         history_collection = DB.handle[self.record_type + '_history']
@@ -1467,7 +1461,7 @@ class Marc(object):
                 ambiguous = []
                 
                 # capture the xref from subfield $0, if exists
-                if match := re.search('\$0(\d+)', rest[2:]):
+                if match := re.search(r'\$0(\d+)', rest[2:]):
                     xref = int(match.group(1))
                 else:
                     xref = None
@@ -1940,9 +1934,13 @@ class Auth(Marc):
                         # for debugging
                         DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now()})
 
-                    t = threading.Thread(target=do_commit, args=[])
-                    t.setDaemon(False) # stop the thread after complete
-                    t.start()
+                    Config.threading = True if not hasattr(Config, 'threading') else Config.threading
+                    
+                    if Config.threading == False: # or DB.database_name == 'testing':
+                        do_commit()
+                    else:
+                        t = threading.Thread(target=do_commit, args=[])
+                        t.start()
                 
                 changed += 1
 
@@ -2390,7 +2388,7 @@ class Matcher(Condition):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        warn('dlx.marc.Matcher is deprecated. Use dlx.marc.Condition instead')
+        warn('dlx.marc.Matcher is deprecated. Use dlx.marc.Condition instead', DeprecationWarning)
 
 class OrMatch(Or):
     # for backwards compatibility
@@ -2399,6 +2397,6 @@ class OrMatch(Or):
         super().__init__(*matchers)
         self.matchers = matchers
 
-        warn('dlx.marc.OrMatch is deprecated. Use dlx.marc.query.Or instead')
+        warn('dlx.marc.OrMatch is deprecated. Use dlx.marc.query.Or instead', DeprecationWarning)
 
 # end

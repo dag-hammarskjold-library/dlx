@@ -40,7 +40,7 @@ def test_iterate(db):
         assert isinstance(auth, Auth)
 
 def test_from_query(db):
-    from dlx.marc import MarcSet, BibSet, AuthSet, QueryDocument, Condition
+    from dlx.marc import MarcSet, BibSet, AuthSet, Query, Condition
     
     bibset = BibSet.from_query({'_id': {'$in': [1, 2]}})
     assert isinstance(bibset, (MarcSet, BibSet))
@@ -67,7 +67,7 @@ def test_from_query(db):
     authset.cache()
     assert isinstance(authset.records, list)
     
-    query = QueryDocument(
+    query = Query(
         Condition('245', modifier='exists')
         
     )    
