@@ -215,7 +215,7 @@ class MarcSet():
                 
                 # attempt to use multiple subfields to resolve ambiguity
                 if ambiguous:
-                    if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
+                    if xref := Auth.resolve_ambiguous(tag=tag, subfields=ambiguous, record_type=self.record_type):
                         field.set(code, xref, place='+', auth_control=auth_control)
                     else:
                         exceptions.append(str(AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.to_str() for x in ambiguous]))))
@@ -1495,10 +1495,10 @@ class Marc(object):
                 
                 # attempt to use multiple subfields to resolve ambiguity
                 if ambiguous:
-                    if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
+                    if xref := Auth.resolve_ambiguous(tag=tag, subfields=ambiguous, record_type=self.record_type):
                         field.set(code, xref, place='+', auth_control=auth_control)
                     else:
-                        raise AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.to_str() for x in ambiguous]))
+                        raise AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.value for x in ambiguous]))
             
                 # remove subfield $0
                 if delete_subfield_zero:
@@ -1550,7 +1550,7 @@ class Marc(object):
 
                 # attempt to use multiple subfields to resolve ambiguity
                 if ambiguous:
-                    if xref := Auth.resolve_ambiguous(tag, ambiguous, record_type=self.record_type):
+                    if xref := Auth.resolve_ambiguous(tag=tag, subfields=ambiguous, record_type=self.record_type):
                         field.set(code, xref, auth_control=auth_control, place='+')
                     else:
                         raise AmbiguousAuthValue(self.record_type, tag, '*', str([x.to_str() for x in ambiguous]))
