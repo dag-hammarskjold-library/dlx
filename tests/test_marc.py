@@ -502,7 +502,16 @@ def test_get_value(db, bibs):
     assert bib.get_values('520', 'a', place=1) == ['Another description', 'Repeated subfield']
     assert bib.get_value('999', 'a') == ''
     assert bib.get_values('999', 'a') == []
-    
+
+def test_get_values(db, bibs):
+    from dlx.marc import Bib
+
+    bib = Bib(bibs[0])
+    assert bib.get_values('520') == ['Description', 'Another description', 'Repeated subfield']
+
+    # field level
+    assert bib.get_field('520', place=1).get_values() == ['Another description', 'Repeated subfield']
+
 def test_get_xref(db, bibs):
     from dlx.marc import Bib
     

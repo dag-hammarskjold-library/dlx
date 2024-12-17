@@ -594,7 +594,7 @@ class Marc(object):
     def get_values(self, tag, *codes, **kwargs):
         if tag[:2] == '00':
             return [field.value for field in self.get_fields(tag)]
-            
+           
         values = [sub.value for sub in self.get_subfields(tag, *codes, place=kwargs.get('place'))]
 
         return list(filter(None, values))
@@ -661,6 +661,9 @@ class Marc(object):
         for field in fields:
             if isinstance(field, Controlfield):
                 return
+            
+            if not codes:
+                codes = list(set([x.code for x in field.subfields]))
 
             subs += list(filter(lambda x: x.code in codes, field.subfields))
 
@@ -2186,6 +2189,9 @@ class Datafield(Field):
         return sub.value if sub else ''
 
     def get_values(self, *codes):
+        if not codes:
+            codes = list(set([x.code for x in self.subfields]))
+
         values = []
 
         for code in codes:
