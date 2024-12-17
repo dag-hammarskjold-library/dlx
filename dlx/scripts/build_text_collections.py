@@ -67,7 +67,7 @@ def run():
                 # add to seen index
                 seen.setdefault(field.tag, {})
                 seen[field.tag].setdefault(text, {})
-                seen[field.tag][text]['subfields'] = [{'code': x.code, 'value': x.value} for x in field.subfields]
+                seen[field.tag][text]['subfields'] = [{'code': x.code, 'value': x.value} for x in field.subfields if x.value]
 
                 updates.setdefault(field.tag, [])
                 

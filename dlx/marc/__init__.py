@@ -840,7 +840,7 @@ class Marc(object):
                                 {'_id': text},
                                 {'$addToSet': {'subfields': {'code': subfield.code, 'value': subfield.value}}},
                                 upsert=True
-                            ) for subfield in field.subfields
+                            ) for subfield in field.subfields if subfield.value
                         ]
 
                         words = Tokenizer.tokenize(text)
