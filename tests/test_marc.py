@@ -995,3 +995,16 @@ def test_history(db):
         ), 
         None
     ) == bib.id
+
+def test_auth_deleted_subfield(db):
+    from dlx.marc import Bib, Auth, Query
+
+    # sequence of events formerly causing an error
+    auth = Auth().set('110', 'a', 'will NOT be deleted').set('110', 'z', 'will be deleted').commit()
+    bib = Bib().set('710', 'a', auth.id).set('710', 'z', auth.id).commit()
+    auth.heading_field.delete_subfield('z')
+    auth.commit()
+    bib.set('999', 'a', 'updated').commit()
+
+    q = Query.from_string('710:"will not be deleted"')
+    assert q.to_json()

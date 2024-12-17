@@ -2220,6 +2220,11 @@ class Datafield(Field):
             if i == place:
                 return sub
 
+    def delete_subfield(self, code: str):
+        self.subfields = [x for x in self.subfields if x != code]
+
+        return self
+
     def set(self, code, new_val, *, ind1=None, ind2=None, place=0, auth_control=True):
         if not new_val and not ind1 and not ind2:
             return self

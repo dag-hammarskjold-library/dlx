@@ -181,6 +181,8 @@ class Query():
                     for m in matches:
                         matched_subfield_values += [x['value'] for x in filter(lambda z: z['code'] == code, m['subfields'])]
 
+                    matched_subfield_values = list(filter(None, matched_subfield_values))
+
                     stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
                     for val in matched_subfield_values:
@@ -302,7 +304,7 @@ class Query():
                     for m in matches:
                         matched_subfield_values += [x['value'] for x in m['subfields']]
 
-                    matched_subfield_values = list(set(matched_subfield_values))
+                    matched_subfield_values = list(set(filter(None, matched_subfield_values)))
                     stemmed_terms, filtered = Tokenizer.tokenize(value), []
 
                     for val in matched_subfield_values:
