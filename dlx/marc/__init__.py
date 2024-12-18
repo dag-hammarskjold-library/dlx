@@ -772,7 +772,7 @@ class Marc(object):
         except jsonschema.exceptions.ValidationError as e:
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
-
+    
     @Decorators.check_connected
     def commit(self, user='admin', auth_check=True, update_attached=True):
         new_record = True if self.id is None else False
@@ -843,7 +843,7 @@ class Marc(object):
                                 {'_id': text},
                                 {'$addToSet': {'subfields': {'code': subfield.code, 'value': subfield.value}}},
                                 upsert=True
-                            ) for subfield in field.subfields
+                            ) for subfield in field.subfields if subfield.value
                         ]
 
                         words = Tokenizer.tokenize(text)
@@ -1041,20 +1041,28 @@ class Marc(object):
                 for record in auth.list_attached():
                     def do_update():
                         try:
-                            if isinstance(record, Auth):
+                            if isinstance(record, Auth) and auth.id in [x.id for x in record.list_attached(usage_type='auth')]:
                                 # prevent feedback loops
-                                if auth.id in [x.id for x in record.list_attached(usage_type='auth')]:
-                                    record.commit(user=auth.user, auth_check=False, update_attached=False)
-                                    return
+                                record.commit(user=auth.user, auth_check=False, update_attached=False)
+                                return
 
                             # if the heading field tag changed, change the tag in linked record
-                            if old_tag := Auth(previous_state).heading_field.tag:
-                                if old_tag != self.heading_field.tag:
-                                    for field in record.datafields:
-                                        for subfield in filter(lambda x: hasattr(x, 'xref'), field.subfields):
-                                            if subfield.xref == self.id:
-                                                new_tag = field.tag[0] + self.heading_field.tag[1:]
-                                                field.tag = new_tag
+                            if self.heading_field.tag != Auth(previous_state).heading_field.tag:
+                                for field in record.datafields:
+                                    for subfield in filter(lambda x: hasattr(x, 'xref'), field.subfields):
+                                        if subfield.xref == self.id:
+                                            new_tag = field.tag[0] + self.heading_field.tag[1:]
+                                            field.tag = new_tag
+
+                            # if any subfields have been deleted, delete them from the linked record
+                            codes_removed = []
+
+                            for subfield in Auth(previous_state).heading_field.subfields:   
+                                if subfield.code not in [x.code for x in self.heading_field.subfields]:
+                                    codes_removed.append(subfield.code)
+
+                            for linked_field in [x for x in record.fields if isinstance(x, Datafield)]:                                          
+                                linked_field.subfields = [x for x in linked_field.subfields if x.code not in codes_removed]
 
                             record.commit(user=auth.user, auth_check=False)
                         except Exception as err:
