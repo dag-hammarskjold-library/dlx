@@ -165,15 +165,21 @@ def test_commit(db, bibs, auths):
         assert linked_bib.get_field('650') is None
 
     # subfield deleted
-    auth = Auth()
-    auth.set('100', 'a', 'will not be deleted').set('100', 'g', 'subfield to be deleted').commit()
-    bib = Bib()
-    bib.set('600', 'a', auth.id).set('600', 'g', auth.id).commit()
-    auth.heading_field.subfields = [x for x in auth.heading_field.subfields if x.code != 'g']
+    auth = Auth().set('100', 'a', 'will not be deleted').set('100', 'g', 'subfield to be deleted').commit()
+    bib = Bib().set('600', 'a', auth.id).set('600', 'g', auth.id).commit()
+    auth2 = Auth().set('100', 'a', 'another heading').set('100', 'g', 'another heading').commit()
+    bib.set('600', 'a', auth2.id, address=['+']).set('600', 'g', auth2.id, address=[1]).commit()
+    auth.heading_field.subfields = [x for x in auth.heading_field.subfields if x.code != 'g'] # remove subfield g
     auth.commit()
-    bib = Bib.from_id(bib.id) # re-retrive the updated data from the db that was updated in the backgroud
-    assert len([x for x in auth.heading_field.subfields]) == 1
-    assert len([x for x in bib.get_field('600').subfields]) == 1
+    bib = Bib.from_id(bib.id) # re-retrieve the updated data from the db that was updated in the background
+    assert len(bib.get_fields('600')[0].subfields) == 1
+    assert len(bib.get_fields('600')[1].subfields) == 2
+
+    # subfield added
+    auth.set('100', 'g', "I'm back").commit()
+    bib = Bib.from_id(bib.id) # re-retrieve the updated data from the db that was updated in the backgroud
+    assert len([x for x in bib.get_fields('600')[0].subfields]) == 2
+    assert len([x for x in bib.get_fields('600')[1].subfields]) == 2
 
 def test_delete(db):
     from dlx import DB

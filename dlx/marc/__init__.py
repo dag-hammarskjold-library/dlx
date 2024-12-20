@@ -1061,8 +1061,22 @@ class Marc(object):
                                 if subfield.code not in [x.code for x in self.heading_field.subfields]:
                                     codes_removed.append(subfield.code)
 
-                            for linked_field in [x for x in record.fields if isinstance(x, Datafield)]:                                          
-                                linked_field.subfields = [x for x in linked_field.subfields if x.code not in codes_removed]
+                            for linked_field in record.datafields:
+                                if self.id in [x.xref for x in [y for y in linked_field.subfields if hasattr(y, 'xref')]]:                                        
+                                    linked_field.subfields = [x for x in linked_field.subfields if x.code not in codes_removed]
+
+                            # if any subfields have been added, add them to the linked record
+                            codes_added = []
+
+                            for subfield in self.heading_field.subfields:  
+                                if subfield.code not in [x.code for x in Auth(previous_state).heading_field.subfields]:
+                                    codes_added.append(subfield.code)
+                                    
+                            if codes_added:
+                                for linked_field in record.datafields:
+                                    if self.id in [x.xref for x in [y for y in linked_field.subfields if hasattr(y, 'xref')]]: 
+                                        for code in codes_added:
+                                            linked_field.subfields.append(Linked(code, self.id))
 
                             record.commit(user=auth.user, auth_check=False)
                         except Exception as err:
