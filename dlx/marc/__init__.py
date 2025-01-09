@@ -1160,7 +1160,7 @@ class Marc(object):
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
 
-        if record_history is None:
+        if record_history is None or record_history.get('history') is None:
             record_history = SON()
             record_history['history'] = [self.to_bson()]
 
