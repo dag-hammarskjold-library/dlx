@@ -635,11 +635,16 @@ def test_set_008(bibs):
     assert bib.get_value('008')[7:11] == '1999'
     
 def test_delete_field(bibs):
+    import copy
     from dlx.marc import Bib
     
     bib = Bib.from_query({'_id': 1})
+    original = copy.deepcopy(bib)
+
     bib.delete_field('008')
-    assert list(bib.get_fields('008')) == []
+    assert len(bib.diff(original).b) == 1
+    assert bib.diff(original).b[0].tag == '008'
+
     bib.delete_field('500')
     assert list(bib.get_fields('500')) == []
     
@@ -651,6 +656,14 @@ def test_delete_field(bibs):
     field = bib.get_field('520')
     bib.delete_field(field)
     assert bib.get_fields('520') == []
+
+    # multi fields
+    bib.set('999', 'a', 'x').set('999', 'a', 'x', address='+')
+    original = copy.deepcopy(bib)
+    assert len(bib.get_fields('999')) == 2
+    bib.delete_fields('999')
+    assert len(bib.diff(original).b) == 2
+    assert all([x.tag == '999' for x in bib.diff(original).b])
     
 def test_auth_lookup(db):
     from dlx.marc import Bib, Auth
