@@ -741,9 +741,12 @@ class Marc(object):
 
     def delete_field(self, tag_or_field, place=0):
         if isinstance(tag_or_field, (Controlfield, Datafield)):
+            # arg is a field
             field = tag_or_field
             self.fields = [f for f in self.fields if f != field]
+
         elif isinstance(place, int):
+            # arg is a tag
             tag = tag_or_field
             i, j = 0, 0
 
@@ -760,7 +763,7 @@ class Marc(object):
         return self
 
     def delete_fields(self, *tags):
-        self.fields = list(filter(lambda x: x.tag not in tags, self.datafields))
+        self.fields = list(filter(lambda x: x.tag not in tags, self.fields))
 
         return self
 

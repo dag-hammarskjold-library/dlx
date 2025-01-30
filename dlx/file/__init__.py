@@ -199,6 +199,7 @@ class File(object):
         checksum = hasher.hexdigest()    
         
         if overwrite == False:
+            # throws a FileExists exception (or one of its child exceptions) if the file is already in the system
             File._check_file_exists(checksum, identifiers, languages)
 
         handle.seek(0)
