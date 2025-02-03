@@ -1977,10 +1977,8 @@ class Auth(Marc):
 
                         # for debugging
                         DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now(timezone.utc), 'user': user})
-
-                    Config.threading = True if not hasattr(Config, 'threading') else Config.threading
                     
-                    if Config.threading == False: # or DB.database_name == 'testing':
+                    if DB.database_name == 'testing' or Config.threading == False:
                         do_commit()
                     else:
                         t = threading.Thread(target=do_commit, args=[])
