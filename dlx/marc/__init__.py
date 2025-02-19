@@ -144,7 +144,7 @@ class MarcSet():
             key=lambda x: ( 
                 (re.match(r'\d+\.(\w+)', x)).group(1), # sort by tag
                 int(re.match(r'(\d+)\.', x).group(1)), # sort by prefix group
-                (re.match(r'\d\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
+                (re.match(r'\d+\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
             )
         )
 

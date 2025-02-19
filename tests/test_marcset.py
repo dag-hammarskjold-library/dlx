@@ -218,6 +218,7 @@ def test_to_str(db):
 
 def test_to_csv(db):
     from dlx.marc import BibSet
+    from dlx.marc import Bib
 
     bibset = BibSet.from_query({})
     bibset.records = list(bibset.records)
@@ -230,6 +231,14 @@ def test_to_csv(db):
     print(bibs.to_csv(write_id=False))
 
     assert bibs.to_csv(write_id=False) == '1.245$a,1.245$b\n"A title, with a comma",subtitle\n"A ""title, or name"" with double quotes in the middle",subtitle'
+
+    # bug issue 507: fields with more 10+ instances
+    from dlx.marc import Bib
+    bib = Bib()
+    [bib.set('999', 'a', str(i), address=['+']) for i in range(0, 11)]
+    bibs = BibSet()
+    bibs.records.append(bib)
+    assert bibs.to_csv(write_id=False) == '1.999$a,2.999$a,3.999$a,4.999$a,5.999$a,6.999$a,7.999$a,8.999$a,9.999$a,10.999$a,11.999$a\n0,1,2,3,4,5,6,7,8,9,10'
 
 def test_from_aggregation(db, bibs):
     from dlx.marc import BibSet, Query
