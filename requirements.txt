@@ -4,7 +4,7 @@ jsonschema==4.23.0
 mongomock==4.3.0
 moto==5.1.0
 nltk==3.9.1
-pymongo==4.10.1
+pymongo==4.11.1
 pytest==8.3.4
 requests>=2.32.2
 responses==0.25.6
