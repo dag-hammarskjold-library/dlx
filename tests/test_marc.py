@@ -367,6 +367,10 @@ def test_querystring(db):
     query = Query.from_string('650:\'Header\'')
     results = list(BibSet.from_query(query.compile()))
     assert len(results) == 2
+
+    query = Query.from_string('650:/eader/')
+    results = list(BibSet.from_query(query.compile()))
+    assert len(results) == 2
     
     # id
     query = Query.from_string('id:1')
