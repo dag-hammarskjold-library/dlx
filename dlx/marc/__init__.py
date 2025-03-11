@@ -1,6 +1,6 @@
 """dlx.marc"""
 
-import time, re, json, threading, copy, typing
+import time, re, json, csv, threading, copy, typing
 from collections import Counter
 from datetime import datetime, timezone
 from warnings import warn
@@ -139,14 +139,17 @@ class MarcSet():
         # Sorts the header of a MarcSet in util.Table for for use in 
         # (de)serialization
 
-        return sorted(
-            header, 
-            key=lambda x: ( 
-                (re.match(r'\d+\.(\w+)', x)).group(1), # sort by tag
-                int(re.match(r'(\d+)\.', x).group(1)), # sort by prefix group
-                (re.match(r'\d+\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
+        try:
+            return sorted(
+                header, 
+                key=lambda x: ( 
+                    (re.match(r'\d+\.(\w+)', x)).group(1), # sort by tag
+                    int(re.match(r'(\d+)\.', x).group(1)), # sort by prefix group
+                    (re.match(r'\d+\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
+                )
             )
-        )
+        except AttributeError:
+            raise Exception('Table header could not be parsed: ' + str(header))
 
     @classmethod
     def from_table(cls, table, auth_control=True, auth_flag=False, field_check=None, delete_subfield_zero=True):
@@ -1536,6 +1539,19 @@ class Marc(object):
 
         return self
     
+    @classmethod
+    def from_table(cls, list_of_lists: list[list], auth_control=False, delete_subfield_zero=True):
+        if len(list_of_lists) != 2:
+            raise Exception('Table must contain exactly one header line and one data line: ' + str(list_of_lists))
+
+        return cls.set_class.from_table(Table(list_of_lists)).records[0]
+    
+    @classmethod
+    def from_csv(cls, string: str, auth_control=False, delete_subfield_zero=True):
+        rows = [row for row in csv.reader(string.split('\n'))]
+
+        return cls.set_class.from_table(Table(rows), auth_control=auth_control).records[0]
+
     @classmethod
     def from_xml_raw(cls, root: ElementTree.Element, *, auth_control=True, delete_subfield_zero=True):
         if DB.database_name == 'testing' or Config.threading == False:
