@@ -599,23 +599,35 @@ class Marc(object):
 
         return list(filter(None, values))
 
-    def get_value(self, tag, code=None, *, address=[0, 0], language=None):
-        if len(address) != 2:
-            raise Exception('Keyword agrgument "address" must be an iterable containing two ints')
-            
-        field = self.get_field(tag, place=address[0])    
+    def get_value(self, tag: str, code: str = None, *, address: list = None, language: str = None) -> str:
+        '''Returns a single value from a tag and subfield code combo. If an
+        address is given, the value at that address is returned. If no address
+        is given, the value of first instance of the tag and subfield in the
+        record is returned.
+        '''
+        
+        if tag[:2] == '00':
+            if field := self.get_field(tag, place=0 if address is None else address[0]):
+                return field.value
+        else:
+            subfield = None
 
-        if isinstance(field, Controlfield):
-            return field.value
-
-        if isinstance(field, Datafield):
-            sub = field.get_subfield(code, place=address[1])
-
-            if sub:
-                if language:
-                    return sub.translated(language)
+            if address:
+                if len(address) != 2:
+                    raise Exception('Keyword agrgument "address" must be an iterable containing two ints')
                 else:
-                    return sub.value
+                    if field := self.get_field(tag, place=address[0]):
+                        subfield = field.get_subfield(code, place=address[1])
+            else:
+                # get first instance of the subfield code  
+                for field in self.get_fields(tag):
+                    subfield = field.get_subfield(code)
+
+            if subfield:
+                if language:
+                    return subfield.translated(language)
+                else:
+                    return subfield.value
 
         return ''
 
