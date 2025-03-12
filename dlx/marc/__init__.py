@@ -182,6 +182,9 @@ class MarcSet():
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
 
+                if tag == '001':
+                    record.id = int(value)
+
                 # if the subfield field is authority-controlled, use subfield 
                 # $0 as the xref. $0 will be the first subfield in the field if
                 # it exists, because the header has been sorted.
@@ -240,7 +243,7 @@ class MarcSet():
         return cls.from_table(table, auth_control=auth_control, field_check=field_check)
 
     @classmethod
-    def from_xml_raw(cls, root, *, auth_control=False):
+    def from_xml_raw(cls, root, *, auth_control=False, delete_subfield_zero=True):
         assert isinstance(root, ElementTree.Element)
         self = cls()
         
@@ -248,13 +251,13 @@ class MarcSet():
 
         for r in root.findall('record'):
             i += 1
-            self.records.append(self.record_class.from_xml_raw(r, auth_control=auth_control))
+            self.records.append(self.record_class.from_xml_raw(r, auth_control=auth_control, delete_subfield_zero=delete_subfield_zero))
 
         return self
         
     @classmethod
-    def from_xml(cls, string, auth_control=False):
-        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
+    def from_xml(cls, string, auth_control=False, delete_subfield_zero=True):
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control, delete_subfield_zero=delete_subfield_zero)
 
     @classmethod
     def from_mrk(cls, string, *, auth_control=True):
@@ -1498,6 +1501,9 @@ class Marc(object):
 
             if tag[:2] == '00':
                 field = Controlfield(tag, rest)
+                
+                if tag == '001':
+                    self.id = int(field.value)
             else:
                 ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
                 field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
@@ -1545,7 +1551,13 @@ class Marc(object):
         self = cls()
             
         for node in filter(lambda x: re.search('controlfield$', x.tag), root):
-            self.set(node.attrib['tag'], None, node.text)
+            tag, value = node.attrib['tag'], node.text
+            field = Controlfield(tag, value)
+
+            if tag == '001':
+                self.id = int(value)
+
+            self.fields.append(field)
 
         for field_node in filter(lambda x: re.search('datafield$', x.tag), root):
             tag = field_node.attrib['tag']
