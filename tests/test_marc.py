@@ -766,6 +766,7 @@ def test_from_mrk(db):
     control = '=000  leader\n=001  1\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader$01\n=710  \\\\$aAnother header$02\n'
 
     bib = Bib.from_mrk(control, auth_control=True)
+    assert bib.id == 1
     assert bib.to_mrk() == control
     assert bib.commit(auth_check=True)
     
@@ -902,9 +903,10 @@ def test_from_xml():
     
     bib = Bib.from_xml('<record><controlfield tag="001">1</controlfield><datafield tag="245" ind1=" " ind2=" "><subfield code="a">Title</subfield><subfield code="a">Repeated</subfield></datafield></record>')        
     assert bib.get_value('001', None) == '1'
+    assert bib.id == 1
     assert bib.get_value('245', 'a') == 'Title'
     assert bib.get_value('245', 'a', address=[0, 1]) == 'Repeated'
-        
+
 def test_auth_use_count(db, bibs, auths):
     from dlx.marc import Bib, Auth
     

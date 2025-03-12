@@ -1474,6 +1474,8 @@ class Marc(object):
     @classmethod
     def from_mrc(cls, string):
         '''Parses a MARC21 string (.mrc) into dlx.Marc'''
+
+        raise Exception("This method is unfinished")
         
         self = cls()
         base = string[12:17]
@@ -1591,8 +1593,8 @@ class Marc(object):
         return self
         
     @classmethod
-    def from_xml(cls, string, auth_control=True):
-        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
+    def from_xml(cls, string, auth_control=True, delete_subfield_zero=True):
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control, delete_subfield_zero=delete_subfield_zero)
 
     @classmethod
     def from_json(cls, string, auth_control=False):
