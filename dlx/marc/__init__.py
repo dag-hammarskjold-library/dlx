@@ -171,14 +171,12 @@ class MarcSet():
                 value = table.index[temp_id][field_name]
                 
                 # parse the column header into tag, code and place
-                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name)):
+                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])?', str(field_name)):
                     if match.group(1):
                         instance = int(match.group(2))
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
 
                     tag, code = match.group(3), match.group(5)
-                elif len(field_name) == 3 and field_name[0:2] == '00':
-                    tag, code = field_name, None
                 else:
                     exceptions.append('Invalid column header "{}"'.format(field_name))
                     continue
@@ -186,6 +184,9 @@ class MarcSet():
                 if record.get_value(tag, code, address=[instance, 0]):
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
+
+                if tag == '001':
+                    record.id = int(value)
 
                 # if the subfield field is authority-controlled, use subfield 
                 # $0 as the xref. $0 will be the first subfield in the field if
@@ -245,7 +246,7 @@ class MarcSet():
         return cls.from_table(table, auth_control=auth_control, field_check=field_check)
 
     @classmethod
-    def from_xml_raw(cls, root, *, auth_control=False):
+    def from_xml_raw(cls, root, *, auth_control=False, delete_subfield_zero=True):
         assert isinstance(root, ElementTree.Element)
         self = cls()
         
@@ -253,13 +254,13 @@ class MarcSet():
 
         for r in root.findall('record'):
             i += 1
-            self.records.append(self.record_class.from_xml_raw(r, auth_control=auth_control))
+            self.records.append(self.record_class.from_xml_raw(r, auth_control=auth_control, delete_subfield_zero=delete_subfield_zero))
 
         return self
         
     @classmethod
-    def from_xml(cls, string, auth_control=False):
-        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
+    def from_xml(cls, string, auth_control=False, delete_subfield_zero=True):
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control, delete_subfield_zero=delete_subfield_zero)
 
     @classmethod
     def from_mrk(cls, string, *, auth_control=True):
@@ -353,7 +354,7 @@ class MarcSet():
             # each record is one table row
             i += 1
             
-            if write_id:
+            if write_id and record.id is not None:
                 table.set(i, '1.001', str(record.id))
             elif field := record.get_field('001'):
                 table.set(i, '1.001', field.value)
@@ -1346,7 +1347,7 @@ class Marc(object):
     def to_mrc(self, *tags, language=None, write_id=True):
         record = copy.deepcopy(self)
 
-        if write_id:
+        if write_id and record.id is not None:
             record.set('001', None, str(record.id))
 
         directory = ''
@@ -1388,7 +1389,7 @@ class Marc(object):
     def to_mrk(self, *tags, language=None, write_id=True):
         record = copy.deepcopy(self) # so as not to alter the original object's data
 
-        if write_id:
+        if write_id and record.id is not None:
             record.set('001', None, str(record.id))
         
         return '\n'.join([field.to_mrk(language=language) for field in record.get_fields()]) + '\n'
@@ -1416,7 +1417,7 @@ class Marc(object):
     def to_xml_raw(self, *tags, language=None, xref_prefix='', write_id=True):
         record = copy.deepcopy(self) # so as not to alter the orginal object's underlying data
 
-        if write_id:
+        if write_id and record is not None:
             record.set('001', None, str(record.id))
         
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
@@ -1489,6 +1490,8 @@ class Marc(object):
     @classmethod
     def from_mrc(cls, string):
         '''Parses a MARC21 string (.mrc) into dlx.Marc'''
+
+        raise Exception("This method is unfinished")
         
         self = cls()
         base = string[12:17]
@@ -1513,6 +1516,9 @@ class Marc(object):
 
             if tag[:2] == '00':
                 field = Controlfield(tag, rest)
+                
+                if tag == '001':
+                    self.id = int(field.value)
             else:
                 ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
                 field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
@@ -1573,7 +1579,13 @@ class Marc(object):
         self = cls()
             
         for node in filter(lambda x: re.search('controlfield$', x.tag), root):
-            self.set(node.attrib['tag'], None, node.text)
+            tag, value = node.attrib['tag'], node.text
+            field = Controlfield(tag, value)
+
+            if tag == '001':
+                self.id = int(value)
+
+            self.fields.append(field)
 
         for field_node in filter(lambda x: re.search('datafield$', x.tag), root):
             tag = field_node.attrib['tag']
@@ -1619,8 +1631,8 @@ class Marc(object):
         return self
         
     @classmethod
-    def from_xml(cls, string, auth_control=True):
-        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control)
+    def from_xml(cls, string, auth_control=True, delete_subfield_zero=True):
+        return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control, delete_subfield_zero=delete_subfield_zero)
 
     @classmethod
     def from_json(cls, string, auth_control=False):

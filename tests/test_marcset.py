@@ -93,19 +93,25 @@ def test_from_table(db):
     from dlx.util import Table
     
     table = Table([
-        ['1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0'],
-        ['title', 'subtitle', '1999-12-31','repeated', '', 1],
-        ['title2','subtitle2','2000-01-01','repeated', '', 1],
+        ['1.001', '1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0'],
+        ['98', 'title', 'subtitle', '1999-12-31','repeated', '', 1],
+        ['99', 'title2','subtitle2','2000-01-01','repeated', '', 1],
     ])
     
     bibset = BibSet.from_table(table)
+    assert bibset.records[0].id == 98
+    assert bibset.records[1].id == 99
 
     for bib in bibset.records:
         assert bib.get_value('246','b')[:8] == 'subtitle'
         assert bib.get_values('269','c')[1] == 'repeated'
         assert bib.get_value('650', 'a') == 'Header'
         assert not bib.get_value('650', '0')
-        
+
+    bibset = BibSet.from_table(table, delete_subfield_zero=False)
+    for bib in bibset.records:
+        assert bib.get_value('650', '0')
+                                 
     with pytest.raises(Exception):
         # dupe field check
         bibset = BibSet.from_table(Table([['245a'], ['This']]), field_check='245a')
@@ -113,7 +119,6 @@ def test_from_table(db):
     with pytest.raises(Exception):
         # auth control
         bibset = BibSet.from_table(Table([['650a'], ['Invalid']]), auth_control=True)
-
 
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
@@ -228,8 +233,6 @@ def test_to_csv(db):
     # comma and quote handling
     bibs = BibSet()
     bibs.records += [Bib().set('245', 'a', 'A title, with a comma').set('245', 'b', 'subtitle'), Bib().set('245', 'a', 'A "title, or name" with double quotes in the middle').set('245', 'b', 'subtitle')]
-    print(bibs.to_csv(write_id=False))
-
     assert bibs.to_csv(write_id=False) == '1.245$a,1.245$b\n"A title, with a comma",subtitle\n"A ""title, or name"" with double quotes in the middle",subtitle'
 
     # bug issue 507: fields with more 10+ instances
