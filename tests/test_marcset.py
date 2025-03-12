@@ -228,8 +228,6 @@ def test_to_csv(db):
     # comma and quote handling
     bibs = BibSet()
     bibs.records += [Bib().set('245', 'a', 'A title, with a comma').set('245', 'b', 'subtitle'), Bib().set('245', 'a', 'A "title, or name" with double quotes in the middle').set('245', 'b', 'subtitle')]
-    print(bibs.to_csv(write_id=False))
-
     assert bibs.to_csv(write_id=False) == '1.245$a,1.245$b\n"A title, with a comma",subtitle\n"A ""title, or name"" with double quotes in the middle",subtitle'
 
     # bug issue 507: fields with more 10+ instances

@@ -350,7 +350,7 @@ class MarcSet():
             # each record is one table row
             i += 1
             
-            if write_id:
+            if write_id and record.id is not None:
                 table.set(i, '1.001', str(record.id))
             elif field := record.get_field('001'):
                 table.set(i, '1.001', field.value)
@@ -1331,7 +1331,7 @@ class Marc(object):
     def to_mrc(self, *tags, language=None, write_id=True):
         record = copy.deepcopy(self)
 
-        if write_id:
+        if write_id and record.id is not None:
             record.set('001', None, str(record.id))
 
         directory = ''
@@ -1373,7 +1373,7 @@ class Marc(object):
     def to_mrk(self, *tags, language=None, write_id=True):
         record = copy.deepcopy(self) # so as not to alter the original object's data
 
-        if write_id:
+        if write_id and record.id is not None:
             record.set('001', None, str(record.id))
         
         return '\n'.join([field.to_mrk(language=language) for field in record.get_fields()]) + '\n'
@@ -1401,7 +1401,7 @@ class Marc(object):
     def to_xml_raw(self, *tags, language=None, xref_prefix='', write_id=True):
         record = copy.deepcopy(self) # so as not to alter the orginal object's underlying data
 
-        if write_id:
+        if write_id and record is not None:
             record.set('001', None, str(record.id))
         
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
