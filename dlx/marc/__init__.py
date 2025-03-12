@@ -168,14 +168,12 @@ class MarcSet():
                 value = table.index[temp_id][field_name]
                 
                 # parse the column header into tag, code and place
-                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])', str(field_name)):
+                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])?', str(field_name)):
                     if match.group(1):
                         instance = int(match.group(2))
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
 
                     tag, code = match.group(3), match.group(5)
-                elif len(field_name) == 3 and field_name[0:2] == '00':
-                    tag, code = field_name, None
                 else:
                     exceptions.append('Invalid column header "{}"'.format(field_name))
                     continue
