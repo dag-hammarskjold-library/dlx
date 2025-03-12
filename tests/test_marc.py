@@ -764,7 +764,20 @@ def test_from_mrk(db):
     bib.id = 1
     assert bib.to_mrk() == control
     assert bib.commit(auth_check=True)
-    
+
+def test_from_csv(db, bibs):
+    from dlx.marc import Bib
+
+    bib = Bib.from_csv('1.245$a,1.269$a,1.650$a\nTitle,Date,Not validated')
+    assert isinstance(bib, Bib)
+    assert Bib.from_csv('1.245$a,1.269$a,1.650$a\nTitle,Date,Header', auth_control=True)
+
+    with pytest.raises(Exception):
+        Bib.from_csv('1.245$a,1.269$a,1.650$a\nTitle,Date,Invalid auth controlled value', auth_control=True)
+
+    with pytest.raises(Exception):
+        Bib.from_csv('Invalid header value,1.269$a,1.650$a\nTitle,Date,Header')
+
 def test_from_json():
     from dlx.marc import Bib, InvalidAuthValue, InvalidAuthField
     
