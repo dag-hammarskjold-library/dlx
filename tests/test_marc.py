@@ -524,6 +524,10 @@ def test_get_value(db, bibs):
     assert bib.get_value('999', 'a') == ''
     assert bib.get_values('999', 'a') == []
 
+    # issue 487
+    bib.set('520', 'z', 'Extra subfield', address=['+'])
+    assert bib.get_value('520', 'z') == 'Extra subfield'
+
 def test_get_values(db, bibs):
     from dlx.marc import Bib
 
