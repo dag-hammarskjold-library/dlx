@@ -1417,7 +1417,7 @@ class Marc(object):
     def to_xml_raw(self, *tags, language=None, xref_prefix='', write_id=True):
         record = copy.deepcopy(self) # so as not to alter the orginal object's underlying data
 
-        if write_id and record is not None:
+        if write_id and record.id is not None:
             record.set('001', None, str(record.id))
         
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
