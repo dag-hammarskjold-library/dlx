@@ -332,6 +332,22 @@ def test_querystring(db):
     
     query = Query.from_string('650__a:/header/i')
     assert len(list(BibSet.from_query(query.compile()))) == 2
+
+    # double quoted in subfield, field and logical field search
+    query = Query.from_string('520__a:"another description"')
+    assert BibSet.from_query(query).count == 1
+    query = Query.from_string('520__a:"another descrip"') # has to match whole words
+    assert BibSet.from_query(query).count == 0
+
+    query = Query.from_string('520:"another description"')
+    assert BibSet.from_query(query).count == 1
+    query = Query.from_string('520:"another descrip"') # has to match whole words
+    assert BibSet.from_query(query).count == 0
+
+    query = Query.from_string('title:"is the"')
+    assert BibSet.from_query(query).count == 2
+    query = Query.from_string('title:"is t"') # has to match whole words
+    assert BibSet.from_query(query).count == 0
     
     # all fields text
    
@@ -339,12 +355,10 @@ def test_querystring(db):
     #    # $text operator not implemented in mongomock
     #    #assert len(list(BibSet.from_query(query.compile()))) == 2
 
+    query = Query.from_string('header')
     assert len(list(BibSet.from_query(query.compile()))) == 2
     query = Query.from_string('Another header')
     assert query.compile() == {'words': {'$all': ['anoth', 'header']}}
-
-    # double quoted strings in text search
-    query = Query.from_string('"Another-header"')
 
     # hyphenated word inside double quoted text
     query = Query.from_string('"Another-header"')
