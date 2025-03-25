@@ -170,8 +170,8 @@ class Query():
                     if negated:
                         q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
 
-                    if quoted:
-                        q['$and'].append({'text': Regex(' '.join(quoted))})
+                    for phrase in quoted:
+                        q['$and'].append({'text': Regex(fr'\b{phrase}\b')})
                     
                     matches = DB.handle[f'_index_{tag}'].find(q)
                     matched_subfield_values = []
@@ -290,11 +290,10 @@ class Query():
                     if negated:
                         q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
 
-                    if quoted:
-                        q['$and'].append({'text': Regex(' '.join(quoted))})
-                    
-                    matches = DB.handle[f'_index_{tag}'].find(q)
+                    for phrase in quoted:
+                        q['$and'].append({'text': Regex(fr'\b{phrase}\b')})
 
+                    matches = DB.handle[f'_index_{tag}'].find(q)
                     matched_subfield_values = []
 
                     for m in matches:
@@ -444,9 +443,9 @@ class Query():
                         if negated:
                             q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
 
-                        if quoted:
-                            q['$and'].append({'text': Regex(' '.join(quoted))})
-                    
+                        for phrase in quoted:
+                            q['$and'].append({'text': Regex(fr'\b{phrase}\b')})
+
                     matches = DB.handle[f'_index_{field}'].find(q)
                     values = [x['_id'] for x in matches]
 
