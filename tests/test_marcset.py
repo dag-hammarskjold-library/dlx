@@ -120,6 +120,14 @@ def test_from_table(db):
         # auth control
         bibset = BibSet.from_table(Table([['650a'], ['Invalid']]), auth_control=True)
 
+    # issue #533 - tables with ten or more instances of a tag
+    table = Table([
+        [f'{i}.246$a' for i in range (1, 11)], # header
+        ['alt title' for i in range (1, 11)]      # data
+    ])
+
+    assert BibSet.from_table(table)
+
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
     from dlx.marc import BibSet

@@ -171,7 +171,7 @@ class MarcSet():
                 value = table.index[temp_id][field_name]
                 
                 # parse the column header into tag, code and place
-                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])?', str(field_name)):
+                if match := re.match(r'^(([1-9]\d*)\.)?(\d{3})(\$)?([a-z0-9])?', str(field_name)):
                     if match.group(1):
                         instance = int(match.group(2))
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
