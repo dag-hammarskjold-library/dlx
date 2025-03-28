@@ -224,11 +224,10 @@ class MarcSet():
                     else:
                         exceptions.append(str(AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.to_str() for x in ambiguous]))))
 
-                # if this is the last cell in the row, delete any subfield $0
-                if header_fields.index(field_name) == len(header_fields) - 1:
-                    if delete_subfield_zero:
-                        field = record.get_field(tag, instance)
-                        field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
+                if delete_subfield_zero:
+                    if Config.is_authority_controlled(record.record_type, tag, code):
+                        if field := record.get_field(tag, instance):
+                            field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.records.append(record)
 
