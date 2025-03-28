@@ -93,8 +93,8 @@ def test_from_table(db):
     from dlx.util import Table
     
     table = Table([
-        ['1.001', '1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0'],
-        ['98', 'title', 'subtitle', '1999-12-31','repeated', '', 1],
+        ['1.001', '1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0', ''],
+        ['98', 'title', 'subtitle', '1999-12-31','repeated', '', 1, '', ''],
         ['99', 'title2','subtitle2','2000-01-01','repeated', '', 1],
     ])
     
@@ -123,10 +123,22 @@ def test_from_table(db):
     # issue #533 - tables with ten or more instances of a tag
     table = Table([
         [f'{i}.246$a' for i in range (1, 11)], # header
-        ['alt title' for i in range (1, 11)]      # data
+        ['alt title' for i in range (1, 11)]   # data
     ])
 
     assert BibSet.from_table(table)
+
+    with pytest.raises(Exception):
+        table = Table([
+            '100$a|100$b|||'.split('|'),
+            'cell1|cell2||extra|'.split('|'),
+        ])
+
+    with pytest.raises(Exception):
+        table = Table([
+            '|100$b|||'.split('|'),
+            'cell1|cell2||extra|'.split('|'),
+        ])
 
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
