@@ -171,7 +171,7 @@ class MarcSet():
                 value = table.index[temp_id][field_name]
                 
                 # parse the column header into tag, code and place
-                if match := re.match(r'^(([1-9]+)\.)?(\d{3})(\$)?([a-z0-9])?', str(field_name)):
+                if match := re.match(r'^(([1-9]\d*)\.)?(\d{3})(\$)?([a-z0-9])?', str(field_name)):
                     if match.group(1):
                         instance = int(match.group(2))
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
@@ -224,11 +224,10 @@ class MarcSet():
                     else:
                         exceptions.append(str(AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.to_str() for x in ambiguous]))))
 
-                # if this is the last cell in the row, delete any subfield $0
-                if header_fields.index(field_name) == len(header_fields) - 1:
-                    if delete_subfield_zero:
-                        field = record.get_field(tag, instance)
-                        field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
+                if delete_subfield_zero:
+                    if Config.is_authority_controlled(record.record_type, tag, code):
+                        if field := record.get_field(tag, instance):
+                            field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
 
             self.records.append(record)
 

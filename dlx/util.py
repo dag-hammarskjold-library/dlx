@@ -42,21 +42,37 @@ class Table():
         self.index = {} # data structure that stores the table
         self.header = [] # list of field names for the header
         
+        if list_of_lists is None:
+            return
+        
         # todo: put this in a class method that instantiates the object
-        if list_of_lists:
-            self.header = list_of_lists[0]
-            rowx = 0
-
-            for row in list_of_lists[1:len(list_of_lists)]:
-                self.index[rowx] = {}
-                cellx = 0
-
-                for cell in row:
-                    field_name = self.header[cellx]
-                    self.index[rowx][field_name] = cell
-                    cellx += 1
+        self.header = list_of_lists.pop(0)
+        
+        # find empty cells and remove empty cells at end of header
+        for i, field in enumerate(self.header):
+            if not field:
+                if all([not x for x in self.header[i:]]) or i == len(self.header) - 1:
+                    # all the cells after this are blank
+                    self.header = self.header[:i]
+                    break
+                else:
+                    raise Exception(f'Blank column header in {self.header}')
                 
-                rowx += 1
+        header_len = len(self.header)
+ 
+        # iterate though the data and build an index
+        for i, row in enumerate(list_of_lists):
+            self.index[i] = {}
+
+            for j, cell in enumerate(row):
+                if j+1 > header_len:
+                    if any(row[j:]):
+                        raise Exception(f'Extra data in row {i}')
+                    else:
+                        break
+
+                field_name = self.header[j]
+                self.index[i][field_name] = cell
                 
     def set(self, rowx, field_name, value):
         self.index.setdefault(rowx, {})
