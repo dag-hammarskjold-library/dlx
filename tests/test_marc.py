@@ -778,6 +778,10 @@ def test_to_mrk(bibs):
     control = '\n'.join([line for line in control.split("\n") if line[:4] != '=001'])
     assert bib.to_mrk(write_id=False) == control
 
+    # add 000 if not exists
+    bib = Bib().set('245', 'a', 'title')
+    assert bib.to_mrk() == '=000  ****\n=245  \\\\$atitle\n'
+
 def test_from_mrk(db):
     from dlx.marc import Bib
     
