@@ -40,8 +40,12 @@ class InvalidAuthField(AuthException):
         super().__init__(f'{tag}, {code} is an authority-controlled field')
 
 class AuthInUse(Exception):
-     def __init__(self):
+    def __init__(self):
         super().__init__('Can\'t delete Auth record because it is in use by other records')
+
+class InvalidRecordString(Exception):
+    def __init__(self, string, message='Can\'t parse record from string:'):
+        super().__init__(f'{message} {string}')
 
 ### Decorators
 
@@ -1507,11 +1511,18 @@ class Marc(object):
     @classmethod
     def from_mrk(cls, string: str, auth_control=True, delete_subfield_zero=True):
         self = cls()
+        last_tag = 0
 
         for line in filter(None, string.split('\n')):
             match = re.match(r'=(\w{3})  (.*)', line)            
             tag, rest = match.group(1), match.group(2)
             if tag == 'LDR': tag = '000'
+
+            if int(tag) < int(last_tag):
+                # this can happen if a newline is missing between records
+                raise InvalidRecordString(string, 'Tag order does not look valid')
+            else:
+                last_tag = tag
 
             if tag[:2] == '00':
                 field = Controlfield(tag, rest)
