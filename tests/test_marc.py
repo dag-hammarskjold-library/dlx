@@ -373,6 +373,12 @@ def test_querystring(db):
     query = Query.from_string('Another -header')
     assert query.compile() == {'$and': [{'words': {'$all': ['anoth']}}, {'words': {'$nin': ['header']}}]}
 
+    # starred words (truncation)
+    query = Query.from_string('anoth*')
+    assert query.compile() == {'text': Regex(' anoth.*')}
+    query = Query.from_string('anoth* h*der')
+    assert query.compile() == {'$and': [{'text': Regex(' anoth.*')}, {'text': Regex(' h.*der')}]}
+
     # tag no subfield
     query = Query.from_string('245:\'is the\'')
     results = list(BibSet.from_query(query.compile()))

@@ -707,11 +707,14 @@ class Text():
         quoted = re.findall(r'(".+?")', self.string)
         # capture words starting with hyphen (denotes "not" search)
         negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', self.string)]
+        # capture words that contain stars
+        starred = [x for x in re.split('\s+', self.string) if '*' in x]
         copied_string = self.string
 
-        for _ in negated:
+        for _ in negated + starred:
             copied_string = copied_string.replace(_, '')
-
+        
+        #starred = [x.replace('*', '.*') for x in starred]
         exclude = ('the', 'of', 'to', 'at', 'and', 'in', 'on', 'by', 'at', 'it', 'its')
         words = Tokenizer.tokenize(copied_string)
         words = list(filter(lambda x: x not in exclude, words))
@@ -729,10 +732,12 @@ class Text():
         elif words:
             data.update({'words': {'$all': words}})
 
-        if len(quoted) > 1:
-            data['$and'] = [{'text': Regex(rf'\s{Tokenizer.scrub(x)}\s')} for x in quoted]
+        if len(quoted + starred) > 1:
+            data['$and'] = [{'text': Regex(rf'\s{Tokenizer.scrub(x)}\s')} for x in quoted] + [{'text': Regex(f' {x.replace("*", ".*")}')} for x in starred]
         elif len(quoted) == 1:
             data['text'] = Regex(rf'\s{Tokenizer.scrub(quoted[0])}\s')
+        elif len(starred) == 1:
+            data['text'] = Regex(f' {starred[0].replace('*', '.*')}')
 
         # use the text index for these cases
         text_searches = []
