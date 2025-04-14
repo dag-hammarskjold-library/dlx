@@ -1390,6 +1390,9 @@ class Marc(object):
 
         if write_id and record.id is not None:
             record.set('001', None, str(record.id))
+
+        if not record.get_value('000'):
+            record.set('000', 'None', '****')
         
         return '\n'.join([field.to_mrk(language=language) for field in record.get_fields()]) + '\n'
 
