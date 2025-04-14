@@ -783,7 +783,7 @@ def test_to_mrk(bibs):
     assert bib.to_mrk() == '=000  ****\n=245  \\\\$atitle\n'
 
 def test_from_mrk(db):
-    from dlx.marc import Bib
+    from dlx.marc import Bib, InvalidRecordString
     
     control = '=000  leader\n=001  1\n=008  controlfield\n=245  \\\\$aThis$bis the$ctitle\n=520  \\\\$aDescription\n=520  \\\\$aAnother description$aRepeated subfield\n=650  \\\\$aHeader$01\n=710  \\\\$aAnother header$02\n'
 
@@ -791,6 +791,10 @@ def test_from_mrk(db):
     assert bib.id == 1
     assert bib.to_mrk() == control
     assert bib.commit(auth_check=True)
+
+    # invalid tag order
+    with pytest.raises(InvalidRecordString):
+        Bib.from_mrk('=001  99999\n=000  leader')
 
 def test_from_csv(db, bibs):
     from dlx.marc import Bib
