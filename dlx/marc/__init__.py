@@ -186,52 +186,71 @@ class MarcSet():
                     continue
 
                 if record.get_value(tag, code, address=[instance, 0]):
+                    # repeated subfield codes in the same field are not supported
                     exceptions.append('Column header {}.{}{} is repeated'.format(instance, tag, code))
                     continue
 
                 if tag == '001':
                     record.id = int(value)
 
-                # if the subfield field is authority-controlled, use subfield 
-                # $0 as the xref. $0 will be the first subfield in the field if
-                # it exists, because the header has been sorted.
-                xref = None
-
-                if Config.is_authority_controlled(self.record_type, tag, code):
-                    if field := record.get_field(tag, place=instance):
-                        if subfield := field.get_subfield('0'):
-                            xref = int(subfield.value)
-                            value = Auth.lookup(xref, code)
-
-                # flag if specified field value is already in the system
-                if field_check and field_check == tag + (code or ''):
-                    if self.record_class.find_one(Condition(tag, {code: value}).compile()):
-                        exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
-                        continue
-
-                # update the marc object
+                # make a first pass at parsing the data field by field without doing auth control or other checks.
+                # this lets us have access to all the data at the same time later.
                 field = record.get_field(tag, place=instance)
                 address = [instance] if field else ['+']
-                ambiguous = []
+                record.set(tag, code, value or '__null__', address=address, auth_control=False) # set a placeholder value if there is no data in that cell in the table
 
-                try:
-                    record.set(tag, code, xref if xref else value, address=address, auth_control=auth_control)
-                except AmbiguousAuthValue as e:
-                    ambiguous.push(Literal(code, value))     
-                except Exception as e:
-                    exceptions.append(str(e))
+            # go back through the record and validate auth controlled values and do checks
+            for field in record.datafields:
+                for i, subfield in enumerate(field.subfields):
+                    # check field values that should be unique in the system
+                    if field_check and field_check == field.tag + (subfield.code or ''):
+                        if self.record_class.find_one(Condition(field.tag, {subfield.code: subfield.value}).compile()):
+                            exceptions.append('{}${}: "{}" is already in the system'.format(tag, code, value))
+
+                    if auth_control and Config.is_authority_controlled(record.record_type, field.tag, subfield.code):
+                        # check if there is a subfield $0 in the field and use as xref
+                        if xref := field.get_value('0'):
+                            try:
+                                xref = int(xref)
+                            except:
+                                raise InvalidAuthXref(record.record_type, field.tag, subfield.code, xref)
+
+                            if Auth.lookup(xref, subfield.code):
+                                field.subfields[i] = Linked(code, xref) # replace the subfield with a linked using the found xref
+                            else:
+                                raise InvalidAuthXref(record.record_type, field.tag, subfield.code, xref)
+                        else:
+                            # try to validate the string value
+                            if xrefs := Auth.xlookup(field.tag, subfield.code, subfield.value, record_type=record.record_type):
+                                if len(xrefs) == 1:
+                                    field.subfields[i] = Linked(code, xrefs.pop()) # replace the subfield with a linked using the found xref
+                                else:
+                                    # resolve ambiguous
+                                    auth_ctrled = [s.to_dict() for s in field.subfields if hasattr(s, 'xref')]
+
+                                    if xref := Auth.resolve_ambiguous(tag=field.tag, subfields=auth_ctrled, record_type=record.record_type, ):
+                                        print(xref)
+                                    else:
+                                        raise Exception()
+                                    
+                                    '''
+                                    # gather the other auth cntrl subfields
+                                    auth_ctrled = [s.to_dict() for s in field.subfields if hasattr(s, 'xref')]
+
+                                    # find any auths that contain all of this field's subfields, and none else
+                                    for xref in xrefs:
+                                        if auth_ctrled in [Auth.from_id(xref).heading_field.subfields]:
+                                            pass
+                                    '''
+                                    
+                            else:
+                                raise InvalidAuthValue(record.record_type, field.tag, subfield.code, subfield.value)
                 
-                # attempt to use multiple subfields to resolve ambiguity
-                if ambiguous:
-                    if xref := Auth.resolve_ambiguous(tag=tag, subfields=ambiguous, record_type=self.record_type):
-                        field.set(code, xref, place='+', auth_control=auth_control)
-                    else:
-                        exceptions.append(str(AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.to_str() for x in ambiguous]))))
+                    subfield.value = None if subfield.value == '__null__' else subfield.value
 
-                if delete_subfield_zero:
-                    if Config.is_authority_controlled(record.record_type, tag, code):
-                        if field := record.get_field(tag, instance):
-                            field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
+                # remove subfield 0
+                if auth_control and delete_subfield_zero:
+                    field.subfields = [x for x in field.subfields if x.code != '0']
 
             self.records.append(record)
 
@@ -1810,6 +1829,22 @@ class Auth(Marc):
 
                 return matches[0]
             elif len(matches) > 1:
+                candidates = []
+
+                for xref in matches:
+                    auth_subfields = cls.from_id(xref).heading_field.subfields
+
+                    print([(x.code, x.value) for x in subfields])
+                    print([(x.code, x.value) for x in auth_subfields])
+
+                    if [(x.code, x.value) for x in subfields] == [(x.code, x.value) for x in auth_subfields]:
+                        candidates.append(xref)
+                    
+                if len(candidates) == 1:
+                    return candidates.pop()
+                else:
+                    return None
+
                 exact_matches = []
 
                 for xref in matches:
@@ -2304,7 +2339,7 @@ class Datafield(Field):
     def set(self, code, new_val, *, ind1=None, ind2=None, place=0, auth_control=True):
         if not new_val and not ind1 and not ind2:
             return self
-            
+        
         if auth_control and not self.record_type:
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
 
@@ -2312,7 +2347,7 @@ class Datafield(Field):
             if isinstance(new_val, int):
                 xref = new_val
 
-                if not Auth.lookup(xref, code): 
+                if not Auth.lookup(xref, code):
                     raise InvalidAuthXref(self.record_type, self.tag, code, new_val)
 
             else:

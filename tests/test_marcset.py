@@ -89,7 +89,7 @@ def test_sort_table_header():
     assert MarcSet.sort_table_header(header) == ['1.246$a',  '1.246$b',  '1.269$a', '1.650$0', '1.650$a']
 
 def test_from_table(db):
-    from dlx.marc import BibSet
+    from dlx.marc import BibSet, InvalidAuthXref
     from dlx.util import Table
     
     table = Table([
@@ -128,17 +128,34 @@ def test_from_table(db):
 
     assert BibSet.from_table(table)
 
+    # data outside column headers
     with pytest.raises(Exception):
         table = Table([
             '100$a|100$b|||'.split('|'),
             'cell1|cell2||extra|'.split('|'),
         ])
 
+    # blank column header at beginning
     with pytest.raises(Exception):
         table = Table([
             '|100$b|||'.split('|'),
             'cell1|cell2||extra|'.split('|'),
         ])
+
+    # invalid xref  
+    table = Table([
+        ['1.650$a', '1.650$0'],
+        ['', 3]
+    ])
+
+    with pytest.raises(Exception):
+        BibSet.from_table(table, auth_control=True)
+
+    # invalid xref  
+    table = Table([
+        ['1.650$a', '1.650$0'],
+        ['', 3]
+    ])
 
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
