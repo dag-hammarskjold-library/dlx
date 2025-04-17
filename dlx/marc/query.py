@@ -737,7 +737,7 @@ class Text():
         elif len(quoted) == 1:
             data['text'] = Regex(rf'\s{Tokenizer.scrub(quoted[0])}\s')
         elif len(starred) == 1:
-            data['text'] = Regex(f' {starred[0].replace('*', '.*')}')
+            data['text'] = Regex(f' {starred[0].replace("*", ".*")}')
 
         # use the text index for these cases
         text_searches = []
