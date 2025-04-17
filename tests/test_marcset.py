@@ -89,7 +89,7 @@ def test_sort_table_header():
     assert MarcSet.sort_table_header(header) == ['1.246$a',  '1.246$b',  '1.269$a', '1.650$0', '1.650$a']
 
 def test_from_table(db):
-    from dlx.marc import BibSet, InvalidAuthXref
+    from dlx.marc import BibSet, Auth, InvalidAuthXref
     from dlx.util import Table
     
     table = Table([
@@ -156,6 +156,29 @@ def test_from_table(db):
         ['1.650$a', '1.650$0'],
         ['', 3]
     ])
+
+    # ambiguous auth controlled value
+    Auth().set('100', 'a', 'ambiguous').set('100', 'g', 'unique 1').commit()
+    Auth().set('100', 'a', 'ambiguous').set('100', 'g', 'unique 2').commit()
+
+    table = Table([
+        ['1.700$a'],
+        ['ambiguous', ]
+    ])
+
+    with pytest.raises(Exception):
+        BibSet.from_table(table, auth_control=True)
+
+    
+    table = Table([
+        ['1.700$a', '1.700$g'],
+        ['ambiguous', 'unique 1']
+    ])
+
+    bibs = BibSet.from_table(table, auth_control=True)
+    assert bibs
+    assert bibs.records[0].get_field('700').subfields[0].xref
+
 
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
