@@ -290,13 +290,13 @@ def test_to_csv(db):
 
     bibset = BibSet.from_query({})
     bibset.records = list(bibset.records)
-    control = '1.001,1.245$a,1.245$b,1.245$c,1.520$a,2.520$a,1.650$0,1.650$a,1.710$0,1.710$a\n1,This,is the,title,Description,Another description||Repeated subfield,1,Header,2,Another header\n2,Another,is the,title,,,1,Header,,'
+    control = '1.001,1.245__,1.245$a,1.245$b,1.245$c,1.520__,1.520$a,2.520__,2.520$a,1.650$0,1.650__,1.650$a,1.710$0,1.710__,1.710$a\n1,__,This,is the,title,__,Description,__,Another description||Repeated subfield,1,__,Header,2,__,Another header\n2,__,Another,is the,title,,,,,1,__,Header,,,'
     assert bibset.to_csv(write_id=True) == control
     
     # comma and quote handling
     bibs = BibSet()
     bibs.records += [Bib().set('245', 'a', 'A title, with a comma').set('245', 'b', 'subtitle'), Bib().set('245', 'a', 'A "title, or name" with double quotes in the middle').set('245', 'b', 'subtitle')]
-    assert bibs.to_csv(write_id=False) == '1.245$a,1.245$b\n"A title, with a comma",subtitle\n"A ""title, or name"" with double quotes in the middle",subtitle'
+    assert bibs.to_csv(write_id=False) == '1.245__,1.245$a,1.245$b\n__,"A title, with a comma",subtitle\n__,"A ""title, or name"" with double quotes in the middle",subtitle'
 
     # bug issue 507: fields with more 10+ instances
     from dlx.marc import Bib
@@ -304,7 +304,7 @@ def test_to_csv(db):
     [bib.set('999', 'a', str(i), address=['+']) for i in range(0, 11)]
     bibs = BibSet()
     bibs.records.append(bib)
-    assert bibs.to_csv(write_id=False) == '1.999$a,2.999$a,3.999$a,4.999$a,5.999$a,6.999$a,7.999$a,8.999$a,9.999$a,10.999$a,11.999$a\n0,1,2,3,4,5,6,7,8,9,10'
+    assert bibs.to_csv(write_id=False) == '1.999__,1.999$a,2.999__,2.999$a,3.999__,3.999$a,4.999__,4.999$a,5.999__,5.999$a,6.999__,6.999$a,7.999__,7.999$a,8.999__,8.999$a,9.999__,9.999$a,10.999__,10.999$a,11.999__,11.999$a\n__,0,__,1,__,2,__,3,__,4,__,5,__,6,__,7,__,8,__,9,__,10'
 
 def test_from_aggregation(db, bibs):
     from dlx.marc import BibSet, Query

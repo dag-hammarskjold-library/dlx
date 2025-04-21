@@ -147,7 +147,7 @@ class MarcSet():
             return sorted(
                 header, 
                 key=lambda x: ( 
-                    (re.match(r'\d+\.(\w+)', x)).group(1), # sort by tag
+                    (re.match(r'\d+\.(\w{3})', x)).group(1), # sort by tag
                     int(re.match(r'(\d+)\.', x).group(1)), # sort by prefix group
                     (re.match(r'\d+\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
                 )
@@ -397,7 +397,7 @@ class MarcSet():
             for tag in [x for x in record.get_tags() if not re.match('00', x)]:
                 for place, field in enumerate(record.get_fields(tag)):
                     place += 1
-
+                    table.set(i, f'{place}.{field.tag}__', ''.join([x if x != ' ' else '_' for x in field.indicators]))
                     xref = None
 
                     for subfield in field.subfields:
