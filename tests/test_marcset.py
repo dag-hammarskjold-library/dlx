@@ -173,6 +173,15 @@ def test_from_table(db):
     assert bibs
     assert bibs.records[0].get_field('700').subfields[0].xref
 
+    # indicators
+    table = Table([
+        ['1.245$a', '1.245__', '1.269__', '1.269$a'],
+        ['title', '98', '34', 'date']
+    ])
+
+    bibs = BibSet.from_table(table)
+    assert bibs.records[0].get_field('245').indicators == ['9', '8']
+    assert bibs.records[0].get_field('269').indicators == ['3', '4']
 
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():

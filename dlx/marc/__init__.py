@@ -173,19 +173,25 @@ class MarcSet():
             for field_name in header_fields:
                 instance = 0
                 value = table.index[temp_id][field_name]
+                tag, code, is_indicator_col = '', '', False
                 
-                # parse the column header into tag, code and place
-                if match := re.match(r'^(([1-9]\d*)\.)?(\d{3})(\$)?([a-z0-9])?', str(field_name)):
+                # parse the column header
+                if match := re.match(r'^(([1-9]\d*)\.)?(\d{3})(\$|__)?([a-z0-9])?', str(field_name)):
                     if match.group(1):
                         instance = int(match.group(2))
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
 
-                    tag, code = match.group(3), match.group(5)
+                    if match.group(4) == '__':
+                        # indicator column 
+                        tag = match.group(3)
+                        is_indicator_col = True
+                    else:
+                        tag, code = match.group(3), match.group(5)
                 else:
                     exceptions.append(Exception(f'Invalid column header "{field_name}"'))
                     continue
 
-                if record.get_value(tag, code, address=[instance, 0]):
+                if not is_indicator_col and record.get_value(tag, code, address=[instance, 0]):
                     # repeated subfield codes in the same field are not supported
                     exceptions.append(Exception(f'Column header {instance}.{tag}{code} is repeated'))
                     continue
@@ -197,7 +203,15 @@ class MarcSet():
                 # this lets us have access to all the data at the same time later.
                 field = record.get_field(tag, place=instance)
                 address = [instance] if field else ['+']
-                record.set(tag, code, value or '__null__', address=address, auth_control=False) # set a placeholder value if there is no data in that cell in the table
+                
+                if is_indicator_col:
+                    if len(value) != 2:
+                        # inds must be two chars
+                        exceptions.append(Exception(f'Invalid indicators: {value}'))
+
+                    record.set(tag, None, None, ind1=value[0], ind2=value[1])
+                else:
+                    record.set(tag, code, value or '__null__', address=address, auth_control=False) # set a placeholder value if there is no data in that cell in the table
 
             # go back through the record and validate auth controlled values and do checks
             for field in record.datafields:
