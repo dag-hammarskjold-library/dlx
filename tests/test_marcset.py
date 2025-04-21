@@ -94,8 +94,8 @@ def test_from_table(db):
     
     table = Table([
         ['1.001', '1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0', ''],
-        ['98', 'title', 'subtitle', '1999-12-31','repeated', '', 1, '', ''],
-        ['99', 'title2','subtitle2','2000-01-01','repeated', '', 1],
+        ['98', 'title', 'subtitle', '1999-12-31','repeated', 'x', 1, '', ''],
+        ['99', 'title2','subtitle2','2000-01-01','repeated', 'x', 1],
     ])
     
     bibset = BibSet.from_table(table)
@@ -145,17 +145,11 @@ def test_from_table(db):
     # invalid xref  
     table = Table([
         ['1.650$a', '1.650$0'],
-        ['', 3]
+        ['x', 3]
     ])
 
     with pytest.raises(Exception):
         BibSet.from_table(table, auth_control=True)
-
-    # invalid xref  
-    table = Table([
-        ['1.650$a', '1.650$0'],
-        ['', 3]
-    ])
 
     # ambiguous auth controlled value
     Auth().set('100', 'a', 'ambiguous').set('100', 'g', 'unique 1').commit()
