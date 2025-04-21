@@ -1093,3 +1093,4 @@ def test_auth_deleted_subfield(db):
 
     q = Query.from_string('710:"will not be deleted"')
     assert q.to_json()
+

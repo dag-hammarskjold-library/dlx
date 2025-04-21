@@ -89,13 +89,13 @@ def test_sort_table_header():
     assert MarcSet.sort_table_header(header) == ['1.246$a',  '1.246$b',  '1.269$a', '1.650$0', '1.650$a']
 
 def test_from_table(db):
-    from dlx.marc import BibSet
+    from dlx.marc import BibSet, Auth, InvalidAuthXref
     from dlx.util import Table
     
     table = Table([
         ['1.001', '1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0', ''],
-        ['98', 'title', 'subtitle', '1999-12-31','repeated', '', 1, '', ''],
-        ['99', 'title2','subtitle2','2000-01-01','repeated', '', 1],
+        ['98', 'title', 'subtitle', '1999-12-31','repeated', 'x', 1, '', ''],
+        ['99', 'title2','subtitle2','2000-01-01','repeated', 'x', 1],
     ])
     
     bibset = BibSet.from_table(table)
@@ -128,17 +128,60 @@ def test_from_table(db):
 
     assert BibSet.from_table(table)
 
+    # data outside column headers
     with pytest.raises(Exception):
         table = Table([
             '100$a|100$b|||'.split('|'),
             'cell1|cell2||extra|'.split('|'),
         ])
 
+    # blank column header at beginning
     with pytest.raises(Exception):
         table = Table([
             '|100$b|||'.split('|'),
             'cell1|cell2||extra|'.split('|'),
         ])
+
+    # invalid xref  
+    table = Table([
+        ['1.650$a', '1.650$0'],
+        ['x', 3]
+    ])
+
+    with pytest.raises(Exception):
+        BibSet.from_table(table, auth_control=True)
+
+    # ambiguous auth controlled value
+    Auth().set('100', 'a', 'ambiguous').set('100', 'g', 'unique 1').commit()
+    Auth().set('100', 'a', 'ambiguous').set('100', 'g', 'unique 2').commit()
+
+    table = Table([
+        ['1.700$a'],
+        ['ambiguous', ]
+    ])
+
+    with pytest.raises(Exception):
+        BibSet.from_table(table, auth_control=True)
+
+    
+    table = Table([
+        ['1.700$a', '1.700$g'],
+        ['ambiguous', 'unique 1']
+    ])
+
+    bibs = BibSet.from_table(table, auth_control=True)
+    assert bibs
+    assert bibs.records[0].get_field('700').subfields[0].xref
+
+    # indicators
+    table = Table([
+        ['1.245$a', '1.245__', '1.269__', '1.269$a'],
+        ['title', '98', '34', 'date']
+    ])
+
+    bibs = BibSet.from_table(table)
+    assert bibs.records[0].get_field('245').indicators == ['9', '8']
+    assert bibs.records[0].get_field('269').indicators == ['3', '4']
 
 @pytest.mark.skip(reason='xlrd is obsolete. needs review')
 def test_from_excel():
@@ -247,13 +290,13 @@ def test_to_csv(db):
 
     bibset = BibSet.from_query({})
     bibset.records = list(bibset.records)
-    control = '1.001,1.245$a,1.245$b,1.245$c,1.520$a,2.520$a,1.650$0,1.650$a,1.710$0,1.710$a\n1,This,is the,title,Description,Another description||Repeated subfield,1,Header,2,Another header\n2,Another,is the,title,,,1,Header,,'
+    control = '1.001,1.245__,1.245$a,1.245$b,1.245$c,1.520__,1.520$a,2.520__,2.520$a,1.650$0,1.650__,1.650$a,1.710$0,1.710__,1.710$a\n1,__,This,is the,title,__,Description,__,Another description||Repeated subfield,1,__,Header,2,__,Another header\n2,__,Another,is the,title,,,,,1,__,Header,,,'
     assert bibset.to_csv(write_id=True) == control
     
     # comma and quote handling
     bibs = BibSet()
     bibs.records += [Bib().set('245', 'a', 'A title, with a comma').set('245', 'b', 'subtitle'), Bib().set('245', 'a', 'A "title, or name" with double quotes in the middle').set('245', 'b', 'subtitle')]
-    assert bibs.to_csv(write_id=False) == '1.245$a,1.245$b\n"A title, with a comma",subtitle\n"A ""title, or name"" with double quotes in the middle",subtitle'
+    assert bibs.to_csv(write_id=False) == '1.245__,1.245$a,1.245$b\n__,"A title, with a comma",subtitle\n__,"A ""title, or name"" with double quotes in the middle",subtitle'
 
     # bug issue 507: fields with more 10+ instances
     from dlx.marc import Bib
@@ -261,7 +304,7 @@ def test_to_csv(db):
     [bib.set('999', 'a', str(i), address=['+']) for i in range(0, 11)]
     bibs = BibSet()
     bibs.records.append(bib)
-    assert bibs.to_csv(write_id=False) == '1.999$a,2.999$a,3.999$a,4.999$a,5.999$a,6.999$a,7.999$a,8.999$a,9.999$a,10.999$a,11.999$a\n0,1,2,3,4,5,6,7,8,9,10'
+    assert bibs.to_csv(write_id=False) == '1.999__,1.999$a,2.999__,2.999$a,3.999__,3.999$a,4.999__,4.999$a,5.999__,5.999$a,6.999__,6.999$a,7.999__,7.999$a,8.999__,8.999$a,9.999__,9.999$a,10.999__,10.999$a,11.999__,11.999$a\n__,0,__,1,__,2,__,3,__,4,__,5,__,6,__,7,__,8,__,9,__,10'
 
 def test_from_aggregation(db, bibs):
     from dlx.marc import BibSet, Query
