@@ -196,7 +196,7 @@ class MarcSet():
                     exceptions.append(Exception(f'Column header {instance}.{tag}{code} is repeated'))
                     continue
 
-                if tag == '001':
+                if tag == '001' and value:
                     record.id = int(value)
 
                 # make a first pass at parsing the data field by field without doing auth control or other checks.
@@ -217,6 +217,10 @@ class MarcSet():
 
             # go back through the record and validate auth controlled values and do checks
             for field in record.datafields:
+                if all([x.value == '__null__' for x in field.subfields]):
+                    record.delete_field(field)
+                    continue
+
                 for i, subfield in enumerate(field.subfields):
                     if subfield.value == '__null__':
                         subfield.value = ''
