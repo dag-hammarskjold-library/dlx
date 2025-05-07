@@ -95,18 +95,21 @@ def test_from_table(db):
     table = Table([
         ['1.001', '1.246$a',  '1.246$b',  '1.269$c', '2.269$c', '1.650$a', '1.650$0', ''],
         ['98', 'title', 'subtitle', '1999-12-31','repeated', 'x', 1, '', ''],
-        ['99', 'title2','subtitle2','2000-01-01','repeated', 'x', 1],
+        ['99', 'title2','subtitle2', '2000-01-01','repeated', 'x', 1],
+        ['', 'title2', 'subtitle2', '', '', 'x', 1]
     ])
     
     bibset = BibSet.from_table(table)
     assert bibset.records[0].id == 98
     assert bibset.records[1].id == 99
 
-    for bib in bibset.records:
+    for bib in bibset.records[:2]:
         assert bib.get_value('246','b')[:8] == 'subtitle'
         assert bib.get_values('269','c')[1] == 'repeated'
         assert bib.get_value('650', 'a') == 'Header'
         assert not bib.get_value('650', '0')
+
+    assert bibset.records[2].get_field('269') is None
 
     bibset = BibSet.from_table(table, delete_subfield_zero=False)
     for bib in bibset.records:
@@ -176,7 +179,8 @@ def test_from_table(db):
     # indicators
     table = Table([
         ['1.245$a', '1.245__', '1.269__', '1.269$a'],
-        ['title', '98', '34', 'date']
+        ['title', '98', '34', 'date'],
+        ['title', '98', '', '']
     ])
 
     bibs = BibSet.from_table(table)
