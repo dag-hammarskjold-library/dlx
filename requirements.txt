@@ -2,7 +2,7 @@ boto3==1.38.19
 certifi==2025.4.26
 jsonschema==4.23.0
 mongomock==4.3.0
-moto==5.1.4
+moto==5.1.5
 nltk==3.9.1
 pymongo==4.10.1
 pytest==8.3.5
