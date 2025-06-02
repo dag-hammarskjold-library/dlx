@@ -1,4 +1,4 @@
-boto3==1.38.23
+boto3==1.38.28
 certifi==2025.4.26
 jsonschema==4.24.0
 mongomock==4.3.0
