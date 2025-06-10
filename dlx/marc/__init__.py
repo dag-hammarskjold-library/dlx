@@ -1227,6 +1227,47 @@ class Marc(object):
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
 
         return type(self).handle().delete_one({'_id': self.id})
+    
+    def restore(self, user='admin'):
+        """
+        Finds a record by id in the relevant history collection whose status is deleted 
+        and restores that record by re-creating it in the actual collection.
+        """
+        history_collection = DB.handle[self.record_type + '_history']
+        record_history = history_collection.find_one({'_id': self.id, 'deleted': {'$exists': True}})
+
+        # if the record is not found in history, it means it was never deleted using the existin delete method
+        if record_history is None:
+            raise Exception(f'{self.record_type} {self.id} not found in history in a deleted state.')
+        
+        # If the record still exists in the main collection, we cannot restore it
+        if type(self).handle().find_one({'_id': self.id}):
+            raise Exception(f'{self.record_type} {self.id} already exists in the main collection. Cannot restore from history.')
+
+        latest_version = record_history['history'][-1]  # get the last version before deletion
+
+        # This shouldn't happen
+        if not latest_version:
+            raise Exception(f'No valid version found for {self.record_type} {self.id} in history.')
+        
+        # Create a new instance of the record with the latest version data
+        # Q: should this use the commit method instead? The commit method will update the history
+        # and we should be able to be certain that the original record is not in the main collection
+        restored_record = type(self).handle().replace_one({'_id': self.id}, latest_version, upsert=True)  
+        if not restored_record.acknowledged:
+            raise Exception(f'Failed to restore {self.record_type} {self.id} from history.')
+
+        # Remove the deleted status from the history
+        history_collection.update_one(
+            {'_id': self.id},
+            {'$unset': {'deleted': ''}}
+        )
+
+        # indicate restored status
+        record_history['restored'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
+        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
+
+        return type(self)(latest_version)
 
     def history(self):
         history_collection = DB.handle[self.record_type + '_history']

@@ -196,6 +196,29 @@ def test_delete(db):
     assert history['deleted']['user'] == 'admin'
     assert isinstance(history['deleted']['time'], datetime)
 
+def test_restore(db):
+    from dlx.marc import Bib
+
+    #Create and commit a new bib record
+    bib = Bib().set('245', 'a', 'This record will be restored')
+    bib.commit()
+    bib_id = bib.id
+
+    #Delete the bib record
+    bib.delete()
+    assert Bib.from_id(bib_id) is None
+
+    #Restore the bib record
+    restored = Bib({'_id': bib_id}).restore()
+    assert isinstance(restored, Bib)
+    assert restored.id == bib_id
+    assert restored.get_value('245', 'a') == 'This record will be restored'
+
+    #Confirm the record is restored in the database
+    bib2 = Bib.from_id(bib_id)
+    assert bib2 is not None
+    assert bib2.get_value('245', 'a') == 'This record will be restored'
+
 @pytest.mark.skip(reason='deprecated')
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth
