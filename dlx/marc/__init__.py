@@ -1235,6 +1235,13 @@ class Marc(object):
             record_history['history'] = [self.to_bson()]
 
         record_history['deleted'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
+         # new field containing list of actions performed on the record
+        record_history.setdefault('actions', [])
+        record_history['actions'].append({
+            'type': 'delete',
+            'user': user,
+            'time': datetime.now(timezone.utc)
+        })
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
 
         return type(self).handle().delete_one({'_id': self.id})
@@ -2180,6 +2187,7 @@ class Diff():
         self.different = True if self.a or self.b or self.d or self.e else False
         self.same = not self.different
 
+
 class History():
     def __init__(self):
         pass
@@ -2223,7 +2231,18 @@ class History():
 
             # indicate restored status
             record_history['restored'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
-            history_collection.replace_one({'_id': record_id}, record_history, upsert=True)
+            
+            # new field containing list of actions performed on the record. this may ultimately
+            # replace the current format of the history data
+            record_history.setdefault('actions', [])
+            record_history['actions'].append({
+                'type': 'restore',
+                'user': user,
+                'time': datetime.now(timezone.utc)
+            })
+
+            # update the data in the db
+            history_collection.replace_one({'_id': record_id}, record_history)
         else:
             raise Exception(f'Failed to restore {cls.record_type} {record_id} from history.')
 
