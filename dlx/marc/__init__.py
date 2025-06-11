@@ -577,8 +577,10 @@ class Marc(object):
     @classmethod
     def restore(cls, record_id: str, *, user='admin'):
         """Restores a deleted record by ID from the last version saved in
-        history and returns the Marc object."""
-        
+        history. The record is saved back into the bibs/auths collection, and
+        the restored user/time is saved in the history collection. Returns a
+        Marc object."""
+
         history_class = BibHistory if cls.record_type == 'bib' else AuthHistory
         
         return history_class.restore(record_id, user=user)
@@ -1273,6 +1275,25 @@ class Marc(object):
         self._logical_fields['_record_type'].append(self.record_type)
 
         return self._logical_fields
+
+    def revert(self, version: int):
+        """Reverts data to state from history at the given version number. Versions
+        are numbered starting at 1 (oldest). This only updates the object data, it
+        does not commit to the database."""
+
+        if not version > 0:
+            raise Exception('Version number must be 1 or greater')
+
+        if history := self.history():
+            if len(history) < version:
+                raise Exception(f'History version {version} does not exist')
+            
+            
+            self.parse(history[version-1].data)
+        else:
+            raise Exception('History not found')
+
+        return self 
 
     #### utlities
 

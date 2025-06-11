@@ -219,6 +219,14 @@ def test_restore(db):
     assert bib2 is not None
     assert bib2.get_value('245', 'a') == 'This record will be restored'
 
+def test_revert(db):
+    from dlx.marc import Bib
+
+    bib = Bib().set('245', 'a', 'Original title').commit()
+    bib.set('245', 'a', 'Edited title').commit()
+    assert isinstance(bib.revert(1), Bib)
+    assert bib.get_value('245', 'a') == 'Original title'
+
 @pytest.mark.skip(reason='deprecated')
 def test_find_one(db, bibs, auths):
     from dlx.marc import Bib, Auth
