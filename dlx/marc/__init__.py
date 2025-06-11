@@ -575,8 +575,13 @@ class Marc(object):
         return next(cls.set_class.from_query(*args, **kwargs), None)
 
     @classmethod
-    def restore(cls, record_id: str):
-        history_clsss = BibHistory if cls.record__type == 'bib' else AuthHistory
+    def restore(cls, record_id: str, *, user='admin'):
+        """Restores a deleted record by ID from the last version saved in
+        history and returns the Marc object."""
+        
+        history_class = BibHistory if cls.record_type == 'bib' else AuthHistory
+        
+        return history_class.restore(record_id, user=user)
 
     @classmethod
     def count_documents(cls, *args, **kwargs):
@@ -2159,7 +2164,7 @@ class History():
         pass
 
     @classmethod
-    def restore(cls, record_id: int, user: str = 'admin') -> ReturnDocument:
+    def restore(cls, record_id: int, *, user: str = 'admin') -> Marc:
         """
         Finds a record by id in the relevant history collection whose status is deleted 
         and restores that record by re-creating it in the actual collection.

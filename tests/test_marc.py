@@ -196,7 +196,6 @@ def test_delete(db):
     assert history['deleted']['user'] == 'admin'
     assert isinstance(history['deleted']['time'], datetime)
 
-@pytest.mark.skip("Handled by test_history for now")
 def test_restore(db):
     from dlx.marc import Bib
 
@@ -210,7 +209,7 @@ def test_restore(db):
     assert Bib.from_id(bib_id) is None
 
     #Restore the bib record
-    restored = Bib({'_id': bib_id}).restore()
+    restored = Bib.restore(bib_id)
     assert isinstance(restored, Bib)
     assert restored.id == bib_id
     assert restored.get_value('245', 'a') == 'This record will be restored'
