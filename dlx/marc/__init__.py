@@ -2267,7 +2267,11 @@ class History():
         handle = DB.handle[self.record_type + '_history']
 
         for doc in handle.find({'history': {'$elemMatch': query.compile()}}, **kwargs):
-            if doc.get('deleted'):
+            if deleted := doc.get('deleted'):
+                if restored := doc.get('restored'):
+                    if restored['time'] > deleted['time']:
+                        continue
+
                 yield doc['_id']
 
     @classmethod
@@ -2278,7 +2282,11 @@ class History():
         handle = DB.handle[self.record_type + '_history']
 
         for doc in handle.find({'deleted.time': {'$gte': date_from, '$lt': date_to}}):
-            if d:= doc.get('deleted'):
+            if deleted := doc.get('deleted'):
+                if restored := doc.get('restored'):
+                    if restored['time'] > deleted['time']:
+                        continue
+
                 yield doc['_id']
 
 class BibHistory(History):
