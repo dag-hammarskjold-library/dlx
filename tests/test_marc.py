@@ -196,6 +196,7 @@ def test_delete(db):
     assert history['deleted']['user'] == 'admin'
     assert isinstance(history['deleted']['time'], datetime)
 
+@pytest.mark.skip("Handled by test_history for now")
 def test_restore(db):
     from dlx.marc import Bib
 
@@ -1103,6 +1104,12 @@ def test_history(db):
         ), 
         None
     ) == bib.id
+
+    # restore
+    assert not Bib.from_id(bib.id)
+    restored = BibHistory.restore(bib.id)
+    assert isinstance(restored, Bib)
+    assert Bib.from_id(bib.id)
 
 def test_auth_deleted_subfield(db):
     from dlx.marc import Bib, Auth, Query

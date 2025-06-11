@@ -575,6 +575,10 @@ class Marc(object):
         return next(cls.set_class.from_query(*args, **kwargs), None)
 
     @classmethod
+    def restore(cls, record_id: str):
+        history_clsss = BibHistory if cls.record__type == 'bib' else AuthHistory
+
+    @classmethod
     def count_documents(cls, *args, **kwargs):
         """
         Deprecated
@@ -2155,7 +2159,7 @@ class History():
         pass
 
     @classmethod
-    def restore(cls, *, record_id: int, user: str = 'admin') -> ReturnDocument:
+    def restore(cls, record_id: int, user: str = 'admin') -> ReturnDocument:
         """
         Finds a record by id in the relevant history collection whose status is deleted 
         and restores that record by re-creating it in the actual collection.
@@ -2197,7 +2201,7 @@ class History():
         else:
             raise Exception(f'Failed to restore {cls.record_type} {record_id} from history.')
 
-        return result
+        return restored_record
 
     @classmethod
     def from_query(cls, query: Query, **kwargs) -> typing.Generator[None, CursorType, Marc]:
@@ -2233,15 +2237,17 @@ class History():
                 yield doc['_id']
 
 class BibHistory(History):
+    record_class = Bib
+    record_type = 'bib'
+    
     def __init__(self):
-        self.record_class = Bib
-        self.record_type = 'bib'
         super().__init__()
 
 class AuthHistory(History):
-    def __init(self):
-        self.record_class = Auth
-        self.record_type = 'auth'
+    record_class = Auth
+    record_type = 'auth'
+    
+    def __init__(self):
         super().__init__()
 
 ### Field classes
