@@ -182,6 +182,7 @@ def test_commit(db, bibs, auths):
     assert len([x for x in bib.get_fields('600')[1].subfields]) == 2
 
 def test_delete(db):
+    from copy import deepcopy
     from dlx import DB
     from dlx.marc import Bib
     from datetime import datetime
@@ -189,12 +190,20 @@ def test_delete(db):
     bib = Bib().set('245', 'a', 'This record will self-destruct')
     bib.commit()    
     bib.delete()
-    
     assert Bib.from_id(bib.id) == None
     
     history = DB.handle['bib_history'].find_one({'_id': bib.id})
     assert history['deleted']['user'] == 'admin'
     assert isinstance(history['deleted']['time'], datetime)
+
+    # no history
+    bib = Bib().set('245', 'a', 'This record will also self-destruct')
+    bib.commit()
+    bib.set('245', 'a', 'Updated') # in memory changes, not saved
+    DB.handle['bib_history'].update_one({'_id': bib.id}, {'$unset': {'history': None}})
+    bib.delete()
+    history = DB.handle['bib_history'].find_one({'_id': bib.id})
+    assert history['history'][0]['245'][0]['subfields'][0]['value'] == 'This record will also self-destruct'
 
 def test_restore(db):
     from dlx.marc import Bib

@@ -1230,9 +1230,14 @@ class Marc(object):
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
 
-        if record_history is None or record_history.get('history') is None:
+        if record_history is None:
             record_history = SON()
-            record_history['history'] = [self.to_bson()]
+
+        if record_history.get('history') is None:
+            # record has not been saved since initial migration
+            cls = Bib if isinstance(self, Bib) else Auth
+            last_saved_state = cls.from_id(self.id)
+            record_history['history'] = [last_saved_state.to_bson()]
 
         record_history['deleted'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
          # new field containing list of actions performed on the record
