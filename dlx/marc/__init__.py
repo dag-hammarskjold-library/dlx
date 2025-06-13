@@ -869,7 +869,7 @@ class Marc(object):
         else:
             # record has been created with an id that doesn't exist yet
             # this actually shouldn't be allowed but is needed for certain existing tests to pass
-            if DB.database_name != 'testing': Config.warn(f'{self.record_type} {self.id} is being created with a user-specified ID')
+            if DB.database_name != 'testing': warn(f'{self.record_type} {self.id} is being created with a user-specified ID')
             self.created = self.updated
             self.created_user = self.user
 
