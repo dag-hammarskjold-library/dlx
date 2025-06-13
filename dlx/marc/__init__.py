@@ -575,6 +575,17 @@ class Marc(object):
         return next(cls.set_class.from_query(*args, **kwargs), None)
 
     @classmethod
+    def restore(cls, record_id: str, *, user='admin'):
+        """Restores a deleted record by ID from the last version saved in
+        history. The record is saved back into the bibs/auths collection, and
+        the restored user/time is saved in the history collection. Returns a
+        Marc object."""
+
+        history_class = BibHistory if cls.record_type == 'bib' else AuthHistory
+        
+        return history_class.restore(record_id, user=user)
+
+    @classmethod
     def count_documents(cls, *args, **kwargs):
         """
         Deprecated
@@ -1224,51 +1235,17 @@ class Marc(object):
             record_history['history'] = [self.to_bson()]
 
         record_history['deleted'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
+         # new field containing list of actions performed on the record
+        record_history.setdefault('actions', [])
+        record_history['actions'].append({
+            'type': 'delete',
+            'user': user,
+            'time': datetime.now(timezone.utc)
+        })
         history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
 
         return type(self).handle().delete_one({'_id': self.id})
     
-    def restore(self, user='admin'):
-        """
-        Finds a record by id in the relevant history collection whose status is deleted 
-        and restores that record by re-creating it in the actual collection.
-        """
-        history_collection = DB.handle[self.record_type + '_history']
-        record_history = history_collection.find_one({'_id': self.id, 'deleted': {'$exists': True}})
-
-        # if the record is not found in history, it means it was never deleted using the existin delete method
-        if record_history is None:
-            raise Exception(f'{self.record_type} {self.id} not found in history in a deleted state.')
-        
-        # If the record still exists in the main collection, we cannot restore it
-        if type(self).handle().find_one({'_id': self.id}):
-            raise Exception(f'{self.record_type} {self.id} already exists in the main collection. Cannot restore from history.')
-
-        latest_version = record_history['history'][-1]  # get the last version before deletion
-
-        # This shouldn't happen
-        if not latest_version:
-            raise Exception(f'No valid version found for {self.record_type} {self.id} in history.')
-        
-        # Create a new instance of the record with the latest version data
-        # Q: should this use the commit method instead? The commit method will update the history
-        # and we should be able to be certain that the original record is not in the main collection
-        restored_record = type(self).handle().replace_one({'_id': self.id}, latest_version, upsert=True)  
-        if not restored_record.acknowledged:
-            raise Exception(f'Failed to restore {self.record_type} {self.id} from history.')
-
-        # Remove the deleted status from the history
-        history_collection.update_one(
-            {'_id': self.id},
-            {'$unset': {'deleted': ''}}
-        )
-
-        # indicate restored status
-        record_history['restored'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
-        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
-
-        return type(self)(latest_version)
-
     def history(self):
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
@@ -1305,6 +1282,25 @@ class Marc(object):
         self._logical_fields['_record_type'].append(self.record_type)
 
         return self._logical_fields
+
+    def revert(self, version: int):
+        """Reverts data to state from history at the given version number. Versions
+        are numbered starting at 1 (oldest). This only updates the object data, it
+        does not commit to the database."""
+
+        if not version > 0:
+            raise Exception('Version number must be 1 or greater')
+
+        if history := self.history():
+            if len(history) < version:
+                raise Exception(f'History version {version} does not exist')
+            
+            
+            self.parse(history[version-1].data)
+        else:
+            raise Exception('History not found')
+
+        return self 
 
     #### utlities
 
@@ -2191,9 +2187,66 @@ class Diff():
         self.different = True if self.a or self.b or self.d or self.e else False
         self.same = not self.different
 
+
 class History():
     def __init__(self):
         pass
+
+    @classmethod
+    def restore(cls, record_id: int, *, user: str = 'admin') -> Marc:
+        """
+        Finds a record by id in the relevant history collection whose status is deleted 
+        and restores that record by re-creating it in the actual collection.
+        """
+        history_collection = DB.handle[cls.record_type + '_history']
+        record_history = history_collection.find_one({'_id': record_id, 'deleted': {'$exists': True}})
+
+        # if the record is not found in history, it means it was never deleted using the existin delete method
+        if record_history is None:
+            raise Exception(f'{cls.record_type} {record_id} not found in history in a deleted state.')
+        
+        # If the record still exists in the main collection, we cannot restore it
+        if cls.record_class.from_id(record_id):
+            raise Exception(f'{cls.record_type} {record_id} already exists in the main collection. Cannot restore from history.')
+
+        latest_version = record_history['history'][-1]  # get the last version before deletion
+
+        # This shouldn't happen
+        if not latest_version:
+            raise Exception(f'No valid version found for {cls.record_type} {record_id} in history.')
+        
+        # Create a new instance of the record with the latest version data
+        # Q: should this use the commit method instead? The commit method will update the history -- I think that's fine - JB
+        # and we should be able to be certain that the original record is not in the main collection
+        #restored_record = type(self).handle().replace_one({'_id': self.id}, latest_version, upsert=True)
+
+        restored_record = cls.record_class(latest_version)
+    
+        if result := restored_record.commit():
+            # Remove the deleted status from the history -- I don't think we want to do that - JB
+            #history_collection.update_one(
+            #    {'_id': self.id},
+            #    {'$unset': {'deleted': ''}}
+            #)
+
+            # indicate restored status
+            record_history['restored'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
+            
+            # new field containing list of actions performed on the record. this may ultimately
+            # replace the current format of the history data
+            record_history.setdefault('actions', [])
+            record_history['actions'].append({
+                'type': 'restore',
+                'user': user,
+                'time': datetime.now(timezone.utc)
+            })
+
+            # update the data in the db
+            history_collection.replace_one({'_id': record_id}, record_history)
+        else:
+            raise Exception(f'Failed to restore {cls.record_type} {record_id} from history.')
+
+        return restored_record
 
     @classmethod
     def from_query(cls, query: Query, **kwargs) -> typing.Generator[None, CursorType, Marc]:
@@ -2201,7 +2254,6 @@ class History():
 
         self = cls()
         handle = DB.handle[self.record_type + '_history']
-
 
         for doc in handle.find({'history': {'$elemMatch': query.compile()}}, **kwargs):
             for version in doc['history']:
@@ -2215,7 +2267,11 @@ class History():
         handle = DB.handle[self.record_type + '_history']
 
         for doc in handle.find({'history': {'$elemMatch': query.compile()}}, **kwargs):
-            if doc.get('deleted'):
+            if deleted := doc.get('deleted'):
+                if restored := doc.get('restored'):
+                    if restored['time'] > deleted['time']:
+                        continue
+
                 yield doc['_id']
 
     @classmethod
@@ -2226,19 +2282,25 @@ class History():
         handle = DB.handle[self.record_type + '_history']
 
         for doc in handle.find({'deleted.time': {'$gte': date_from, '$lt': date_to}}):
-            if d:= doc.get('deleted'):
+            if deleted := doc.get('deleted'):
+                if restored := doc.get('restored'):
+                    if restored['time'] > deleted['time']:
+                        continue
+
                 yield doc['_id']
 
 class BibHistory(History):
+    record_class = Bib
+    record_type = 'bib'
+    
     def __init__(self):
-        self.record_class = Bib
-        self.record_type = 'bib'
         super().__init__()
 
 class AuthHistory(History):
-    def __init(self):
-        self.record_class = Auth
-        self.record_type = 'auth'
+    record_class = Auth
+    record_type = 'auth'
+    
+    def __init__(self):
         super().__init__()
 
 ### Field classes

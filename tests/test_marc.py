@@ -209,7 +209,7 @@ def test_restore(db):
     assert Bib.from_id(bib_id) is None
 
     #Restore the bib record
-    restored = Bib({'_id': bib_id}).restore()
+    restored = Bib.restore(bib_id)
     assert isinstance(restored, Bib)
     assert restored.id == bib_id
     assert restored.get_value('245', 'a') == 'This record will be restored'
@@ -218,6 +218,14 @@ def test_restore(db):
     bib2 = Bib.from_id(bib_id)
     assert bib2 is not None
     assert bib2.get_value('245', 'a') == 'This record will be restored'
+
+def test_revert(db):
+    from dlx.marc import Bib
+
+    bib = Bib().set('245', 'a', 'Original title').commit()
+    bib.set('245', 'a', 'Edited title').commit()
+    assert isinstance(bib.revert(1), Bib)
+    assert bib.get_value('245', 'a') == 'Original title'
 
 @pytest.mark.skip(reason='deprecated')
 def test_find_one(db, bibs, auths):
@@ -1103,6 +1111,12 @@ def test_history(db):
         ), 
         None
     ) == bib.id
+
+    # restore
+    assert not Bib.from_id(bib.id)
+    restored = BibHistory.restore(bib.id)
+    assert isinstance(restored, Bib)
+    assert Bib.from_id(bib.id)
 
 def test_auth_deleted_subfield(db):
     from dlx.marc import Bib, Auth, Query
