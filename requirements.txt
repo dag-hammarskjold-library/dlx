@@ -1,5 +1,5 @@
 boto3==1.38.37
-certifi==2025.4.26
+certifi==2025.6.15
 jsonschema==4.24.0
 mongomock==4.3.0
 moto==5.1.6
