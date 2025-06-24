@@ -206,6 +206,9 @@ class Config():
         'country_org': {
             '710': ['a'],
             '711': ['a']
+        },
+        'call_number': {
+            '099': ['c']
         }
     }
     
