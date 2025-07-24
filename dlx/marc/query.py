@@ -34,7 +34,7 @@ class Query():
             for i, char in enumerate(string):
                 buffer += char
 
-                if len(buffer) > 1 and buffer[-2:] == "':" and not in_single_quotes:
+                if char == "'" and re.match(r'^\w+:'):
                     in_single_quotes = True
                 elif char == "'":
                     in_single_quotes = False
