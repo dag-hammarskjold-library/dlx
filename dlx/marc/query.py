@@ -34,7 +34,7 @@ class Query():
             for i, char in enumerate(string):
                 buffer += char
 
-                if char == "'" and string[i-1] == ':':
+                if len(buffer) > 1 and buffer[-2:] == "':" and not in_single_quotes:
                     in_single_quotes = True
                 elif char == "'":
                     in_single_quotes = False
