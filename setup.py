@@ -1,4 +1,4 @@
-version = '1.4.24.dev0'
+version = '1.4.24'
 
 import sys
 from setuptools import setup, find_packages
