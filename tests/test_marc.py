@@ -1140,3 +1140,14 @@ def test_auth_deleted_subfield(db):
     q = Query.from_string('710:"will not be deleted"')
     assert q.to_json()
 
+def test_auth_control_config_changed(db):
+    from dlx import Config
+    from dlx.marc import Bib, Linked
+
+    # ensure that linked subfields are ignored if the it is not confugured to be auth controlled
+    assert Config.bib_authority_controlled['710'].get('9') is None
+    bib = Bib()
+    bib.set('710', 'a', 1).get_field('710').subfields.append(Linked('9', 1))
+    bib.commit()
+    same_bib = Bib.from_id(bib.id)
+    assert '9' not in [x.code for x in same_bib.get_field('710').subfields]

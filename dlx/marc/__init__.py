@@ -626,7 +626,7 @@ class Marc(object):
                 for value in doc[tag]:
                     self.fields.append(Controlfield(tag, value))
             else:
-                for field in filter(lambda x: [s.get('xref') or s.get('value') for s in x.get('subfields')], doc[tag]):                
+                for field in filter(lambda x: [s.get('xref') or s.get('value') for s in x.get('subfields')], doc[tag]):
                     self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field, auth_control=auth_control))
                 
     #### "get"-type methods
@@ -2367,6 +2367,12 @@ class Datafield(Field):
         
         for sub in data['subfields']:
             if 'xref' in sub:
+                # Ignore the subfield if it is not configured to be authority controlled. Most
+                # likely, the configuration has changed.
+                if not Config.is_authority_controlled(self.record_type, self.tag, sub.get('code')):
+                    warn('A subfield with an xref is being ignored due to it not being configured to be authority controlled')
+                    continue
+
                 if auth_control:
                     self.set(sub['code'], int(sub['xref']), place='+')
                 else:
