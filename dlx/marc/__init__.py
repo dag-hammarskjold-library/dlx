@@ -39,6 +39,10 @@ class InvalidAuthField(AuthException):
     def __init__(self, rtype, tag, code):
         super().__init__(f'{tag}, {code} is an authority-controlled field')
 
+class InvalidNonAuthField(AuthException):
+    def __init__(self, rtype, tag, code):
+        super().__init__(f'{tag}, {code} is not an authority-controlled field, so it can\'t have an xref')
+
 class AuthInUse(Exception):
     def __init__(self):
         super().__init__('Can\'t delete Auth record because it is in use by other records')
@@ -886,6 +890,9 @@ class Marc(object):
 
                         if not Auth.lookup(subfield.xref, subfield.code):
                             raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
+                    else:
+                        if hasattr(subfield, 'xref'):    
+                           raise InvalidNonAuthField(self.record_type, field.tag, subfield.code)  
 
         if auth_check: auth_validate()
 
