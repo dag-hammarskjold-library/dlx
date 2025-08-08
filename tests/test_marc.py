@@ -1140,3 +1140,23 @@ def test_auth_deleted_subfield(db):
     q = Query.from_string('710:"will not be deleted"')
     assert q.to_json()
 
+def test_auth_control_config_changed(db):
+    from dlx import Config
+    from dlx.marc import Bib, Datafield, Literal, Linked, InvalidNonAuthField
+
+    # ensure that linked subfields are ignored if not configured to be auth controlled
+    assert Config.is_authority_controlled('bib', '710', '9') is False
+    bib = Bib()
+    Field = Datafield(tag='710', subfields=[Linked('a', 1), Linked('9', 1)])
+    bib.fields.append(Field)
+    assert bib.get_value('710', 'a')
+    assert not bib.get_value('710', '9')
+    # commit the bib without validating
+    bib.commit(auth_check=False)
+    # bib is now in the database
+    same_bib = Bib.from_id(bib.id)
+    assert '9' not in [x.code for x in same_bib.get_field('710').subfields]
+
+    with pytest.raises(InvalidNonAuthField):
+        # original bib object throws an error when saving wiht validation, which is the default behavior
+        bib.commit(auth_check=True)
