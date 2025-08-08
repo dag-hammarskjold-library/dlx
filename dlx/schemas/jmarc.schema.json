@@ -11,7 +11,8 @@
         "updated" : {"bsonType" : "date"},
         "user" : {"user" : "string"},
         "created" : {"bsonType" : "date"},
-        "created_user" : {"bsonType" : "string"}
+        "created_user" : {"bsonType" : "string"},
+        "basket" : {"bsonType" : "string"}
     },
     "patternProperties" : {
         "^00" :  {
