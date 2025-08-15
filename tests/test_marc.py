@@ -80,49 +80,61 @@ def test_commit(db, bibs, auths):
     from dlx import DB
     from dlx.marc import Bib, Auth
     from datetime import datetime
-    from bson import ObjectId
+    #from bson import ObjectId
     from jsonschema.exceptions import ValidationError
 
-    for linked_bib in [Bib(x) for x in bibs]:
-        assert linked_bib.commit() == linked_bib
+    for bib in [Bib(x) for x in bibs]:
+        assert bib.commit() == bib
         
     for auth in [Auth(x) for x in auths]:
         assert auth.commit() == auth
         
-    linked_bib = Bib()
-    assert linked_bib.commit() == linked_bib
-    assert isinstance(linked_bib.updated, datetime)
-    assert linked_bib.user == 'admin'
-    assert linked_bib.history()[0].to_dict() == linked_bib.to_dict()
-    assert linked_bib.history()[0].user == 'admin'
+    bib = Bib()
+    assert bib.commit() == bib
+    assert isinstance(bib.updated, datetime)
+    assert bib.user == 'admin'
+    assert bib.history()[0].to_dict() == bib.to_dict()
+    assert bib.history()[0].user == 'admin'
     # there are two bibs before this in the db from conftest
     assert Bib.max_id() == 3
 
     # new audit attributes
-    assert linked_bib.created == linked_bib.updated
-    assert linked_bib.created_user == 'admin'
-    linked_bib.commit(user='different user')
-    assert linked_bib.created != linked_bib.updated
-    linked_bib.created = 'string'
-    linked_bib.commit()
-    assert isinstance(linked_bib.created, datetime) # can't change created
-    assert linked_bib.created_user == 'admin'
+    assert bib.created == bib.updated
+    assert bib.created_user == 'admin'
+    bib.commit(user='different user')
+    assert bib.created != bib.updated
+    bib.created = 'string'
+    bib.commit()
+    assert isinstance(bib.created, datetime) # can't change created
+    assert bib.created_user == 'admin'
+
+    # basket
+    assert bib.basket is None
+    bib._basket = 'some user' # private attribute only set like this for testing
+    assert bib.basket == 'some user'
+
+    with pytest.raises(AttributeError):
+        bib.basket = 'this is read only'
+
+    bib.commit()
+    bib = Bib.from_id(bib.id)
+    assert bib.basket == 'some user'
 
     # new text attributes
-    linked_bib.set('245', 'a', 'TESTING TESTING 1234')
-    linked_bib.commit()
-    assert linked_bib.text == 'testing testing 1234'
-    assert linked_bib.words == ['test', 'test', '1234']
+    bib.set('245', 'a', 'TESTING TESTING 1234')
+    bib.commit()
+    assert bib.text == 'testing testing 1234'
+    assert bib.words == ['test', 'test', '1234']
 
     # id incrementer
     Bib().commit()
-    linked_bib = Bib().commit()
-    assert linked_bib.id == Bib.max_id() == 5
+    bib = Bib().commit()
+    assert bib.id == Bib.max_id() == 5
     
     # don't reuse id
-    linked_bib.delete()
-    linked_bib = Bib().commit()
-    assert linked_bib.id == 6
+    bib.delete()
+    bib = Bib().commit()
+    assert bib.id == 6
     
     # max id resets
     DB.bibs.drop()
@@ -133,8 +145,8 @@ def test_commit(db, bibs, auths):
     
     # json schema validation
     with pytest.raises(ValidationError):
-        linked_bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': ' ', 'value': 'Subfield code is a space'}]}]})
-        linked_bib.commit()
+        bib = Bib({'245': [{'indicators': [' ', ' '], 'subfields': [{'code': ' ', 'value': 'Subfield code is a space'}]}]})
+        bib.commit()
 
     # update attached records
     auth = Auth().set('150', 'a', 'to be updated').commit()
@@ -160,9 +172,9 @@ def test_commit(db, bibs, auths):
     auth.heading_field.tag = '100'
     auth.commit()
 
-    for linked_bib in auth.list_attached(usage_type='bib'):
-        assert linked_bib.get_field('600')
-        assert linked_bib.get_field('650') is None
+    for bib in auth.list_attached(usage_type='bib'):
+        assert bib.get_field('600')
+        assert bib.get_field('650') is None
 
     # subfield deleted
     auth = Auth().set('100', 'a', 'will not be deleted').set('100', 'g', 'subfield to be deleted').commit()
