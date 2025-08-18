@@ -608,10 +608,15 @@ class Marc(object):
         self.created_user = doc.get('created_user')
         self.updated = doc.get('updated')
         self.user = doc.get('user')
+        self._basket = doc.get('basket')
         self.text = doc.get('text')
         self.words = doc.get('words')
         self.fields = []
         self.parse(doc, auth_control=auth_control)
+
+    @property
+    def basket(self):
+        return self._basket
 
     @property
     def controlfields(self):
@@ -855,6 +860,7 @@ class Marc(object):
         data = self.to_bson()
         self.updated = data['updated'] = datetime.now(timezone.utc)
         self.user = data['user'] = user
+        data['basket'] = self.basket 
         previous_state = (DB.bibs if self.record_type == 'bib' else DB.auths).find_one({'_id': self.id})
         
         if previous_state:
