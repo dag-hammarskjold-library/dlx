@@ -199,5 +199,21 @@ def test_commit(db, s3, tempfile):
     assert f.identifiers[0].type == 'issn'
     assert f.identifiers[0].value == '2'
     assert f.updated
-    
-    
+
+@mock_aws
+def test_text(db, s3):
+    import io, responses, pymupdf
+    from dlx.file import S3, File, Identifier
+
+    S3.client.create_bucket(Bucket=S3.bucket) # this should be only necessary for testing 
+    f = File.import_from_binary(b'test data', identifiers=[Identifier('isbn', '1')], filename='fn.txt', languages=['EN'], mimetype='text/plain', source='test')
+
+    # plain text
+    responses.add(responses.GET, 'https://' + f.uri, body='test data', status=200)
+    assert f.text == 'test data'
+
+    # pdf
+    txt = b'<?xmlversion="1.0"encoding="UTF-8"?><fo:rootxmlns:fo="http://www.w3.org/1999/XSL/Format"><fo:layout-master-set><fo:simple-page-mastermaster-name="A4"page-height="297mm"page-width="210mm"margin="20mm"><fo:region-body/></fo:simple-page-master></fo:layout-master-set><fo:page-sequencemaster-reference="A4"><fo:flowflow-name="xsl-region-body"><fo:blockfont-family="Helvetica"font-size="12pt">testdata</fo:block></fo:flow></fo:page-sequence></fo:root>'
+    f = File.import_from_binary(txt, identifiers=[Identifier('isbn', '1')], filename='fn.pdf', languages=['EN'], mimetype='application/pdf', source='test')
+    responses.add(responses.GET, 'https://' + f.uri, body=txt.decode('utf-8'), status=200)
+    assert f.text

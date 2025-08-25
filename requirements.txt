@@ -5,6 +5,7 @@ mongomock==4.3.0
 moto==5.1.10
 nltk==3.9.1
 pymongo==4.10.1
+pymupdf==1.26.4
 pytest==8.4.1
 requests>=2.32.2
 responses==0.25.8

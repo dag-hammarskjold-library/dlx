@@ -1,9 +1,9 @@
-import os, requests, hashlib
+import os, requests, hashlib, pymupdf
 from warnings import warn 
 from datetime import datetime, timezone
 from io import BytesIO
 from json import dumps
-from tempfile import TemporaryFile, SpooledTemporaryFile
+from tempfile import TemporaryFile, NamedTemporaryFile
 import jsonschema
 from bson import SON
 from pymongo import ASCENDING as ASC, DESCENDING as DESC
@@ -184,6 +184,7 @@ class File(object):
         hasher = hashlib.md5()
         
         while True:
+            # streams the file into the hasher
             chunk = handle.read(8192)
             
             if chunk:
@@ -349,11 +350,44 @@ class File(object):
         self.uri = doc['uri']
         self.updated = doc.get('updated')
         self.user = doc.get('user')
+        self._fileobj = None
+        self._text = ''
         
     @property
     def checksum(self):
         return self.id
+    
+    @property
+    def fileobj(self):
+        if fileobj := self._fileobj:
+            return fileobj
+        else:
+            fh = NamedTemporaryFile() # file needs a name in order to be opened by pymupdf
+            response = requests.get('https://' + self.uri, stream=True)
         
+            if response.status_code == 200:
+                for chunk in response.iter_content(8192):
+                    fh.write(chunk)
+                
+                fh.seek(0)
+                return fh
+            else:
+                raise Exception(f'No file found at the uri in the data for file {self.checksum}')  
+
+    @property
+    def text(self):
+        text = None
+
+        if text := self._text:
+            return text
+        elif self.mimetype == 'application/pdf':
+            #f = pymupdf.open(self.fileobj)
+            text = '\n'.join([page.get_text() for page in pymupdf.open(self.fileobj)])
+        elif self.mimetype == 'text/plain':
+            text = '\n'.join([x.decode() for x in self.fileobj.readlines()])
+
+        return text
+
     def validate(self):
         jsonschema.validate(instance=self.to_dict(), schema=Config.jfile_schema, format_checker=jsonschema.FormatChecker())
         
