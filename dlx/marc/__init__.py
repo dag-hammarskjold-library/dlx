@@ -685,7 +685,8 @@ class Marc(object):
             else:
                 # get first instance of the subfield code  
                 for field in self.get_fields(tag):
-                    subfield = field.get_subfield(code)
+                    if subfield := field.get_subfield(code):
+                        break
 
             if subfield:
                 if language:
@@ -1313,7 +1314,7 @@ class Marc(object):
             if len(history) < version:
                 raise Exception(f'History version {version} does not exist')
             
-            
+            self.fields = []
             self.parse(history[version-1].data)
         else:
             raise Exception('History not found')
