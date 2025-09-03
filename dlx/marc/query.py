@@ -637,13 +637,9 @@ class Condition(object):
                 raise Exception('Invalid modifier: "{}"'.format(mod))
 
     def compile(self):
-        # if self.tag in [x for x in Config.bib_authority_controlled.keys()] + [x for x in Config.auth_authority_controlled.keys()]:
-        
         if not self.record_type:
             if self.tag in [x for x in Config.bib_authority_controlled.keys()] + [x for x in Config.auth_authority_controlled.keys()]:
                 warn('Record type is not set for query condition. Defaulting to bib')
-
-                print(self.tag)
             
             self.record_type = 'bib'    
         
