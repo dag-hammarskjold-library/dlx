@@ -903,7 +903,7 @@ class Marc(object):
 
         if auth_check: auth_validate()
 
-        # clear the cache for any found xrefs so the calculated fields are up to date
+        # clear the local cache, if any, for any found xrefs so the calculated fields are up to date
         for field in self.datafields:
             for subfield in [x for x in field.subfields if hasattr(x, 'xref')]:
                 Auth._cache.get(subfield.xref, {})[subfield.code] = None
@@ -1040,6 +1040,7 @@ class Marc(object):
                     DB.handle[f'_index_{logical_field}'].bulk_write(updates)
             except Exception as err:
                 LOGGER.exception(err)
+                # log critical error in DB?
                 raise err
 
         # assign logical fields here
@@ -1111,11 +1112,13 @@ class Marc(object):
                 setattr(Auth, cache, {})
 
             # update this cache
-            Auth._cache[self.id] = {}
-
+            
             if hf := self.heading_field:
                 for subfield in hf.subfields:
-                    Auth._cache[self.id][subfield.code] = self.heading_value(subfield.code)
+                    if redis := DB.cache:
+                        redis[self.id] = json.dumps({subfield.code: subfield.value})
+                    else:
+                        Auth._cache.setdefault(self.id, {})[subfield.code] = self.heading_value(subfield.code)
 
         # auth attached records update
         def update_attached_records(auth):
@@ -1206,6 +1209,9 @@ class Marc(object):
         
             for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                 getattr(Auth, cache)[self.id] = {}
+
+                if redis := DB.cache:
+                    redis.delete(self.id)
 
         def update_browse_collections():
             try:
@@ -1805,6 +1811,16 @@ class Auth(Marc):
             j = i + 1
 
             for subfield in auth.heading_field.subfields:
+                if redis := DB.cache:
+                    if redis.exists(auth.id):
+                        data = json.loads(redis[auth.id])
+                        data.update({subfield.code: subfield.value})
+                        redis[auth.id] = json.dumps(data)
+                    else:
+                        redis[auth.id] = json.dumps({subfield.code: subfield.value})
+
+                    continue
+
                 if auth.id in Auth._cache:
                     Auth._cache[auth.id][subfield.code] = subfield.value
                 else:
@@ -1823,6 +1839,9 @@ class Auth(Marc):
 
         if language:
             cached = Auth._langcache.get(xref, {}).get(code, {}).get(language, None)
+        elif rcache := DB.cache:
+            print(rcache)
+            cached = json.loads(rcache[xref]).get(code) if rcache.exists(xref) else None
         else:
             cached = Auth._cache.get(xref, {}).get(code, None)
             
@@ -1837,7 +1856,14 @@ class Auth(Marc):
         if language:
             Auth._langcache[xref] = {code: {language: value}}
         else:
-            if xref in Auth._cache:
+            if rcache: 
+                if rcache.exists(xref):
+                    data = json.loads(rcache[xref])
+                    data.update({code, value})
+                    rcache[xref] = json.dumps(data)
+                else:
+                    rcache[xref] = json.dumps({code: value})
+            elif xref in Auth._cache:
                 Auth._cache[xref][code] = value
             else:
                 Auth._cache[xref] = {code: value}
@@ -2392,6 +2418,8 @@ class Datafield(Field):
                 else:
                     self.subfields.append(Linked(sub['code'], sub['xref']))
             elif 'value' in sub:
+                #sub['value'] = re.sub(r'[\x00-\x19]', '', sub['value'])
+                
                 if auth_control:
                     self.set(sub['code'], str(sub['value']), place='+')
                 else:

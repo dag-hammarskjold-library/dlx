@@ -6,6 +6,7 @@ moto==5.1.11
 nltk==3.9.1
 pymongo==4.10.1
 pytest==8.4.1
+redis==6.3.0
 requests>=2.32.2
 responses==0.25.8
 xlrd==2.0.2

@@ -1,4 +1,4 @@
-import pytest
+import pytest, fakeredis
 from mongomock import MongoClient as MockClient
 from datetime import datetime
 
@@ -89,7 +89,7 @@ def auths():
     ]
 
 @pytest.fixture
-def db(bibs, auths) -> MockClient: 
+def db(bibs, auths) -> MockClient:
     from dlx import DB
     from dlx.marc import Auth
 
@@ -110,5 +110,8 @@ def db(bibs, auths) -> MockClient:
     DB.auths.insert_many(auths)
     
     DB.files.drop()
-    
-    return DB.client
+
+@pytest.fixture
+def redis_client(request):
+    redis_client = fakeredis.FakeRedis()
+    return redis_client

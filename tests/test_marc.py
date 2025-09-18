@@ -1170,5 +1170,18 @@ def test_auth_control_config_changed(db):
     assert '9' not in [x.code for x in same_bib.get_field('710').subfields]
 
     with pytest.raises(InvalidNonAuthField):
-        # original bib object throws an error when saving wiht validation, which is the default behavior
+        # original bib object throws an error when saving with validation, which is the default behavior
         bib.commit(auth_check=True)
+
+def test_redis(db, redis_client):
+    import json
+    from dlx import DB
+    from dlx.marc import Auth
+
+    DB.connect('mongomock://localhost', cache=redis_client)
+    Auth().set('100', 'a', 'Header').commit()
+    Auth().set('100', 'a', 'Another header').commit()
+    assert not Auth._cache
+    assert redis_client.get(1).decode('utf8') == json.dumps({'a': 'Header'})
+    assert redis_client.get(2).decode('utf8') == json.dumps({'a': 'Another header'})
+    assert Auth.lookup(2, 'a') == 'Another header'
