@@ -98,6 +98,8 @@ def db(bibs, auths) -> MockClient:
 
     # reset the caches
     Auth._cache = {}
+    Auth._xcache = {}
+    DB.cache = None
     
     DB.bibs.drop()
     DB.handle['bib_history'].drop()

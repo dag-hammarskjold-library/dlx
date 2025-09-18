@@ -1111,15 +1111,37 @@ class Marc(object):
             for cache in ('_xcache', '_pcache', '_langcache'):
                 setattr(Auth, cache, {})
 
-            # update this cache
-            
             if hf := self.heading_field:
-                for subfield in hf.subfields:
-                    if redis := DB.cache:
-                        redis[self.id] = json.dumps({subfield.code: subfield.value})
-                    else:
-                        Auth._cache.setdefault(self.id, {})[subfield.code] = self.heading_value(subfield.code)
+                # value cache
+                data = {}
+                [data.setdefault(x.code, x.value) for x in hf.subfields]
 
+                if redis := DB.cache:
+                    redis[self.id] = json.dumps(data)
+                else:
+                    Auth._cache.setdefault(self.id, data)
+
+                # redis xref cache
+                if redis := DB.cache:
+                    for subfield in hf.subfields:
+                        for rtype in ('bib', 'auth'):
+                            if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
+                                xrefs.append(self.id)
+                            else:
+                                xrefs = [self.id]
+                              
+                            redis.set(subfield.value, json.dumps({hf.tag: {subfield.code: xrefs}}))
+
+                    if previous_state:
+                        prev = Auth(previous_state)
+
+                        if hf := prev.heading_field:
+                            for rtype in ('bib', 'auth'):
+                                for subfield in hf.subfields:
+                                    if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
+                                        xrefs = [x for x in xrefs if x != self.id]
+                                        redis.set(subfield.value, json.dumps({hf.tag: {subfield.code: xrefs}}))                                    
+        
         # auth attached records update
         def update_attached_records(auth):
             try:
@@ -1212,6 +1234,12 @@ class Marc(object):
 
                 if redis := DB.cache:
                     redis.delete(self.id)
+
+                    if hf := self.heading_field:
+                        for rtype in ('bib', 'auth'):
+                            for subfield in hf.subfields:
+                                if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
+                                    xrefs = [x for x in xrefs if x != self.id]
 
         def update_browse_collections():
             try:
@@ -1840,7 +1868,6 @@ class Auth(Marc):
         if language:
             cached = Auth._langcache.get(xref, {}).get(code, {}).get(language, None)
         elif rcache := DB.cache:
-            print(rcache)
             cached = json.loads(rcache[xref]).get(code) if rcache.exists(xref) else None
         else:
             cached = Auth._cache.get(xref, {}).get(code, None)
@@ -1880,7 +1907,8 @@ class Auth(Marc):
             return
         
         if redis := DB.cache:
-            return json.loads(redis.get(value)).get(auth_tag, {}).get(code, None)
+            if data := json.loads(redis.get(value) or '{}').get(auth_tag, {}).get(code):
+                return data
         elif cached := Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None):
             return cached
 
@@ -1889,7 +1917,7 @@ class Auth(Marc):
         xrefs = [r.id for r in list(auths)]
 
         if redis := DB.cache:
-            redis.set(value, json.dumps({auth_tag: {code: xrefs}})
+            redis.set(value, json.dumps({auth_tag: {code: xrefs}}))
         else:
             Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
 

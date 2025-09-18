@@ -1185,3 +1185,10 @@ def test_redis(db, redis_client):
     assert redis_client.get(1).decode('utf8') == json.dumps({'a': 'Header'})
     assert redis_client.get(2).decode('utf8') == json.dumps({'a': 'Another header'})
     assert Auth.lookup(2, 'a') == 'Another header'
+    
+    # xlookup
+    assert Auth.xlookup('100', 'a', 'Header', record_type='bib') == [1]
+    assert redis_client.get('Header').decode('utf8') == json.dumps({'100': {'a': [1]}})
+    Auth.from_id(1).set('100', 'a', 'Header_2').commit()
+    assert redis_client.get('Header_2')
+    assert json.loads(redis_client.get('Header')).get('100').get('a') == []
