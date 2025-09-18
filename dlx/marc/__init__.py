@@ -1878,15 +1878,20 @@ class Auth(Marc):
 
         if auth_tag is None:
             return
-
-        if cached := Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None):
+        
+        if redis := DB.cache:
+            return json.loads(redis.get(value)).get(auth_tag, {}).get(code, None)
+        elif cached := Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None):
             return cached
 
         query = Query(Condition(auth_tag, {code: value}, record_type='auth'))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
 
-        Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
+        if redis := DB.cache:
+            redis.set(value, json.dumps({auth_tag: {code: xrefs}})
+        else:
+            Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
 
         return xrefs
 
