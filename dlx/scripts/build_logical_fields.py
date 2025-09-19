@@ -9,7 +9,7 @@ from pymongo import UpdateOne, ASCENDING as ASC, DESCENDING as DESC
 from argparse import ArgumentParser
 from dlx import DB, Config
 from dlx.marc import BibSet, Bib, AuthSet, Auth, Query
-from dlx.util import Tokenizer
+from dlx.util import bulk_write, Tokenizer
 
 parser = ArgumentParser()
 parser.add_argument('--connect', required=True, help='MongoDB connection string')
@@ -107,13 +107,15 @@ def build_logical_fields(args):
             print(backspace + status, end='', flush=True)
 
         if updates:
-            cls().handle.bulk_write(updates, ordered=False)
+            #cls().handle.bulk_write(updates, ordered=False)
+            bulk_write(cls().handle, updates, ordered=False)
             c += len(updates)
                 
         if browse_updates:
             for field in logical_fields:
                 if field in browse_updates:
-                    DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field]), ordered=False)
+                    #DB.handle[f'_index_{field}'].bulk_write(list(browse_updates[field]), ordered=False)
+                    bulk_write(DB.handle[f'_index_{field}'], list(browse_updates[field]), ordered=False)
 
     print(f'\nupdated {c} logical fields')
 
@@ -189,7 +191,8 @@ def build_auth_controlled_logical_fields(args):
         start, end, inc = 0, len(updates), 1000
         
         for i in range(start, end, inc):
-            result = DB.bibs.bulk_write(updates[i:i+inc])
+            #result = DB.bibs.bulk_write(updates[i:i+inc])
+            result = bulk_write(DB.bibs, updates[i:i+inc])
             updates[i:i+inc] = [None for x in range(inc)] # clear some memory
                 
             print('\b' * (len(str(i)) + len(str(end)) + 3) + f'{i+inc} / {end}', end='', flush=True)
@@ -204,7 +207,8 @@ def build_auth_controlled_logical_fields(args):
         start, end, inc = 0, len(updates), 1000 
         
         for i in range(start, end, inc):
-            DB.handle[f'_index_{field}'].bulk_write(updates[i:i+inc])
+            #DB.handle[f'_index_{field}'].bulk_write(updates[i:i+inc])
+            bulk_write(DB.handle[f'_index_{field}'], updates[i:i+inc])
                 
             print('\b' * (len(str(i)) + len(str(end)) + 3) + f'{i+inc} / {end}', end='', flush=True)
             
@@ -243,7 +247,8 @@ def calculate_auth_use():
         updates.append(UpdateOne({'_id': auth_id}, {'$set': {'bib_use_count': count}}))
     
     for start in range(0, len(updates), inc):
-        DB.auths.bulk_write(updates[start:start+inc])
+        #DB.auths.bulk_write(updates[start:start+inc])
+        bulk_write(DB.auths, updates[start:start+inc])
         print('\b' *  (len(str(start-inc)) + len(str(len(updates))) + 3) + str(start) + f' / {len(updates)}', end='', flush=True)
 
 ###

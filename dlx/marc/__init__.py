@@ -13,7 +13,7 @@ from dlx.config import Config
 from dlx.db import DB
 from dlx.file import File, Identifier
 from dlx.marc.query import QueryDocument, Query, AtlasQuery, Condition, Or, Raw
-from dlx.util import Table, Tokenizer
+from dlx.util import bulk_write, Table, Tokenizer
 import logging
 
 LOGGER = logging.getLogger()
@@ -940,7 +940,8 @@ class Marc(object):
                             )   
                         )
 
-                        tag_col.bulk_write(updates)
+                        bulk_write(tag_col, updates)
+
                         # create text index if it doesn't exist
                         tag_col.create_index([('subfields.value', 'text')], default_language='none')
 
@@ -1012,7 +1013,8 @@ class Marc(object):
                                         updates.append(DeleteOne({'_id': value}))
 
                         if updates:
-                            DB.handle[f'_index_{logical_field}'].bulk_write(updates)
+                            col = DB.handle[f'_index_{logical_field}']
+                            bulk_write(col, updates)
 
                 # insert all the new data's logical fields into the index
                 for logical_field, values in self.logical_fields().items():
@@ -1037,7 +1039,9 @@ class Marc(object):
                             )
                         )
 
-                    DB.handle[f'_index_{logical_field}'].bulk_write(updates)
+                    col = DB.handle[f'_index_{logical_field}']
+                    bulk_write(col, updates)
+
             except Exception as err:
                 LOGGER.exception(err)
                 raise err
@@ -1230,7 +1234,8 @@ class Marc(object):
                             updates.append(DeleteOne({'_id': val}))
 
                     if updates:
-                        DB.handle[f'_index_{field}'].bulk_write(updates)
+                        col = DB.handle[f'_index_{field}']
+                        bulk_write(col, updates)
             except Exception as err:
                 LOGGER.exception(err)
                 raise err

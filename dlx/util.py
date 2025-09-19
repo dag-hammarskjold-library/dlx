@@ -2,6 +2,10 @@ import re
 from datetime import datetime
 from xlrd import open_workbook
 from xlrd.xldate import xldate_as_tuple
+from pymongo.collection import Collection
+from pymongo.operations import _UpdateOp, UpdateOne, DeleteOne, InsertOne
+from mongomock import MongoClient as MockClient
+from dlx import DB
 
 def isint(x):
     try:
@@ -10,6 +14,29 @@ def isint(x):
         return False
         
     return True
+
+def bulk_write(collection: Collection, updates: list[_UpdateOp], ordered: bool = True):
+    # .bulk_write does not work in mongomock as of mongomock 4.3.0. 
+
+    if isinstance(DB.client, MockClient):
+        for update in updates:
+            method = \
+                'update_one' if isinstance(update, UpdateOne) \
+                else 'delete_one' if isinstance(update, DeleteOne) \
+                else 'insert_one' if isinstance(update, InsertOne) \
+                else None
+            
+            kwargs = {'filter': update._filter}
+
+            if method != 'delete_one':
+                kwargs.update({'update': update._doc})
+                
+                if method != 'insert_one':
+                    kwargs['upsert'] = update._upsert
+
+            getattr(collection, method)(**kwargs)
+    else:
+        collection.bulk_write(updates, ordered=ordered)
 
 class Table():
     @classmethod
