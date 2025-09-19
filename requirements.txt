@@ -1,11 +1,13 @@
 boto3==1.40.31
 certifi==2025.8.3
+fakeredis==2.31.1
 jsonschema==4.25.1
 mongomock==4.3.0
 moto==5.1.12
 nltk==3.9.1
 pymongo==4.10.1
 pytest==8.4.2
+redis==6.3.0
 requests>=2.32.2
 responses==0.25.8
 xlrd==2.0.2

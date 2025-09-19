@@ -903,7 +903,7 @@ class Marc(object):
 
         if auth_check: auth_validate()
 
-        # clear the cache for any found xrefs so the calculated fields are up to date
+        # clear the local cache, if any, for any found xrefs so the calculated fields are up to date
         for field in self.datafields:
             for subfield in [x for x in field.subfields if hasattr(x, 'xref')]:
                 Auth._cache.get(subfield.xref, {})[subfield.code] = None
@@ -1044,6 +1044,7 @@ class Marc(object):
 
             except Exception as err:
                 LOGGER.exception(err)
+                # log critical error in DB?
                 raise err
 
         # assign logical fields here
@@ -1114,13 +1115,37 @@ class Marc(object):
             for cache in ('_xcache', '_pcache', '_langcache'):
                 setattr(Auth, cache, {})
 
-            # update this cache
-            Auth._cache[self.id] = {}
-
             if hf := self.heading_field:
-                for subfield in hf.subfields:
-                    Auth._cache[self.id][subfield.code] = self.heading_value(subfield.code)
+                # value cache
+                data = {}
+                [data.setdefault(x.code, x.value) for x in hf.subfields]
 
+                if redis := DB.cache:
+                    redis[self.id] = json.dumps(data)
+                else:
+                    Auth._cache.setdefault(self.id, data)
+
+                # redis xref cache
+                if redis := DB.cache:
+                    for subfield in hf.subfields:
+                        for rtype in ('bib', 'auth'):
+                            if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
+                                xrefs.append(self.id)
+                            else:
+                                xrefs = [self.id]
+                              
+                            redis.set(subfield.value, json.dumps({hf.tag: {subfield.code: xrefs}}))
+
+                    if previous_state:
+                        prev = Auth(previous_state)
+
+                        if hf := prev.heading_field:
+                            for rtype in ('bib', 'auth'):
+                                for subfield in hf.subfields:
+                                    if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
+                                        xrefs = [x for x in xrefs if x != self.id]
+                                        redis.set(subfield.value, json.dumps({hf.tag: {subfield.code: xrefs}}))                                    
+        
         # auth attached records update
         def update_attached_records(auth):
             try:
@@ -1210,6 +1235,15 @@ class Marc(object):
         
             for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                 getattr(Auth, cache)[self.id] = {}
+
+                if redis := DB.cache:
+                    redis.delete(self.id)
+
+                    if hf := self.heading_field:
+                        for rtype in ('bib', 'auth'):
+                            for subfield in hf.subfields:
+                                if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
+                                    xrefs = [x for x in xrefs if x != self.id]
 
         def update_browse_collections():
             try:
@@ -1810,6 +1844,16 @@ class Auth(Marc):
             j = i + 1
 
             for subfield in auth.heading_field.subfields:
+                if redis := DB.cache:
+                    if redis.exists(auth.id):
+                        data = json.loads(redis[auth.id])
+                        data.update({subfield.code: subfield.value})
+                        redis[auth.id] = json.dumps(data)
+                    else:
+                        redis[auth.id] = json.dumps({subfield.code: subfield.value})
+
+                    continue
+
                 if auth.id in Auth._cache:
                     Auth._cache[auth.id][subfield.code] = subfield.value
                 else:
@@ -1828,6 +1872,8 @@ class Auth(Marc):
 
         if language:
             cached = Auth._langcache.get(xref, {}).get(code, {}).get(language, None)
+        elif rcache := DB.cache:
+            cached = json.loads(rcache[xref]).get(code) if rcache.exists(xref) else None
         else:
             cached = Auth._cache.get(xref, {}).get(code, None)
             
@@ -1842,7 +1888,14 @@ class Auth(Marc):
         if language:
             Auth._langcache[xref] = {code: {language: value}}
         else:
-            if xref in Auth._cache:
+            if rcache: 
+                if rcache.exists(xref):
+                    data = json.loads(rcache[xref])
+                    data.update({code, value})
+                    rcache[xref] = json.dumps(data)
+                else:
+                    rcache[xref] = json.dumps({code: value})
+            elif xref in Auth._cache:
                 Auth._cache[xref][code] = value
             else:
                 Auth._cache[xref] = {code: value}
@@ -1857,15 +1910,21 @@ class Auth(Marc):
 
         if auth_tag is None:
             return
-
-        if cached := Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None):
+        
+        if redis := DB.cache:
+            if data := json.loads(redis.get(value) or '{}').get(auth_tag, {}).get(code):
+                return data
+        elif cached := Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None):
             return cached
 
         query = Query(Condition(auth_tag, {code: value}, record_type='auth'))
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
 
-        Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
+        if redis := DB.cache:
+            redis.set(value, json.dumps({auth_tag: {code: xrefs}}))
+        else:
+            Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
 
         return xrefs
 
@@ -2397,6 +2456,8 @@ class Datafield(Field):
                 else:
                     self.subfields.append(Linked(sub['code'], sub['xref']))
             elif 'value' in sub:
+                #sub['value'] = re.sub(r'[\x00-\x19]', '', sub['value'])
+                
                 if auth_control:
                     self.set(sub['code'], str(sub['value']), place='+')
                 else:

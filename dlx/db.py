@@ -2,8 +2,9 @@
 Provides the DB class for connecting to and accessing the database.
 """
 
-import re, certifi
+import re, certifi, redis
 from pymongo import MongoClient
+
 #from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
 from mongomock import MongoClient as MockClient
 
@@ -37,11 +38,12 @@ class DB():
     files = None
     config = {}
     is_atlas = False
+    cache = None
 
     ## class
 
     @classmethod
-    def connect(cls, connection_string, *, database=None, mock=False):
+    def connect(cls, connection_string, *, database=None, mock=False, cache=None):
         """Connects to the database and stores database and collection handles
         as class attributes.
 
@@ -111,6 +113,16 @@ class DB():
         DB.auths = DB.handle['auths']
         DB.auth_history = DB.handle['auth_history']
         DB.files = DB.handle['files']
+
+        if cache:
+            assert isinstance(cache, redis.Redis)
+            
+            try:
+                cache.ping()
+            except:
+                raise Exception(f'Unable to connect to Redis server: {cache}')
+            
+            DB.cache = cache
 
     @classmethod
     def disconnect(cls):
