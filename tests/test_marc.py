@@ -1173,22 +1173,25 @@ def test_auth_control_config_changed(db):
         # original bib object throws an error when saving with validation, which is the default behavior
         bib.commit(auth_check=True)
 
-def test_redis(db, redis_client):
-    import json
+def test_redis(db, redis_client, valkey_client):
+    import json, random
     from dlx import DB
     from dlx.marc import Auth
 
-    DB.connect('mongomock://localhost', cache=redis_client)
-    Auth().set('100', 'a', 'Header').commit()
-    Auth().set('100', 'a', 'Another header').commit()
-    assert not Auth._cache
-    assert redis_client.get(1).decode('utf8') == json.dumps({'a': 'Header'})
-    assert redis_client.get(2).decode('utf8') == json.dumps({'a': 'Another header'})
-    assert Auth.lookup(2, 'a') == 'Another header'
-    
-    # xlookup
-    assert Auth.xlookup('100', 'a', 'Header', record_type='bib') == [1]
-    assert redis_client.get('Header').decode('utf8') == json.dumps({'100': {'a': [1]}})
-    Auth.from_id(1).set('100', 'a', 'Header_2').commit()
-    assert redis_client.get('Header_2')
-    assert json.loads(redis_client.get('Header')).get('100').get('a') == []
+    for client in (redis_client, valkey_client):
+        DB.connect('mongomock://localhost', cache=client)
+        rand = random.randrange(100)
+        h1, h2 = f'Header {rand}', f'Another header {rand}'
+        Auth().set('100', 'a', h1).commit()
+        Auth().set('100', 'a', h2).commit()
+        assert not Auth._cache
+        assert client.get(1).decode('utf8') == json.dumps({'a': h1})
+        assert client.get(2).decode('utf8') == json.dumps({'a': h2})
+        assert Auth.lookup(2, 'a') == h2
+
+        # xlookup
+        assert Auth.xlookup('100', 'a', h1, record_type='bib') == [1]
+        assert client.get(h1).decode('utf8') == json.dumps({'100': {'a': [1]}})
+        Auth.from_id(1).set('100', 'a', 'Header updated').commit()
+        assert client.get('Header updated')
+        assert json.loads(client.get(h1)).get('100').get('a') == []

@@ -1121,6 +1121,7 @@ class Marc(object):
                 [data.setdefault(x.code, x.value) for x in hf.subfields]
 
                 if redis := DB.cache:
+                    key = f'authcache:{self.id}'  
                     redis[self.id] = json.dumps(data)
                 else:
                     Auth._cache.setdefault(self.id, data)

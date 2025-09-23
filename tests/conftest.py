@@ -115,5 +115,10 @@ def db(bibs, auths) -> MockClient:
 
 @pytest.fixture
 def redis_client(request):
-    redis_client = fakeredis.FakeRedis()
+    redis_client = fakeredis.FakeValkey()
     return redis_client
+
+@pytest.fixture
+def valkey_client(request):
+    valkey_client = fakeredis.FakeValkey()
+    return valkey_client
