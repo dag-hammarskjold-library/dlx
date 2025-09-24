@@ -115,6 +115,8 @@ class DB():
         DB.files = DB.handle['files']
 
         if cache:
+            DB.cache = None
+
             # redis and valkey clients have the same interface so they can be treated the same
             assert isinstance(cache, (redis.Redis, valkey.Valkey))
             

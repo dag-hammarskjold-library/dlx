@@ -773,7 +773,13 @@ def test_auth_lookup(db):
 def test_xlookup(db):
     from dlx.marc import Bib, Auth, Literal
 
-    assert Auth.xlookup_multi('650', [Literal('a', 'Header')], record_type='bib') == [1]
+    auth = Auth().set('150', 'a', 'New header')
+    auth.commit()
+    assert Auth.xlookup('650', 'a', 'New header', record_type='bib') == [auth.id]
+
+    auth = Auth().set('190', 'b', 'Body').set('190', 'c', 'Session')
+    auth.commit()
+    assert Auth.xlookup_multi('191', [Literal('b', 'Body'), Literal('c', 'Session')], record_type='bib') == [auth.id]
 
 def test_auth_control(db):
     from dlx.marc import Bib, InvalidAuthValue
@@ -1185,13 +1191,28 @@ def test_redis(db, redis_client, valkey_client):
         Auth().set('100', 'a', h1).commit()
         Auth().set('100', 'a', h2).commit()
         assert not Auth._cache
-        assert client.get(1).decode('utf8') == json.dumps({'a': h1})
-        assert client.get(2).decode('utf8') == json.dumps({'a': h2})
+        assert client.get('authcache:1').decode('utf8') == json.dumps({'a': h1})
+        assert client.get('authcache:2').decode('utf8') == json.dumps({'a': h2})
         assert Auth.lookup(2, 'a') == h2
 
         # xlookup
         assert Auth.xlookup('100', 'a', h1, record_type='bib') == [1]
-        assert client.get(h1).decode('utf8') == json.dumps({'100': {'a': [1]}})
+        assert client.get(f'xauthcache:{h1}').decode('utf8') == json.dumps({'100': {'a': [1]}})
         Auth.from_id(1).set('100', 'a', 'Header updated').commit()
-        assert client.get('Header updated')
-        assert json.loads(client.get(h1)).get('100').get('a') == []
+        assert client.get('xauthcache:Header updated')
+        assert json.loads(client.get(f'xauthcache:{h1}')).get('100').get('a') == []
+
+    DB.cache = None
+
+def test_build_cache(db, auths, valkey_client):
+    import json
+    from dlx import DB
+    from dlx.marc import Auth
+
+    Auth.build_cache()
+    assert Auth._cache[1]
+    
+    DB.connect('mongomock://localhost', cache=valkey_client)
+    Auth().set('100', 'a', 'New header').commit()
+    Auth.build_cache()
+    assert valkey_client.get('authcache:1').decode() == json.dumps({'a': 'New header'})

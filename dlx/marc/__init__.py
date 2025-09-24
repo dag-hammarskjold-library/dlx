@@ -1120,22 +1120,24 @@ class Marc(object):
                 data = {}
                 [data.setdefault(x.code, x.value) for x in hf.subfields]
 
-                if redis := DB.cache:
+                if cache := DB.cache:
                     key = f'authcache:{self.id}'  
-                    redis[self.id] = json.dumps(data)
+                    cache[key] = json.dumps(data)
                 else:
                     Auth._cache.setdefault(self.id, data)
 
                 # redis xref cache
-                if redis := DB.cache:
+                if cache := DB.cache:
                     for subfield in hf.subfields:
+                        key = f'xauthcache:{subfield.value}'
+
                         for rtype in ('bib', 'auth'):
                             if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
                                 xrefs.append(self.id)
                             else:
                                 xrefs = [self.id]
                               
-                            redis.set(subfield.value, json.dumps({hf.tag: {subfield.code: xrefs}}))
+                            cache.set(key, json.dumps({hf.tag: {subfield.code: xrefs}}))
 
                     if previous_state:
                         prev = Auth(previous_state)
@@ -1143,9 +1145,11 @@ class Marc(object):
                         if hf := prev.heading_field:
                             for rtype in ('bib', 'auth'):
                                 for subfield in hf.subfields:
+                                    key = f'xauthcache:{subfield.value}'
+
                                     if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
                                         xrefs = [x for x in xrefs if x != self.id]
-                                        redis.set(subfield.value, json.dumps({hf.tag: {subfield.code: xrefs}}))                                    
+                                        cache.set(key, json.dumps({hf.tag: {subfield.code: xrefs}}))                            
         
         # auth attached records update
         def update_attached_records(auth):
@@ -1840,18 +1844,20 @@ class Auth(Marc):
         batch operations'''
 
         total, chars = DB.auths.estimated_document_count(), 0
-
+        
         for i, auth in enumerate(AuthSet.from_query({})):
             j = i + 1
 
             for subfield in auth.heading_field.subfields:
-                if redis := DB.cache:
-                    if redis.exists(auth.id):
-                        data = json.loads(redis[auth.id])
+                if cache := DB.cache:
+                    key = f'authcache:{auth.id}'
+
+                    if cache.exists(key):
+                        data = json.loads(cache.get(key))
                         data.update({subfield.code: subfield.value})
-                        redis[auth.id] = json.dumps(data)
+                        cache.set(key, json.dumps(data))
                     else:
-                        redis[auth.id] = json.dumps({subfield.code: subfield.value})
+                        cache.set(key, json.dumps({subfield.code: subfield.value}))
 
                     continue
 
@@ -1873,8 +1879,8 @@ class Auth(Marc):
 
         if language:
             cached = Auth._langcache.get(xref, {}).get(code, {}).get(language, None)
-        elif rcache := DB.cache:
-            cached = json.loads(rcache[xref]).get(code) if rcache.exists(xref) else None
+        elif cache := DB.cache:
+            cached = json.loads(cache[xref]).get(code) if cache.exists(xref) else None
         else:
             cached = Auth._cache.get(xref, {}).get(code, None)
             
@@ -1889,13 +1895,13 @@ class Auth(Marc):
         if language:
             Auth._langcache[xref] = {code: {language: value}}
         else:
-            if rcache: 
-                if rcache.exists(xref):
-                    data = json.loads(rcache[xref])
+            if cache: 
+                if cache.exists(xref):
+                    data = json.loads(cache[xref])
                     data.update({code, value})
-                    rcache[xref] = json.dumps(data)
+                    cache[xref] = json.dumps(data)
                 else:
-                    rcache[xref] = json.dumps({code: value})
+                    cache[xref] = json.dumps({code: value})
             elif xref in Auth._cache:
                 Auth._cache[xref][code] = value
             else:
@@ -1912,8 +1918,10 @@ class Auth(Marc):
         if auth_tag is None:
             return
         
-        if redis := DB.cache:
-            if data := json.loads(redis.get(value) or '{}').get(auth_tag, {}).get(code):
+        if cache := DB.cache:
+            key = 'authcache:{value}'
+
+            if data := json.loads(cache.get(key) or '{}').get(auth_tag, {}).get(code):
                 return data
         elif cached := Auth._xcache.get(value, {}).get(auth_tag, {}).get(code, None):
             return cached
@@ -1922,8 +1930,8 @@ class Auth(Marc):
         auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
         xrefs = [r.id for r in list(auths)]
 
-        if redis := DB.cache:
-            redis.set(value, json.dumps({auth_tag: {code: xrefs}}))
+        if cache := DB.cache:
+            cache.set(key, json.dumps({auth_tag: {code: xrefs}}))
         else:
             Auth._xcache.setdefault(value, {}).setdefault(auth_tag, {})[code] = xrefs
 
@@ -1947,8 +1955,9 @@ class Auth(Marc):
             return cached
 
         query = Query(Condition(auth_tag, dict(zip([x.code for x in subfields], [x.value for x in subfields])), record_type='auth'))       
-        auths = AuthSet.from_query(query.compile(), projection={'_id': 1})
-        xrefs = [r.id for r in list(auths)]
+        
+        auths = AuthSet.from_query(query.compile())
+        xrefs = [a.id for a in auths]
         Auth._xcache.setdefault('__multi__', {}).setdefault(values, {})[auth_tag] = xrefs
 
         return xrefs
