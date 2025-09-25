@@ -2,7 +2,7 @@
 Provides the DB class for connecting to and accessing the database.
 """
 
-import re, certifi, redis
+import re, certifi, redis, valkey
 from pymongo import MongoClient
 
 #from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
@@ -115,12 +115,16 @@ class DB():
         DB.files = DB.handle['files']
 
         if cache:
-            assert isinstance(cache, redis.Redis)
+            DB.cache = None
+
+            # redis and valkey clients have the same interface so they can be treated the same
+            assert isinstance(cache, (redis.Redis, valkey.Valkey))
             
             try:
+                # throws exception if the server is unavailable
                 cache.ping()
             except:
-                raise Exception(f'Unable to connect to Redis server: {cache}')
+                raise Exception(f'Unable to connect to cache server: {cache}')
             
             DB.cache = cache
 
