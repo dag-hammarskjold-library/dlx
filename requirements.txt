@@ -1,4 +1,4 @@
-boto3==1.40.46
+boto3==1.40.56
 certifi==2025.10.5
 fakeredis==2.32.0
 jsonschema==4.25.1
