@@ -124,6 +124,9 @@ class Config():
             '247': ['abfgnp'],
             '240': ['adfgklnp']
         },
+        'main_title': {
+            '245': ['a']
+        },
         'notes': {
             '490': ['a'],
             '495': ['a'],
