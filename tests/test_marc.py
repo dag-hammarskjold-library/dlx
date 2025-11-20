@@ -1204,15 +1204,27 @@ def test_redis(db, redis_client, valkey_client):
 
     DB.cache = None
 
-def test_build_cache(db, auths, valkey_client):
+def test_valkey_cache(db, auths, valkey_client):
     import json
     from dlx import DB
-    from dlx.marc import Auth
-
-    Auth.build_cache()
-    assert Auth._cache[1]
+    from dlx.marc import Bib, Auth
     
+    Auth._cache = {}
     DB.connect('mongomock://localhost', cache=valkey_client)
-    Auth().set('100', 'a', 'New header').commit()
-    Auth.build_cache()
+    auth = Auth().set('100', 'a', 'New header')
+    auth.commit()
     assert valkey_client.get('authcache:1').decode() == json.dumps({'a': 'New header'})
+    assert Auth.lookup(auth.id, 'a') == 'New header'
+    assert Auth.xlookup('700', 'a', 'New header', record_type='bib') == [auth.id]
+    bib = Bib().set('700', 'a', auth.id)
+    bib.commit()
+    assert auth.in_use() == 1
+
+    # build cache
+    auth = Auth({'_id': 2}).set('110', 'a', 'Organization')
+    DB.auths.insert_one(auth.to_dict())
+    Auth.build_cache()
+    assert valkey_client.get('authcache:2').decode() == json.dumps({'a': 'Organization'})
+    assert Auth.lookup(2, 'a') == 'Organization'
+    assert auth.in_use() == 0
+

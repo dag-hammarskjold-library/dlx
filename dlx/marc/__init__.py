@@ -1880,7 +1880,8 @@ class Auth(Marc):
         if language:
             cached = Auth._langcache.get(xref, {}).get(code, {}).get(language, None)
         elif cache := DB.cache:
-            cached = json.loads(cache[xref]).get(code) if cache.exists(xref) else None
+            key = f'authcache:{xref}'
+            cached = json.loads(cache[key]).get(code) if cache.exists(key) else None
         else:
             cached = Auth._cache.get(xref, {}).get(code, None)
             
@@ -1898,7 +1899,7 @@ class Auth(Marc):
             if cache: 
                 if cache.exists(xref):
                     data = json.loads(cache[xref])
-                    data.update({code, value})
+                    data.update({code: value})
                     cache[xref] = json.dumps(data)
                 else:
                     cache[xref] = json.dumps({code: value})
@@ -1919,7 +1920,7 @@ class Auth(Marc):
             return
         
         if cache := DB.cache:
-            key = 'authcache:{value}'
+            key = f'xauthcache:{value}'
 
             if data := json.loads(cache.get(key) or '{}').get(auth_tag, {}).get(code):
                 return data
