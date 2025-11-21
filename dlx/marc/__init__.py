@@ -1831,14 +1831,15 @@ class Bib(Marc):
         return File.latest_by_identifier_language(Identifier('symbol', symbol), lang).uri
     
     def add_file_info(self):
-        # Saves file into record data
-        for itype, tag_code in Config.file_identifier_map.items():
-            for value in self.get_values(tag_code[0], tag_code[1]):
-                for lang in ['AR', 'DE', 'EN', 'ES', 'FR', 'RU', 'ZH']:
-                    if f := File.latest_by_identifier_language(Identifier(itype, value), lang):                       
-                        self.fields.append(
-                            Datafield(Config.file_information_field, None, None, [Literal('l', lang), Literal('f', f.checksum)])
-                        )
+        # Adds file info into record data
+        if tag := Config.file_information_field:
+            for itype, tag_code in Config.file_identifier_map.items():
+                for value in self.get_values(tag_code[0], tag_code[1]):
+                    for lang in ['AR', 'DE', 'EN', 'ES', 'FR', 'RU', 'ZH']:
+                        if f := File.latest_by_identifier_language(Identifier(itype, value), lang):                       
+                            self.fields.append(
+                                Datafield(tag, None, None, [Literal('l', lang), Literal('f', f.checksum)])
+                            )
 
 class Auth(Marc):
     record_type = 'auth'
