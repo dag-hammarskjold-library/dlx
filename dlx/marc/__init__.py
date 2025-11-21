@@ -857,6 +857,7 @@ class Marc(object):
     def commit(self, user='admin', auth_check=True, update_attached=True):
         new_record = True if self.id is None else False
         self.id = type(self)._increment_ids() if new_record else self.id
+        if isinstance(self, Bib): self.add_file_info()
         self.validate()
         data = self.to_bson()
         self.updated = data['updated'] = datetime.now(timezone.utc)
@@ -1230,10 +1231,6 @@ class Marc(object):
                     else:
                         thread4 = threading.Thread(target=update_attached_records, args=[self])
                         thread4.start()
-
-        # save files information
-        if isinstance(self, Bib):
-            self.save_file_info()
         
         return self
 
@@ -1833,12 +1830,12 @@ class Bib(Marc):
 
         return File.latest_by_identifier_language(Identifier('symbol', symbol), lang).uri
     
-    def save_file_info(self):
+    def add_file_info(self):
         # Saves file into record data
         for itype, tag_code in Config.file_identifier_map.items():
             for value in self.get_values(tag_code[0], tag_code[1]):
                 for lang in ['AR', 'DE', 'EN', 'ES', 'FR', 'RU', 'ZH']:
-                    if f := File.latest_by_identifier_language(Identifier(itype, value), lang):
+                    if f := File.latest_by_identifier_language(Identifier(itype, value), lang):                       
                         self.fields.append(
                             Datafield(Config.file_information_field, None, None, [Literal('l', lang), Literal('f', f.checksum)])
                         )

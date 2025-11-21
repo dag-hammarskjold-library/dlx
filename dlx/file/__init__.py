@@ -220,15 +220,10 @@ class File(object):
                 }
             )
             
-            f.validate()
-            data = f.to_bson()
-             
-            if overwrite == True:
-                db_result = DB.files.replace_one({'_id': checksum}, data, upsert=True)
-            else:
-                db_result = DB.files.insert_one(data)
+            f.validate() 
+            result = f.commit()
                     
-            if db_result.acknowledged:
+            if result.acknowledged:
                 return f
             else:
                 raise Exception('This should be impossible')
@@ -358,10 +353,25 @@ class File(object):
         jsonschema.validate(instance=self.to_dict(), schema=Config.jfile_schema, format_checker=jsonschema.FormatChecker())
         
     def commit(self):
+        # Need this import statement here to avoid circular imports
+        from dlx.marc import BibSet, Query, Condition
+
         self.updated = datetime.now(timezone.utc)
         self.validate()
 
-        return DB.files.replace_one({'_id': self.id}, self.to_bson(), upsert=True)
+        if result := DB.files.replace_one({'_id': self.checksum}, self.to_bson(), upsert=True):
+            # Update any associated bib records
+            for idx in self.identifiers:
+                if idx.type in Config.file_identifier_map:
+                    tag, code = Config.file_identifier_map[idx.type]
+
+                    for bib in BibSet.from_query(Query(Condition(tag, (code, idx.value)))):
+                        bib.commit(user=self.user or 'admin')
+                        print(bib.to_mrk())
+
+            return result
+        
+        raise Exception('File data commit failed')
         
     def to_bson(self):
         data = SON(

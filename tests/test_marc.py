@@ -1097,7 +1097,7 @@ def test_bib_files(db, bibs):
     # new save info to record data function
     tag = Config.file_information_field
     assert not bib.get_value(tag, 'f')
-    bib.save_file_info()
+    bib.add_file_info()
     assert len(bib.get_values(tag, 'f')) == 2
 
     for lang in ['FR', 'ES']:
