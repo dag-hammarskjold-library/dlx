@@ -1216,20 +1216,20 @@ class Marc(object):
 
         if isinstance(self, Auth) and update_attached == True:
             if previous_state:
-                    # only update attached record if the heading field changed
-                    # don't check indicators
-                    previous = Auth(previous_state)
-                    linked_codes = Config.auth_linked_codes(self.heading_field.tag)
-                    heading_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, self.heading_field.subfields))]
-                    prev_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, previous.heading_field.subfields))]
+                # only update attached record if the heading field changed
+                # don't check indicators
+                previous = Auth(previous_state)
+                linked_codes = Config.auth_linked_codes(self.heading_field.tag)
+                heading_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, self.heading_field.subfields))]
+                prev_serialized = [(x.code, x.value) for x in list(filter(lambda x: x.code in linked_codes, previous.heading_field.subfields))]
 
-                    if heading_serialized != prev_serialized or self.heading_field.tag != previous.heading_field.tag:
-                        # the heading has changed
-                        if DB.database_name == 'testing' or Config.threading == False: 
-                            update_attached_records(self)
-                        else:
-                            thread4 = threading.Thread(target=update_attached_records, args=[self])
-                            thread4.start()
+                if heading_serialized != prev_serialized or self.heading_field.tag != previous.heading_field.tag:
+                    # the heading has changed
+                    if DB.database_name == 'testing' or Config.threading == False: 
+                        update_attached_records(self)
+                    else:
+                        thread4 = threading.Thread(target=update_attached_records, args=[self])
+                        thread4.start()
         
         return self
 
@@ -1322,7 +1322,7 @@ class Marc(object):
         """Returns a dict of the record's logical fields"""
         
         self._logical_fields = {}
-        logical_fields = getattr(Config, self.record_type + '_logical_fields') 
+        logical_fields = getattr(Config, self.record_type + '_logical_fields')
         
         for logical_field, tags in logical_fields.items():
             if names and logical_field not in names:
