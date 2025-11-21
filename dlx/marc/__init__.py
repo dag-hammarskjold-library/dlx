@@ -1230,6 +1230,10 @@ class Marc(object):
                     else:
                         thread4 = threading.Thread(target=update_attached_records, args=[self])
                         thread4.start()
+
+        # save files information
+        if isinstance(self, Bib):
+            self.save_file_info()
         
         return self
 
@@ -1828,6 +1832,16 @@ class Bib(Marc):
         symbol = self.symbol()
 
         return File.latest_by_identifier_language(Identifier('symbol', symbol), lang).uri
+    
+    def save_file_info(self):
+        # Saves file into record data
+        for itype, tag_code in Config.file_identifier_map.items():
+            for value in self.get_values(tag_code[0], tag_code[1]):
+                for lang in ['AR', 'DE', 'EN', 'ES', 'FR', 'RU', 'ZH']:
+                    if f := File.latest_by_identifier_language(Identifier(itype, value), lang):
+                        self.fields.append(
+                            Datafield(Config.file_information_field, None, None, [Literal('l', lang), Literal('f', f.checksum)])
+                        )
 
 class Auth(Marc):
     record_type = 'auth'
@@ -2280,7 +2294,6 @@ class Diff():
         # boolean record equality check
         self.different = True if self.a or self.b or self.d or self.e else False
         self.same = not self.different
-
 
 class History():
     def __init__(self):

@@ -1085,7 +1085,7 @@ def test_logical_fields(db):
 
 def test_bib_files(db, bibs):
     from datetime import datetime
-    from dlx import DB
+    from dlx import DB, Config
     from dlx.file import File
     from dlx.marc import Bib
 
@@ -1093,6 +1093,15 @@ def test_bib_files(db, bibs):
     DB.files.insert_one({'_id': '2', 'identifiers': [{'type': 'symbol', 'value': 'A/TEST'}], 'languages': ['ES'], 'uri': 'www.test.com/es', 'mimetype': 'text/plain', 'size': 1, 'source': 'test', 'timestamp': datetime.now()})
     bib = Bib().set('191', 'a', 'A/TEST')
     assert bib.files() == ['www.test.com/fr', 'www.test.com/es']
+
+    # new save info to record data function
+    tag = Config.file_information_field
+    assert not bib.get_value(tag, 'f')
+    bib.save_file_info()
+    assert len(bib.get_values(tag, 'f')) == 2
+
+    for lang in ['FR', 'ES']:
+        assert lang in bib.get_values(tag, 'l')
 
 def test_list_attached(db, bibs, auths):
     from dlx.marc import Bib, Auth
@@ -1227,4 +1236,3 @@ def test_valkey_cache(db, auths, valkey_client):
     assert valkey_client.get('authcache:2').decode() == json.dumps({'a': 'Organization'})
     assert Auth.lookup(2, 'a') == 'Organization'
     assert auth.in_use() == 0
-

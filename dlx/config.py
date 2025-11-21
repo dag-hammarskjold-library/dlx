@@ -298,6 +298,15 @@ class Config():
     # control subthreading of database actions on Marc.commit() and Auth.merge() for debugging
     threading = True
 
+    # file idenfifier mappings
+    file_identifier_map = {
+        'symbol': ['191', 'a'],
+        'isbn': ['020', 'a'],
+        'uri': ['561', 'u']
+    }
+
+    file_information_field = '857'
+
     # utility functions
     @staticmethod
     def is_authority_controlled(record_type, tag, code):
