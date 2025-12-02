@@ -3,7 +3,7 @@ certifi==2025.11.12
 fakeredis==2.32.1
 jsonschema==4.25.1
 mongomock==4.3.0
-moto==5.1.17
+moto==5.1.18
 nltk==3.9.2
 pymongo==4.15.4
 pytest==8.4.2
