@@ -857,7 +857,6 @@ class Marc(object):
     def commit(self, user='admin', auth_check=True, update_attached=True):
         new_record = True if self.id is None else False
         self.id = type(self)._increment_ids() if new_record else self.id
-        if isinstance(self, Bib): self.add_file_info()
         self.validate()
         data = self.to_bson()
         self.updated = data['updated'] = datetime.now(timezone.utc)
@@ -1019,7 +1018,7 @@ class Marc(object):
 
                 # insert all the new data's logical fields into the index
                 for logical_field, values in self.logical_fields().items():
-                    if logical_field == '_record_type':
+                    if logical_field in ['_record_type', 'files']:
                         continue
                     
                     # text/browse indexes
@@ -1338,6 +1337,7 @@ class Marc(object):
                             self._logical_fields.setdefault(logical_field, [])
                             self._logical_fields[logical_field].append(value)
 
+        # subtype
         for subtype, match in Config.bib_type_map.items():
             if self.get_value(*match[:2]) == match[2]:
                 self._logical_fields['_record_type'] = [subtype]
@@ -1345,6 +1345,10 @@ class Marc(object):
         self._logical_fields.setdefault('_record_type', ['default'])
         self._logical_fields['_record_type'].append(self.record_type)
 
+        # files
+        if isinstance(self, Bib): 
+            self._logical_fields['files'] = self.get_file_codes()
+    
         return self._logical_fields
 
     def revert(self, version: int):
@@ -1830,16 +1834,13 @@ class Bib(Marc):
 
         return File.latest_by_identifier_language(Identifier('symbol', symbol), lang).uri
     
-    def add_file_info(self):
-        # Adds file info into record data
-        if tag := Config.file_information_field:
-            for itype, tag_code in Config.file_identifier_map.items():
-                for value in self.get_values(tag_code[0], tag_code[1]):
-                    for lang in ['AR', 'DE', 'EN', 'ES', 'FR', 'RU', 'ZH']:
-                        if f := File.latest_by_identifier_language(Identifier(itype, value), lang):                       
-                            self.fields.append(
-                                Datafield(tag, None, None, [Literal('l', lang), Literal('f', f.checksum)])
-                            )
+    def get_file_codes(self) -> list[str]:
+        # Returns a list of language ISO codes for which files exist
+        codes = ['AR', 'DE', 'EN', 'ES', 'FR', 'RU', 'ZH']
+
+        for itype, tag_code in Config.file_identifier_map.items():
+            for value in self.get_values(tag_code[0], tag_code[1]):
+                return [x for x in codes if File.latest_by_identifier_language(Identifier(itype, value), x)]
 
 class Auth(Marc):
     record_type = 'auth'
