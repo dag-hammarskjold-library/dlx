@@ -1,7 +1,7 @@
 boto3==1.42.18
 certifi==2025.11.12
 fakeredis==2.33.0
-jsonschema==4.25.1
+jsonschema==4.26.0
 mongomock==4.3.0
 moto==5.1.19
 nltk==3.9.2
