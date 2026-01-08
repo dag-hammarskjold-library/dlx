@@ -4,7 +4,7 @@
 APIs for performing ETL operations on MARC and file data
 
 ### Requirements:
-* Python 3.9+
+* Python 3.10+
 * Valid MongoDB connection string
 * AWS S3 credentials (file submission only)
 
