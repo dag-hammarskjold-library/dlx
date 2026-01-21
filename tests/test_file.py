@@ -199,5 +199,13 @@ def test_commit(db, s3, tempfile):
     assert f.identifiers[0].type == 'issn'
     assert f.identifiers[0].value == '2'
     assert f.updated
-    
-    
+
+    from dlx.marc import Bib
+    bib = Bib().set('020', 'a', '1234')
+    bib.commit()
+    assert not bib.get_field(Config.file_information_field)
+    f.identifiers.append(ID('isbn', '1234'))
+    f.commit()
+    # the record was updated in the db in the background
+    bib = Bib.from_id(bib.id)
+    assert bib.get_field(Config.file_information_field)
