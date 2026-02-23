@@ -1,4 +1,4 @@
-version = '1.5.3'
+version = '1.5.3.dev'
 
 import sys
 from setuptools import setup, find_packages
