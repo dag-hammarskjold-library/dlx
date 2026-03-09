@@ -3,7 +3,7 @@ certifi==2026.2.25
 fakeredis==2.34.1
 jsonschema==4.25.1
 mongomock==4.3.0
-moto==5.1.21
+moto==5.1.22
 nltk==3.9.3
 pymongo==4.16.0
 pytest==9.0.2
