@@ -7,7 +7,7 @@ moto==5.1.22
 nltk==3.9.3
 pymongo==4.16.0
 pytest==9.0.2
-redis==7.3.0
+redis==7.4.0
 requests>=2.32.2
 responses==0.26.0
 valkey==6.1.1
