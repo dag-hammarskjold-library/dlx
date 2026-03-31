@@ -81,6 +81,21 @@ def test_from_ids(db):
     bibs = BibSet.from_ids([1, 2])
     assert [x.id for x in bibs] == [1, 2]
 
+def test_count_type_guardrails(db):
+    from dlx.marc import BibSet
+
+    bibset = BibSet.from_query({})
+    assert isinstance(bibset.count, int)
+
+    with pytest.raises(TypeError):
+        bibset.count = '2'
+
+    with pytest.raises(TypeError):
+        bibset.count = True
+
+    with pytest.raises(ValueError):
+        bibset.count = -1
+
 def test_sort_table_header():
     from dlx.marc import MarcSet
 

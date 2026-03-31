@@ -524,6 +524,29 @@ def test_querystring(db):
     with pytest.raises(InvalidQueryString): Query.from_string('245:\'title unclosed \' exact match')
     with pytest.raises(InvalidQueryString): Query.from_string('245:/title uncl/osed regex')
 
+def test_querystring_mixed_authority_source_tags(db):
+    from copy import deepcopy
+    from dlx.config import Config
+    from dlx.marc import Auth, Bib, BibSet, Query
+
+    original = deepcopy(Config.bib_authority_controlled)
+
+    try:
+        # Simulate a tag with subfields linked to different authority heading tags.
+        Config.bib_authority_controlled['997'] = {'a': '100', 'b': '110'}
+
+        Auth().set('100', 'a', 'Source A').commit()
+        source_b = Auth().set('110', 'b', 'Source B').commit()
+        Bib().set('997', 'b', source_b.id).commit()
+
+        query = Query.from_string("997__b:'Source B'", record_type='bib')
+        assert BibSet.from_query(query).count == 1
+
+        query = Query.from_string("997:'Source B'", record_type='bib')
+        assert BibSet.from_query(query).count == 1
+    finally:
+        Config.bib_authority_controlled = original
+
 def test_from_aggregation(db, bibs):
     from dlx.marc import BibSet, Query
 

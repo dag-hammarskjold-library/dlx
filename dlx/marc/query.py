@@ -133,21 +133,17 @@ class Query():
                         # this is likely to be faster querying directly against the record collection
                         return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
 
-                    if isinstance(value, WildcardRegex):
-                        matches = DB.handle[f'_index_{tag}'].find({'subfields': {'$elemMatch': {'code': code, 'value': value}}})
-                    else:
-                        matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
-                        #return Condition(tag, {code: value}, modifier=modifier, record_type=self.record_type)
-
-                    matched_subfield_values = []
-
-                    for m in matches:
-                        matched_subfield_values += list(
-                            filter(
-                                lambda y: re.search(value.pattern, y, flags=value.flags), 
-                                [x['value'] for x in filter(lambda z: z['code'] == code, m['subfields'])]
-                            )
-                        )
+                    matches = DB.handle[f'_index_{tag}'].find(
+                        {'subfields': {'$elemMatch': {'code': code, 'value': value}}},
+                        projection={'subfields': 1}
+                    )
+                    matched_subfield_values = list({
+                        sub['value']
+                        for m in matches
+                        for sub in m['subfields']
+                        if sub.get('code') == code
+                        and re.search(value.pattern, sub.get('value', ''), flags=value.flags)
+                    })
                 else:
                     # text
                     quoted = re.findall(r'"(.+?)"', value)
@@ -209,7 +205,7 @@ class Query():
 
                 if tag in auth_ctrl:
                     if code in auth_ctrl[tag].keys():
-                        source_tag = list(auth_ctrl[tag].values())[0]
+                        source_tag = auth_ctrl[tag][code]
 
                         xrefs = map(
                             lambda x: x['_id'], 
@@ -261,16 +257,13 @@ class Query():
                         # this is likely to be faster querying directly against the record collection
                         return TagOnly(tag, value, modifier=modifier, record_type=self.record_type)
                     
-                    matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value})
-                    matched_subfield_values = []
-                    
-                    for m in matches:
-                        matched_subfield_values += list(
-                            filter(
-                                lambda y: re.search(value.pattern, y, flags=value.flags), 
-                                [x['value'] for x in m['subfields']]
-                            )
-                        )
+                    matches = DB.handle[f'_index_{tag}'].find({'subfields.value': value}, projection={'subfields': 1})
+                    matched_subfield_values = list({
+                        sub['value']
+                        for m in matches
+                        for sub in m['subfields']
+                        if re.search(value.pattern, sub.get('value', ''), flags=value.flags)
+                    })
                 # text
                 else:
                     quoted = re.findall(r'"(.+?)"', value)
@@ -327,12 +320,16 @@ class Query():
                 auth_ctrl = Config.bib_authority_controlled if self.record_type == 'bib' else Config.auth_authority_controlled
 
                 if tag in auth_ctrl:
-                    source_tag = list(auth_ctrl[tag].values())[0]
+                    source_tags = list(set(auth_ctrl[tag].values()))
+                    source_query = [
+                        {f'{source_tag}.subfields.value': {'$in': matched_subfield_values}}
+                        for source_tag in source_tags
+                    ]
 
                     xrefs = map(
                         lambda x: x['_id'], 
                         DB.auths.find(
-                            {f'{source_tag}.subfields.value': {'$in': matched_subfield_values}},
+                            {'$or': source_query} if len(source_query) > 1 else source_query[0],
                             projection={'_id': 1},
                             collation=Config.marc_index_default_collation
                         )
@@ -791,11 +788,16 @@ class TagOnly():
         auth_ctrl = Config.bib_authority_controlled if self.record_type == 'bib' else Config.auth_authority_controlled
         
         if tag in auth_ctrl:
-            source_tag = list(auth_ctrl[tag].values())[0]
+            source_tags = list(set(auth_ctrl[tag].values()))
+            source_query = [{f'{source_tag}.subfields.value': value} for source_tag in source_tags]
             
             xrefs = map(
                 lambda x: x['_id'], 
-                DB.auths.find({f'{source_tag}.subfields.value': value}, projection={'_id': 1}, collation=Config.marc_index_default_collation)
+                DB.auths.find(
+                    {'$or': source_query} if len(source_query) > 1 else source_query[0],
+                    projection={'_id': 1},
+                    collation=Config.marc_index_default_collation
+                )
             )
             xrefs = list(xrefs)
             

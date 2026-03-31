@@ -1,6 +1,7 @@
 """dlx.marc"""
 
 import time, re, json, csv, threading, copy, typing
+from collections.abc import Generator
 from collections import Counter
 from datetime import datetime, timezone
 from warnings import warn
@@ -326,10 +327,11 @@ class MarcSet():
 
     def __init__(self):
         self.records = [] # records # can be any type of iterable
+        self._count = 0
 
     @property
     def count(self):
-        if isinstance(self.records, (map, typing.Generator)):
+        if isinstance(self.records, (map, Generator)):
             args, kwargs = self.query_params
 
             if isinstance(args[0], list):
@@ -346,12 +348,18 @@ class MarcSet():
                     # no criteria
                     self._count = self.handle.estimated_document_count()
 
-            return self._count
+            return int(self._count)
         else:
-            return len(self.records)
+            return int(len(self.records))
 
     @count.setter
     def count(self, val):
+        if isinstance(val, bool) or not isinstance(val, int):
+            raise TypeError('count must be an int')
+
+        if val < 0:
+            raise ValueError('count cannot be negative')
+
         self._count = val
 
     def cache(self):
