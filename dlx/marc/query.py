@@ -412,53 +412,13 @@ class Query():
 
                     # exact match
                     if value[0] == '\'' and value[-1] == '\'':
-                        return Raw({field: value[1:-1] })
+                        return Logical(field, value[1:-1], modifier=modifier, record_type=self.record_type, exact=True)
                     elif value[0] == '\'' and value[-1] != '\'':
                         raise InvalidQueryString(f'Invalid exact match using single quote: "{token}"')
 
                     value = process_string(value)
 
-                    # regex
-                    if isinstance(value, Regex):
-                        q = {'_id': value}
-
-                    # text
-                    else:
-                        quoted = re.findall(r'"(.+?)"', value)
-                        quoted = [Tokenizer.scrub(x) for x in quoted]
-                        negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
-                        negated = [Tokenizer.scrub(x) for x in negated]
-
-                        for _ in negated:
-                            value = value.replace(_, '')
-
-                            if not value.strip():
-                                raise Exception('Search term can\'t contain only negations')
-                            
-                        q = {'$and': [{'words': {'$all': Tokenizer.tokenize(value)}}]}
-
-                        if negated:
-                            q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
-
-                        for phrase in quoted:
-                            q['$and'].append({'text': Regex(fr'\b{phrase}\b')})
-
-                    matches = DB.handle[f'_index_{field}'].find(q)
-                    values = [x['_id'] for x in matches]
-
-                    if sys.getsizeof(values) > 1e6: # 1 MB
-                        if isinstance(value, Regex):
-                            # fall back to normal regex
-                            return Raw({field: value}, modifier=modifier)
-                
-                        raise InvalidQueryString(f'Text search "{value}" has too many hits on field "{field}". Try narrowing the search')
-                    elif len(values) == 0:
-                        return Raw({'_id': 0}) # query that matches no documents
-
-                    if modifier == 'not':
-                        return Raw({field: {'$not': {'$in': values}}})
-                    else:
-                        return Raw({field: {'$in': values}})
+                    return Logical(field, value, modifier=modifier, record_type=self.record_type)
                 else:
                     raise InvalidQueryString(f'Unrecognized query field "{field}"')
 
@@ -758,6 +718,89 @@ class Text():
             }
         }
 
+class Logical():
+    def __init__(self, field, value, *, modifier=None, record_type=None, exact=False):
+        self.field = field
+        self.value = value
+        self.modifier = modifier
+        self.record_type = record_type
+        self.exact = exact
+
+    def compile(self):
+        # exists
+        if self.value == '*':
+            return {self.field: {'$exists': False if self.modifier == 'not' else True}}
+
+        # exact match
+        if isinstance(self.value, str) and self.exact:
+            if self.modifier == 'not':
+                return {self.field: {'$not': {'$eq': self.value}}}
+
+            return {self.field: self.value}
+
+        value = self.value
+
+        # regex
+        if isinstance(value, Regex):
+            q = {'_id': value}
+        else:
+            quoted = re.findall(r'"(.+?)"', value)
+            quoted = [Tokenizer.scrub(x) for x in quoted]
+            negated = [x[1] for x in re.findall(r'(^|\s)(\-\w+)', value)]
+            negated = [Tokenizer.scrub(x) for x in negated]
+
+            for _ in negated:
+                value = value.replace(_, '')
+
+                if not value.strip():
+                    raise Exception('Search term can\'t contain only negations')
+
+            q = {'$and': [{'words': {'$all': Tokenizer.tokenize(value)}}]}
+
+            if negated:
+                q['$and'].append({'words': {'$nin': Tokenizer.tokenize(' '.join(negated))}})
+
+            for phrase in quoted:
+                q['$and'].append({'text': Regex(fr'\b{phrase}\b')})
+
+        matches = DB.handle[f'_index_{self.field}'].find(q)
+        values = [x['_id'] for x in matches]
+
+        if sys.getsizeof(values) > 1e6: # 1 MB
+            if isinstance(self.value, Regex):
+                # fall back to normal regex
+                return {self.field: self.value}
+
+            raise InvalidQueryString(f'Text search "{self.value}" has too many hits on field "{self.field}". Try narrowing the search')
+        elif len(values) == 0:
+            return {'_id': 0} # query that matches no documents
+
+        if self.modifier == 'not':
+            return {self.field: {'$not': {'$in': values}}}
+
+        return {self.field: {'$in': values}}
+
+    def atlas_compile(self):
+        path = self.field
+
+        if self.value == '*':
+            return {'exists': {'path': path}}
+
+        if isinstance(self.value, Regex):
+            return {'regex': {'path': path, 'query': self.value.pattern, 'allowAnalyzedField': True}}
+
+        if isinstance(self.value, WildcardRegex):
+            wildcard = self.value.pattern.replace('^', '').replace('$', '').replace('.*', '*')
+            return {'wildcard': {'path': path, 'query': wildcard, 'allowAnalyzedField': True}}
+
+        if isinstance(self.value, str):
+            if self.exact:
+                return {'phrase': {'path': path, 'query': self.value}}
+
+            return {'text': {'path': path, 'query': self.value}}
+
+        return {'text': {'path': path, 'query': str(self.value)}}
+
 class Wildcard(Text):
     # Deprecated
     def __init__(self, *args, **kwargs):
@@ -777,6 +820,10 @@ class TagOnly():
     """Tag and value condition"""
     
     def __init__(self, tag, value, *, record_type=None, modifier=None):
+        self.tag = tag
+        self.value = value
+        self.modifier = modifier
+
         if record_type:
             self.record_type = record_type
         else:
@@ -826,6 +873,24 @@ class TagOnly():
     def compile(self):
         return self.condition.compile()
 
+    def atlas_compile(self):
+        path = f'{self.tag}.subfields.value'
+
+        if self.value == '*':
+            return {'exists': {'path': path}}
+
+        if isinstance(self.value, Regex):
+            return {'regex': {'path': path, 'query': self.value.pattern, 'allowAnalyzedField': True}}
+
+        if isinstance(self.value, WildcardRegex):
+            wildcard = self.value.pattern.replace('^', '').replace('$', '').replace('.*', '*')
+            return {'wildcard': {'path': path, 'query': wildcard, 'allowAnalyzedField': True}}
+
+        if isinstance(self.value, str):
+            return {'phrase': {'path': path, 'query': self.value}}
+
+        return {'text': {'path': path, 'query': str(self.value)}}
+
 class Any(TagOnly):
     # deprecated
     def __init__(self, *args, **kwargs):
@@ -838,20 +903,61 @@ class AtlasQuery():
         self.conditions = []
         self.match = None # the standard query to use in $match stage
 
+    @staticmethod
+    def _is_supported(condition):
+        return isinstance(condition, (Text, Logical, TagOnly, Condition))
+
+    @staticmethod
+    def _clause_for(condition):
+        if isinstance(condition, Text):
+            return {'text': {'path': {'wildcard': '*'}, 'query': condition.string}}, getattr(condition, 'modifier', None)
+
+        if isinstance(condition, Condition):
+            must = []
+
+            for code, value in condition.subfields:
+                if isinstance(value, int):
+                    must.append({'equals': {'path': f'{condition.tag}.subfields.xref', 'value': value}})
+                else:
+                    must.append({'text': {'path': f'{condition.tag}.subfields.code', 'query': code}})
+
+                    if isinstance(value, Regex):
+                        must.append({'regex': {'path': f'{condition.tag}.subfields.value', 'query': value.pattern, 'allowAnalyzedField': True}})
+                    elif isinstance(value, WildcardRegex):
+                        wildcard = value.pattern.replace('^', '').replace('$', '').replace('.*', '*')
+                        must.append({'wildcard': {'path': f'{condition.tag}.subfields.value', 'query': wildcard, 'allowAnalyzedField': True}})
+                    else:
+                        must.append({'phrase': {'path': f'{condition.tag}.subfields.value', 'query': value}})
+
+            return {'compound': {'must': must}}, getattr(condition, 'modifier', None)
+
+        return condition.atlas_compile(), getattr(condition, 'modifier', None)
+
     @classmethod
     def from_string(cls, string, *, record_type=None):
+        standard_query = Query.from_string(string, record_type=record_type)
+        return cls.from_query(standard_query)
+
+    @classmethod
+    def from_query(cls, query):
         self = cls()
-        standard_query = Query.from_string(string)
-        standard_conditions = standard_query.conditions
+        standard_conditions = query.conditions
         self.conditions = []
-        
-        # remove text conditions for conversion to Atlas conditions
-        for i, cond in enumerate(standard_conditions):
-            if isinstance(cond, Text):
-                self.conditions.append(standard_conditions.pop(i))
+        fallback = []
+
+        for cond in standard_conditions:
+            if isinstance(cond, Or):
+                if all(cls._is_supported(c) and not getattr(c, 'modifier', None) for c in cond.conditions):
+                    self.conditions.append(cond)
+                else:
+                    fallback.append(cond)
+            elif cls._is_supported(cond):
+                self.conditions.append(cond)
+            else:
+                fallback.append(cond)
 
         # save the rest of the standard query to use in $match aggregation stage
-        self.match = Query(*standard_conditions) if standard_conditions else None
+        self.match = Query(*fallback) if fallback else None
 
         return self
 
@@ -859,7 +965,38 @@ class AtlasQuery():
         pipeline = []
 
         if self.conditions:
-            pipeline += [x.atlas_compile() for x in self.conditions]
+            must, must_not, should = [], [], []
+
+            for cond in self.conditions:
+                if isinstance(cond, Or):
+                    should += [AtlasQuery._clause_for(c)[0] for c in cond.conditions]
+                    continue
+
+                clause, modifier = AtlasQuery._clause_for(cond)
+
+                if modifier == 'not':
+                    must_not.append(clause)
+                else:
+                    must.append(clause)
+
+            compound = {}
+
+            if must:
+                compound['must'] = must
+
+            if must_not:
+                compound['mustNot'] = must_not
+
+            if should:
+                compound['should'] = should
+                compound['minimumShouldMatch'] = 1
+
+            search = {'$search': {'index': 'default'}}
+
+            if compound:
+                search['$search']['compound'] = compound
+
+            pipeline.append(search)
 
         if self.match:
             pipeline.append({'$match': self.match.compile()})

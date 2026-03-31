@@ -567,7 +567,29 @@ def test_atlasquery(db, bibs):
     pipeline = ag.compile()
     assert isinstance(ag.compile(), list)
     assert pipeline[0].get('$search')
-    assert pipeline[1].get('$match')
+    compound = pipeline[0]['$search']['compound']
+    assert any(x.get('phrase', {}).get('path') == '245.subfields.value' for x in compound['must'])
+    assert any(x.get('text', {}).get('path', {}).get('wildcard') == '*' for x in compound['must'])
+
+def test_atlasquery_logical_and_marc_fields(db, bibs):
+    from dlx.marc.query import AtlasQuery
+
+    ag = AtlasQuery.from_string('title:\'is the\' AND 245__a:\'This\'')
+    pipeline = ag.compile()
+    assert pipeline and pipeline[0].get('$search')
+
+    clauses = pipeline[0]['$search']['compound']['must']
+    assert any(x.get('phrase', {}).get('path') == 'title' for x in clauses)
+    assert any(x.get('compound') for x in clauses)
+
+def test_atlasquery_from_query(db):
+    from dlx.marc import Query
+    from dlx.marc.query import AtlasQuery
+
+    q = Query.from_string('245__a:\'This\' AND notes')
+    ag = AtlasQuery.from_query(q)
+    pipeline = ag.compile()
+    assert pipeline and pipeline[0].get('$search')
 
 def test_get_field(db, bibs):
     from dlx.marc import Bib, Field, Controlfield, Datafield

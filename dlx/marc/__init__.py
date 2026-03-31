@@ -93,13 +93,46 @@ class MarcSet():
         MarcSet
         """
         self = cls()
+        use_atlas_search = kwargs.pop('use_atlas_search', False)
         
+        if isinstance(args[0], AtlasQuery):
+            self.query_params = [args, kwargs]
+            Marc = self.record_class
+            ac = kwargs.pop('auth_control', False)
+            self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(*args, **kwargs))
+            return self
+
         if isinstance(args[0], Query):
             for cond in args[0].conditions:
                 #if not isinstance(cond, Or):
                 cond.record_type = self.record_type
 
             args[0].record_type = self.record_type
+
+            if use_atlas_search and DB.is_atlas:
+                atlas = AtlasQuery.from_query(args[0])
+                pipeline = atlas.compile()
+
+                if kwargs.get('sort'):
+                    pipeline.append({'$sort': dict(kwargs.pop('sort'))})
+
+                if kwargs.get('skip'):
+                    pipeline.append({'$skip': kwargs.pop('skip')})
+
+                if kwargs.get('limit'):
+                    pipeline.append({'$limit': kwargs.pop('limit')})
+
+                if kwargs.get('projection'):
+                    projection = kwargs.pop('projection')
+                    projection.pop('_id', None)
+                    pipeline.append({'$project': projection})
+
+                self.query_params = [[pipeline], kwargs]
+                Marc = self.record_class
+                ac = kwargs.pop('auth_control', False)
+                self.records = map(lambda r: Marc(r, auth_control=ac), self.handle.aggregate(pipeline, **kwargs))
+                return self
+
             query = args[0].compile()
         elif isinstance(args[0], Condition):
             args[0].record_type = self.record_type

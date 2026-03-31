@@ -5,11 +5,76 @@ from argparse import ArgumentParser
 from dlx import DB, Config
 from dlx.marc import Bib, Auth
 from pymongo.collation import Collation
+from pymongo.operations import SearchIndexModel
 
 parser = ArgumentParser()
 parser.add_argument('--connect', required=True, help='MongoDB connection string')
 parser.add_argument('--database', help='The database to use, if it differs from the one in the connection string')
 parser.add_argument('--verbose', action='store_true')
+parser.add_argument('--atlas_search', action='store_true', help='Create MongoDB Atlas Search indexes')
+
+def create_atlas_search_indexes(col, *, record_type):
+    if not hasattr(col, 'create_search_index'):
+        print(f'skipping atlas search indexes for {col.name}: client does not support search index API')
+        return []
+
+    logical_fields = getattr(Config, f'{record_type}_logical_fields')
+    auth_ctrl = getattr(Config, f'{record_type}_authority_controlled')
+    index_fields = getattr(Config, f'{record_type}_index')
+
+    logical_map = {
+        field: {'type': 'string'}
+        for field in logical_fields.keys()
+    }
+    logical_map.update({
+        '_record_type': {'type': 'string'},
+        'text': {'type': 'string'},
+        'words': {'type': 'string'}
+    })
+
+    tags = sorted(set(index_fields + list(auth_ctrl.keys())))
+    marc_map = {
+        tag: {
+            'type': 'document',
+            'fields': {
+                'subfields': {
+                    'type': 'document',
+                    'fields': {
+                        'code': {'type': 'string'},
+                        'value': {'type': 'string'},
+                        'xref': {'type': 'number'}
+                    }
+                }
+            }
+        }
+        for tag in tags
+    }
+
+    models = [
+        SearchIndexModel(
+            definition={'mappings': {'dynamic': False, 'fields': logical_map}},
+            name='logical_fields',
+            type='search'
+        ),
+        SearchIndexModel(
+            definition={'mappings': {'dynamic': False, 'fields': marc_map}},
+            name='marc_fields',
+            type='search'
+        )
+    ]
+
+    existing = {idx.get('name') for idx in col.list_search_indexes()}
+
+    for model in models:
+        if model.document['name'] in existing:
+            col.drop_search_index(model.document['name'])
+
+    created = []
+
+    for model in models:
+        created.append(col.create_search_index(model))
+
+    return created
 
 def run():
     args = parser.parse_args()
@@ -180,6 +245,10 @@ def run():
             if index != '_id_' and index not in indexes:
                 # drop any other indexes on collection
                 col.drop_index(index)
+
+        if args.atlas_search:
+            print(f'creating atlas search indexes on {_}...')
+            create_atlas_search_indexes(col, record_type=_[:-1])
 
     total = len(indexes)
     

@@ -41,6 +41,7 @@ def test_iterate(db):
 
 def test_from_query(db):
     from dlx.marc import MarcSet, BibSet, AuthSet, Query, Condition
+    from dlx import DB
     
     bibset = BibSet.from_query({'_id': {'$in': [1, 2]}})
     assert isinstance(bibset, (MarcSet, BibSet))
@@ -72,6 +73,12 @@ def test_from_query(db):
         
     )    
     bibset = BibSet.from_query(query)
+    assert isinstance(bibset, BibSet)
+    assert bibset.count == 2
+
+    # safe no-op on non-Atlas environments
+    assert not DB.is_atlas
+    bibset = BibSet.from_query(query, use_atlas_search=True)
     assert isinstance(bibset, BibSet)
     assert bibset.count == 2
     
