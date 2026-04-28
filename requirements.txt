@@ -8,7 +8,7 @@ nltk==3.9.4
 pymongo==4.17.0
 pytest==9.0.3
 redis==7.4.0
-requests>=2.32.2
+requests>=2.33.1
 responses==0.26.0
 valkey==6.1.1
 xlrd==2.0.2
