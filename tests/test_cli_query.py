@@ -163,6 +163,27 @@ def test_resave_skip_validation_still_applies_save_actions(db):
     assert refreshed.get_value("989", "a") == "Speeches"
 
 
+def test_resave_records_save_action_criteria_use_original_fields(db):
+    from dlx.cli.search import resave_records
+    from dlx.marc import Bib
+
+    bib = Bib.from_id(1)
+    bib.set("989", "a", "Documents and Publications", ind1=" ", ind2=" ", auth_control=False, address=["+", "+"])
+    bib.commit(user="before")
+
+    result = resave_records(
+        [1],
+        record_type="bib",
+        user="cli-user",
+        sanitize_invalid_xml=False,
+    )
+    refreshed = Bib.from_id(1)
+
+    assert result["committed_ids"] == [1]
+    assert result["save_action_record_ids"] == []
+    assert refreshed.get_fields("989") == []
+
+
 def test_search_snapshot_pagination(db):
     from dlx import DB
     from dlx.cli.search import create_search_snapshot, get_snapshot_page
@@ -257,4 +278,3 @@ def test_batch_scope_toggle(db):
     target_ids, label = app._batch_target_ids()
     assert target_ids == [1]
     assert label == "selected"
-

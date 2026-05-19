@@ -59,12 +59,10 @@ def _normalize_dates(record, *, tag: str, date_codes) -> int:
 
 def _apply_tag_save_actions(record, *, tag: str, save_actions: dict[str, dict[str, str | None]]) -> int:
     added = 0
+    matched_mappings = [mapping for criteria, mapping in save_actions.items() if _criteria_matches(record, criteria)]
     record.delete_fields(tag)
 
-    for criteria, mapping in save_actions.items():
-        if not _criteria_matches(record, criteria):
-            continue
-
+    for mapping in matched_mappings:
         field = Datafield(tag=tag, ind1=" ", ind2=" ", record_type=record.record_type)
 
         for code, value in sorted(mapping.items()):
