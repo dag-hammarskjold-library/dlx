@@ -20,12 +20,13 @@ setup(
     author_email = 'library-ny@un.org',
     license = 'http://www.opensource.org/licenses/bsd-license.php',
     packages = find_packages(exclude=['tests']),
-    package_data = {'dlx': ['schemas/jmarc.schema.json', 'schemas/jfile.schema.json']},
+    package_data = {'dlx': ['schemas/jmarc.schema.json', 'schemas/jfile.schema.json', 'cli/save_action_rules.json']},
     test_suite = 'tests',
     install_requires = requirements,
     python_requires = '>=3.10,<3.15',
     entry_points = {
         'console_scripts': [
+            'dlx=dlx.cli.main:run',
             'excel-marc=dlx.scripts.excel_marc:run',
             'clear-incrementers=dlx.scripts.clear_incrementers:run',
             'init-indexes=dlx.scripts.init_indexes:run',
