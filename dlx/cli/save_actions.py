@@ -65,7 +65,7 @@ def _apply_tag_save_actions(record, *, tag: str, save_actions: dict[str, dict[st
         if not _criteria_matches(record, criteria):
             continue
 
-        field = Datafield(tag=tag, ind1="_", ind2="_", record_type=record.record_type)
+        field = Datafield(tag=tag, ind1=" ", ind2=" ", record_type=record.record_type)
 
         for code, value in sorted(mapping.items()):
             if value is None:
