@@ -311,17 +311,7 @@ def resave_records(
 
 
 def _commit_record(record, *, user: str, skip_validation: bool) -> None:
-    if not skip_validation:
-        record.commit(user=user)
-        return
-
-    original_validate = record.validate
-
-    try:
-        record.validate = lambda: None
-        record.commit(user=user)
-    finally:
-        record.validate = original_validate
+    record.commit(user=user, skip_validation=skip_validation)
 
 
 def sanitize_record_xml_literals(record, *, replacement: str = "") -> int:
