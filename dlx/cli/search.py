@@ -79,8 +79,8 @@ def search_records(
     if record_type not in ("bib", "auth"):
         raise ValueError(f'Invalid record type "{record_type}"')
 
-    if limit < 0:
-        raise ValueError("--limit must be >= 0")
+    if limit < 1:
+        raise ValueError("--limit must be >= 1")
 
     if skip < 0:
         raise ValueError("--skip must be >= 0")
