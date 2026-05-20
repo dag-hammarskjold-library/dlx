@@ -854,10 +854,11 @@ class Marc(object):
             raise jsonschema.exceptions.ValidationError(msg)
     
     @Decorators.check_connected
-    def commit(self, user='admin', auth_check=True, update_attached=True):
+    def commit(self, user='admin', auth_check=True, update_attached=True, skip_validation=False):
         new_record = True if self.id is None else False
         self.id = type(self)._increment_ids() if new_record else self.id
-        self.validate()
+        if not skip_validation:
+            self.validate()
         data = self.to_bson()
         self.updated = data['updated'] = datetime.now(timezone.utc)
         self.user = data['user'] = user

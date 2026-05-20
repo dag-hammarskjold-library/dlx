@@ -10,6 +10,7 @@ pytest==9.0.3
 redis==7.4.0
 requests>=2.34.2
 responses==0.26.0
+textual>=1.0.0
 valkey==6.1.1
 xlrd==2.0.2
 xmldiff==2.7.0

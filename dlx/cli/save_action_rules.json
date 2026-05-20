@@ -1,0 +1,421 @@
+{
+  "auths": {
+    "046": {
+      "isDate": {
+        "s": true,
+        "t": true
+      }
+    },
+    "905": {
+      "saveActions": {
+        "100:* OR 110:* OR 111:* OR 130:* OR 150:* OR 151:* OR 190:* OR 191:*": {
+          "a": "DHL"
+        }
+      }
+    }
+  },
+  "bibs": {
+    "269": {
+      "isDate": {
+        "a": true
+      }
+    },
+    "506": {
+      "isDate": {
+        "g": true
+      }
+    },
+    "561": {
+      "isDate": {
+        "b": true
+      }
+    },
+    "981": {
+      "saveActions": {
+        "191:/A\\/(C\\.4|SPC)\\// OR 791:/A\\/(C\\.4|SPC)\\// OR 710:/UN\\. General Assembly.*(4th|Fourth|Special.?Political.*) Committee/": {
+          "a": "General Assembly",
+          "b": "4th Committee",
+          "c": null
+        },
+        "191:/^A\\/([1-9]|DEC|RES|BUR|PV|INF|SR|ES-|S-)/ OR 791:/^A\\/([1-9]|DEC|RES|BUR|PV|INF|SR|ES-|S-)/": {
+          "a": "General Assembly",
+          "b": "General Assembly Plenary",
+          "c": null
+        },
+        "191__a:/^A\\/(AB|AC|CONF|CR|COPUOS|Executive|HQC|ICH|LA|LN|CN|SEC|SITE|UNRRA|WGAP|WGFS|WGUNS)/": {
+          "a": "General Assembly",
+          "b": "Subsidiary Bodies",
+          "c": null
+        },
+        "191__b:/^(UNDP|DP)/ OR 710:UNDP*": {
+          "a": "Programmes and Funds",
+          "b": "Development Programme (UNDP)",
+          "c": null
+        },
+        "191__b:/^A\\/HRC\\// OR 710:/UN. Human Rights Council.*/": {
+          "a": "General Assembly",
+          "b": "Human Rights Council",
+          "c": null
+        },
+        "191__b:/^A\\/HRC\\// OR 710:UN. Human Rights Council*": {
+          "a": "Human Rights Bodies",
+          "b": "Charter-Based Human Rights Bodies",
+          "c": "Human Rights Council"
+        },
+        "191__b:/^HS\\// OR 710:UN-HABITAT*": {
+          "a": "Programmes and Funds",
+          "b": "United Nations Human Settlements Programme (UN-Habitat)",
+          "c": null
+        },
+        "191__b:/^OPS\\// OR 710:UNOPS*": {
+          "a": "Other UN Bodies and Entities",
+          "b": "Office for Project Services (UNOPS)",
+          "c": null
+        },
+        "191__b:/^S// OR 791__b:/^S// OR 710:'UN. Security Council'": {
+          "a": "Security Council",
+          "b": null,
+          "c": null
+        },
+        "191__b:/^T// OR 791__b:/^T// OR 710:'UN.Trusteeship Council'": {
+          "a": "Trusteeship Council",
+          "b": null,
+          "c": null
+        },
+        "191__b:/^TD\\// OR 710:UNCTAD*": {
+          "a": "Other UN Bodies and Entities",
+          "b": "Conference on Trade and Development (UNCTAD)",
+          "c": null
+        },
+        "191__b:CAT/* OR 710:UN. Committee against Torture*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee against Torture"
+        },
+        "191__b:CCPR/* OR 710:Human Rights Committee*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Human Rights Committee"
+        },
+        "191__b:CED/* OR 710:UN. Committee on Enforced Disappearances*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee on Enforced Disappearances"
+        },
+        "191__b:CEDAW/* OR 710:UN. Committee on the Elimination of Discrimination against Women*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee on the Elimination of Discrimination against Women"
+        },
+        "191__b:CERD/* OR 710:UN. Committee on the Elimination of Racial Discrimination*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee on the Elimination of Racial Discrimination"
+        },
+        "191__b:CMW/* OR 710:UN. Committee on the Protection of the Rights of All Migrant Workers and Members of Their Families*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee on the Protection of the Rights of All Migrant Workers and Members of Their Families"
+        },
+        "191__b:CRC/* OR 710:UN. Committee on the Rights of the Child*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee on the Rights of the Child"
+        },
+        "191__b:CRPD/* OR 710:UN. Committee on the Rights of Persons with Disabilities*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee on the Rights of Persons with Disabilities"
+        },
+        "191__b:E/* OR 791__b:E*": {
+          "a": "Economic and Social Council",
+          "b": null,
+          "c": null
+        },
+        "191__b:E/C.12/* OR 710:UN. Committee on Economic, Social and Cultural Rights*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Committee on Economic, Social and Cultural Rights"
+        },
+        "191__b:E/CN.11/ OR 191__b:E/ESCAP/* OR 191__b:ST/ESCAP/* OR 191__b:ST/ECAFE/* OR 191__b:ECAFE/* OR 710:UN. ESCAP* OR 710:UN. ECAFE*": {
+          "a": "Economic Commissions",
+          "b": "Economic and Social Commission for Asia and the Pacific",
+          "c": null
+        },
+        "191__b:E/CN.12/* OR 191__b:ST/ECLA/* OR 191__b:ST/ECLAC/* OR 191__b:E/ECLAC* OR 191__b:E/LC* OR 191__b:E/CEPAL* OR 710:UN. CEPAL* OR 710:UN. ECLAC*": {
+          "a": "Economic Commissions",
+          "b": "Economic Commission for Latin America and the Caribbean (ECLAC)",
+          "c": null
+        },
+        "191__b:E/CN.4/* OR 710:UN. Commission on Human Rights*": {
+          "a": "Human Rights Bodies",
+          "b": "Charter-Based Human Rights Bodies",
+          "c": "Commission on Human Rights"
+        },
+        "191__b:E/ECA/* OR 191__b:ST/ECA/* OR 710:UN. ECA*": {
+          "a": "Economic Commissions",
+          "b": "Economic Commission for Africa",
+          "c": null
+        },
+        "191__b:E/ECE/* OR 191__b:ST/ECE/* OR 710:UN. ECE*": {
+          "a": "Economic Commissions",
+          "b": "Economic Commission for Europe",
+          "c": null
+        },
+        "191__b:E/ESCWA/* OR 191__b:ST/ESCWA/* OR 191__b:E/ECWA/* OR 191__b:ST/ECWA/* OR 191__b:WAW/* OR 191__b:ESOB/* OR 191__b:ST/UNESOB* OR 710:UN. ESCWA* OR 710:UN. ECWA* OR 710:UN Economic and Social Office in Beirut*": {
+          "a": "Economic Commissions",
+          "b": "Economic and Social Commission for Western Asia",
+          "c": null
+        },
+        "191__b:E/ICEF/* OR 710:UNICEF*": {
+          "a": "Programmes and Funds",
+          "b": "International Children's Emergency Fund (UNICEF)",
+          "c": null
+        },
+        "191__b:FPA/* OR 710:UNFPA*": {
+          "a": "Programmes and Funds",
+          "b": "Population Fund (UNFPA)",
+          "c": null
+        },
+        "191__b:HRI/*": {
+          "a": "Human Rights Bodies",
+          "b": "Treaty-Based Human Rights Bodies",
+          "c": "Human Rights Instruments"
+        },
+        "191__b:ICJ/* OR 710:ICJ*": {
+          "a": "International Court of Justice",
+          "b": null,
+          "c": null
+        },
+        "191__b:PBC/* OR 710__a:UN. Peacebuilding Commission*": {
+          "a": "Other UN Bodies and Entities",
+          "b": "Peacebuilding Commission",
+          "c": null
+        },
+        "191__b:ST/*": {
+          "a": "Secretariat",
+          "b": null,
+          "c": null
+        },
+        "191__b:ST/HR* OR 710:UN. Office of the High Commissioner for Human Rights* OR 710:UN High Commissioner for Human Rights* OR 710:UN. Centre for Human Rights* OR 710:UN. Division of Human Rights*": {
+          "a": "Human Rights Bodies",
+          "b": "Office of the High Commissioner for Human Rights",
+          "c": null
+        },
+        "191__b:UNEP/* OR 710:UNEP*": {
+          "a": "Programmes and Funds",
+          "b": "Environment Programme (UNEP)",
+          "c": null
+        },
+        "191__b:UNICRI/* OR 710:UN Interregional Crime and Justice Research Institute*": {
+          "a": "Research and Training Institutions",
+          "b": "Interregional Crime and Justice Research Institute (UNICRI)",
+          "c": null
+        },
+        "191__b:UNIDIR/* OR 710:UN Institute for Disarmament Research*": {
+          "a": "Research and Training Institutions",
+          "b": "Institute for Disarmament Research (UNIDIR)",
+          "c": null
+        },
+        "191__b:UNITAR/* OR 710:UNITAR*": {
+          "a": "Research and Training Institutions",
+          "b": "Institute for Training and Research (UNITAR)",
+          "c": null
+        },
+        "191__b:UNRISD/* OR 710:UN Research Institute for Social Development*": {
+          "a": "Research and Training Institutions",
+          "b": "Research Institute for Social Development (UNRISD)",
+          "c": null
+        },
+        "191__b:UNRWA/* OR 710:UNRWA*": {
+          "a": "Other UN Bodies and Entities",
+          "b": "Relief and Works Agency for Palestine Refugees in the Near East (UNRWA)",
+          "c": null
+        },
+        "191__b:UNSSC/* OR 710:UN System Staff College*": {
+          "a": "Research and Training Institutions",
+          "b": "UN System Staff College (UNSSC)",
+          "c": null
+        },
+        "191__b:UNU/* OR 710:UN University*": {
+          "a": "Research and Training Institutions",
+          "b": "United Nations University (UNU)",
+          "c": null
+        },
+        "191__b:UNW/* OR 191__b:UNIFEM/* OR 191__b:CEDAW/* OR 191__b:ST/DESA/DAW/* OR 191__b:INSTRAW/* OR 710:UN-Women* OR 710:UN. International Research and Training Institute for the Advancement of Women*  OR 710:UN Development Fund for Women*  OR 710:UN. Office of the Special Adviser on Gender Issues and Advancement of Women*  OR 710:UN. Division for the Advancement of Women*  OR 710:UN. Office on Gender Equality and Advancement of Women*": {
+          "a": "Other UN Bodies and Entities",
+          "b": "Entity for Gender Equality and the Empowerment of Women (UN Women)",
+          "c": null
+        },
+        "191__b:WFP/* OR 710:World Food Programme*": {
+          "a": "Programmes and Funds",
+          "b": "World Food Program (WFP)",
+          "c": null
+        },
+        "710:/UN\\. General Assembly.*(1st|First) Committee/ OR 191:/A\\/C\\.1\\// OR 791:/A\\/C\\.1\\//": {
+          "a": "General Assembly",
+          "b": "1st Committee",
+          "c": null
+        },
+        "710:/UN\\. General Assembly.*(2nd|Second) Committee/ OR 191:/A\\/C\\.2\\// OR 791:/A\\/C\\.2\\//": {
+          "a": "General Assembly",
+          "b": "2nd Committee",
+          "c": null
+        },
+        "710:/UN\\. General Assembly.*(3rd|Third) Committee/ OR 191:/A\\/C\\.3\\// OR 791:/A\\/C\\.3\\//": {
+          "a": "General Assembly",
+          "b": "3rd Committee",
+          "c": null
+        },
+        "710:/UN\\. General Assembly.*(5th|Fifth) Committee/ OR 191:/A\\/C\\.5\\// OR 791:/A\\/C\\.5\\//": {
+          "a": "General Assembly",
+          "b": "5th Committee",
+          "c": null
+        },
+        "710:/UN\\. General Assembly.*(6th|Sixth) Committee/ OR 191:/A\\/C\\.6\\// OR 791:/A\\/C\\.6\\//": {
+          "a": "General Assembly",
+          "b": "6th Committee",
+          "c": null
+        }
+      }
+    },
+    "989": {
+      "saveActions": {
+        "020:* OR 022:* OR 079:* OR 089__b:B13": {
+          "a": "Documents and Publications",
+          "b": "Publications"
+        },
+        "089__b:A15 OR 089__b:B25": {
+          "a": "Documents and Publications",
+          "b": "Legal Cases and Opinions"
+        },
+        "089__b:A19": {
+          "a": "Documents and Publications",
+          "b": "Treaties and Agreements"
+        },
+        "089__b:B01 AND 191:*/DEC/*": {
+          "a": "Documents and Publications",
+          "b": "Resolutions and Decisions",
+          "c": "Decisions"
+        },
+        "089__b:B01 AND NOT 989__b:Resolutions and Decisions": {
+          "a": "Documents and Publications",
+          "b": "Resolutions and Decisions"
+        },
+        "089__b:B02": {
+          "a": "Documents and Publications",
+          "b": "Draft Resolutions and Decisions"
+        },
+        "089__b:B03 AND NOT 989__b:Meeting Records": {
+          "a": "Documents and Publications",
+          "b": "Meeting Records"
+        },
+        "089__b:B04": {
+          "a": "Documents and Publications",
+          "b": "Reports",
+          "c": "Annual and Sessional Reports"
+        },
+        "089__b:B08": {
+          "a": "Documents and Publications",
+          "b": "Draft Reports"
+        },
+        "089__b:B12": {
+          "a": "Documents and Publications",
+          "b": "Administrative Issuances"
+        },
+        "089__b:B14 AND NOT 089__b:B04": {
+          "a": "Documents and Publications",
+          "b": "Reports",
+          "c": "Periodic Reports"
+        },
+        "089__b:B15 AND 089__b:B16 AND NOT 245:/letter.*from the Secretary-General/": {
+          "a": "Documents and Publications",
+          "b": "Reports",
+          "c": "Secretary-General's Reports"
+        },
+        "089__b:B15 AND NOT 245:Report* AND NOT 989__c:Secretary-General's*": {
+          "a": "Documents and Publications",
+          "b": "Letters and Notes Verbales",
+          "c": "Secretary-General's Letters"
+        },
+        "089__b:B16 OR 245:*Report* AND NOT 089:B08 AND NOT 989__a:/^(Speeches|Voting Data)/ AND NOT 989__b:Reports": {
+          "a": "Documents and Publications",
+          "b": "Reports"
+        },
+        "089__b:B17 OR 191:*/PRST/*": {
+          "a": "Documents and Publications",
+          "b": "Resolutions and Decisions",
+          "c": "Presidential Statements"
+        },
+        "089__b:B18 AND NOT 989__b:Letters*": {
+          "a": "Documents and Publications",
+          "b": "Letters and Notes Verbales"
+        },
+        "089__b:B20 OR 191__b:*/PRESS/*": {
+          "a": "Documents and Publications",
+          "b": "Press Releases"
+        },
+        "089__b:B21 OR 191__a:*/NGO/*": {
+          "a": "Documents and Publications",
+          "b": "NGO Written Statements"
+        },
+        "089__b:B22": {
+          "a": "Speeches"
+        },
+        "089__b:B23": {
+          "a": "Voting Data"
+        },
+        "089__b:B24": {
+          "a": "Documents and Publications",
+          "b": "Concluding Observations and Recommendations"
+        },
+        "089__b:B28 OR 245:*[cartographic material]* OR 191__b:ST/LEG/UNTS/Map*": {
+          "a": "Maps"
+        },
+        "089__b:B29": {
+          "a": "Images and sound",
+          "b": "Sound"
+        },
+        "089__b:B30": {
+          "a": "Images and sound",
+          "b": "Video"
+        },
+        "089__b:B31": {
+          "a": "Images and sound",
+          "b": "Images"
+        },
+        "089__b:B32": {
+          "a": "Datasets"
+        },
+        "191:*/RES/*": {
+          "a": "Documents and Publications",
+          "b": "Resolutions and Decisions",
+          "c": "Resolutions"
+        },
+        "191__a:*/PET/*": {
+          "a": "Documents and Publications",
+          "b": "Petitions"
+        },
+        "191__a:*/PV.*": {
+          "a": "Documents and Publications",
+          "b": "Meeting Records",
+          "c": "Verbatim Records"
+        },
+        "191__a:*/SR.*": {
+          "a": "Documents and Publications",
+          "b": "Meeting Records",
+          "c": "Summary Records"
+        },
+        "NOT 989:*": {
+          "a": "Documents and Publications"
+        }
+      }
+    },
+    "992": {
+      "isDate": {
+        "a": true,
+        "b": true
+      }
+    }
+  }
+}
