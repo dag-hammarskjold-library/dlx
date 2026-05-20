@@ -40,6 +40,20 @@ def test_cli_search_json_auth(db, capsys):
     assert payload["results"][0]["id"] == 2
     assert payload["results"][0]["primary"] == "Another header"
 
+def test_cli_search_json_implies_no_textual(db):
+    from dlx.cli.main import build_parser
+    from dlx.cli.main import _run_search
+
+    args = build_parser().parse_args(["search", "245__a:'This'", "--json"])
+
+    assert args.json is True
+    assert args.textual is True
+
+    # runtime behavior should force --json to non-textual mode
+    code = _run_search(args)
+
+    assert code == 0
+    assert args.textual is False
 
 def test_cli_search_invalid_query(db, capsys):
     from dlx.cli.main import main

@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip schema validation during re-save batch actions while still applying save actions",
     )
-    search.add_argument("--json", action="store_true", help="Emit JSON output")
+    search.add_argument("--json", action="store_true", help="Emit JSON output (implies --no-textual)")
     search.add_argument(
         "--textual",
         dest="textual",
@@ -63,6 +63,9 @@ def run() -> None:
 def _run_search(args) -> int:
     stderr = Console(stderr=True)
     stdout = Console()
+
+    if args.json:
+        args.textual = False
 
     if not args.textual and not args.query:
         stderr.print("[bold red]Error:[/bold red] Query is required with --no-textual output")
