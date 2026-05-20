@@ -634,7 +634,7 @@ class SearchResultsApp(App):
             self.query_one("#status", Static).update(progress)
 
     def _event_targets_table(self, event: events.MouseEvent, table: DataTable) -> bool:
-        widget = event.control or event.widget
+        widget = getattr(event, "control", None)
         while widget is not None:
             if widget is table:
                 return True
