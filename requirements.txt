@@ -6,7 +6,7 @@ mongomock==4.3.0
 moto==5.2.1
 nltk==3.9.4
 pymongo==4.17.0
-pytest==9.0.3
+pytest==9.1.1
 redis==8.0.0
 requests>=2.34.2
 responses==0.26.1
