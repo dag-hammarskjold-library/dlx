@@ -12,4 +12,4 @@ requests>=2.34.2
 responses==0.26.1
 valkey==6.1.1
 xlrd==2.0.2
-xmldiff==2.7.0
+xmldiff==3.0
