@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dlx-odm"
+description = "Read, write and modify DLX data."
+readme = "README.md"
+authors = [
+    { name = "United Nations Dag Hammarskjold Library", email = "library-ny@un.org" }
+]
+requires-python = ">=3.10,<3.15"
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "http://github.com/dag-hammarskjold-library/dlx"
+
+[project.scripts]
+excel-marc = "dlx.scripts.excel_marc:run"
+clear-incrementers = "dlx.scripts.clear_incrementers:run"
+init-indexes = "dlx.scripts.init_indexes:run"
+build-logical-fields = "dlx.scripts.build_logical_fields:run"
+build-text-collections = "dlx.scripts.build_text_collections:run"
+auth-merge = "dlx.scripts.auth_merge:run"
+marc-import = "dlx.scripts.marc_import:run"
+
+[tool.setuptools]
+packages = { find = { exclude = ["tests"] } }
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.package-data]
+dlx = ["schemas/jmarc.schema.json", "schemas/jfile.schema.json"]
+
+[tool.setuptools_scm]
+# Derives the package version from git tags (e.g. v1.6.0 -> 1.6.0).
+# No manual version bump needed; just tag a release.
