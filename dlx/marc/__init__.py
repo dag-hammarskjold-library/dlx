@@ -2463,9 +2463,9 @@ class Datafield(Field):
                     continue
 
                 if auth_control:
-                    self.set(sub['code'], int(sub['xref']), place='+')
+                    self.set(sub['code'], int(sub['xref']), place='+', value=sub.get('value'))
                 else:
-                    self.subfields.append(Linked(sub['code'], sub['xref']))
+                    self.subfields.append(Linked(sub['code'], sub['xref'], sub.get('value')))
             elif 'value' in sub:
                 #sub['value'] = re.sub(r'[\x00-\x19]', '', sub['value'])
                 
@@ -2541,7 +2541,7 @@ class Datafield(Field):
 
         return self
 
-    def set(self, code, new_val, *, ind1=None, ind2=None, place=0, auth_control=True):
+    def set(self, code, new_val, *, ind1=None, ind2=None, place=0, auth_control=True, value=None):
         if not new_val and not ind1 and not ind2:
             return self
         
@@ -2580,7 +2580,7 @@ class Datafield(Field):
                 
                 if sub.code == code:
                     if j == place:
-                        self.subfields[i] = Linked(code, new_val) if auth_control else Literal(code, new_val)
+                        self.subfields[i] = Linked(code, new_val, value) if auth_control else Literal(code, new_val)
             
                         return self
                     
@@ -2588,7 +2588,7 @@ class Datafield(Field):
 
             # new subfield
             if place in ('+', 0):
-                self.subfields.append(Linked(code, new_val) if auth_control else Literal(code, new_val))
+                self.subfields.append(Linked(code, new_val, value) if auth_control else Literal(code, new_val))
             elif place > j or not isinstance(place, int):
                 raise Exception(f'Invalid subfield place {place}')
 
@@ -2696,13 +2696,16 @@ class Literal(Subfield):
         return {'code': self.code, 'value': self.value}
 
 class Linked(Subfield):
-    def __init__(self, code, xref):
+    def __init__(self, code, xref, value=None):
         self.code = code
         self.xref = int(xref)
-        self._value = None
+        self._value = value
 
     @property
     def value(self):
+        if self._value is not None:
+            return self._value
+
         value = Auth.lookup(self.xref, self.code)
         
         if not value:
@@ -2716,6 +2719,8 @@ class Linked(Subfield):
     def to_bson(self):
         b = SON()
         b['code'], b['xref'] = self.code, self.xref
+        if self._value is not None:
+            b['value'] = self._value
 
         return b
 
