@@ -673,11 +673,13 @@ class Condition(object):
 
         submatch = subconditions[0] if len(subconditions) == 1 else {'$all' : subconditions}
 
+        field_match = SON({'$elemMatch': {'subfields': submatch}})
+
         if not self.modifier:
-            return SON({f'{tag}.subfields': submatch})
+            return SON({tag: field_match})
         else:
             if self.modifier == 'not':
-                return SON({'$or': [{tag: {'$not': {'$elemMatch': {'subfields': submatch}}}}, {tag: {'$exists': False}}]})
+                return SON({'$or': [{tag: {'$not': field_match}}, {tag: {'$exists': False}}]})
             elif self.modifier == 'exists':
                 return {tag: {'$exists': True}}
             elif self.modifier == 'not_exists':

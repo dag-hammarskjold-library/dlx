@@ -309,9 +309,9 @@ def test_querydocument(db):
     
     qjson = query.to_json()
     qdict = loads(qjson)
-    assert qdict['245.subfields']['$elemMatch']['code'] == 'a'
-    assert qdict['245.subfields']['$elemMatch']['value'] == 'This'
-    
+    assert qdict['245']['$elemMatch']['subfields']['$elemMatch']['code'] == 'a'
+    assert qdict['245']['$elemMatch']['subfields']['$elemMatch']['value'] == 'This'
+
     query = Query(
         Condition(tag='245', subfields={'a': re.compile(r'(This|Another)'), 'b': 'is the', 'c': 'title'}),
         BibCondition(tag='650', modifier='exists'),
@@ -338,6 +338,32 @@ def test_querydocument(db):
         TagOnly('245', 'This', modifier='not', record_type='bib')
     )
     assert len(list(BibSet.from_query(query.compile()))) == 1
+
+    from dlx import DB
+
+    DB.bibs.insert_one({
+        '_id': 3,
+        '245': [
+            {
+                'indicators': [' ', ' '],
+                'subfields': [
+                    {'code': 'b', 'value': 'A/'},
+                    {'code': 'c', 'value': '77'},
+                ]
+            },
+            {
+                'indicators': [' ', ' '],
+                'subfields': [
+                    {'code': 'b', 'value': 'S/'},
+                    {'code': 'c', 'value': '76'},
+                ]
+            },
+        ]
+    })
+
+    query = Query(Condition(tag='245', subfields={'b': 'A/', 'c': '77'}, record_type='bib'))
+    matches = list(BibSet.from_query(query.compile()))
+    assert [record.id for record in matches] == [3]
 
 def test_from_query(db):
     from dlx.marc import Bib, Auth, Query, Condition
