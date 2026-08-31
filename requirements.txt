@@ -1,4 +1,4 @@
-boto3==1.43.72
+boto3==1.43.83
 botocore[crt]==1.43.72
 certifi==2026.7.22
 fakeredis==2.37.0
