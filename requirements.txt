@@ -9,7 +9,7 @@ pymongo==4.18.1
 pytest==9.1.1
 redis==8.1.0
 requests>=2.34.2
-responses==0.26.2
+responses==0.26.3
 valkey==6.1.1
 xlrd==2.0.2
 xmldiff==3.0
