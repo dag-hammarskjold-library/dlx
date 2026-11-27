@@ -1,11 +1,11 @@
-boto3[crt]==1.43.123
+boto3[crt]==1.44.3
 certifi==2026.10.23
 fakeredis==2.40.0
 jsonschema==4.25.1
 mongomock==4.3.0
 moto==5.2.5
 nltk==3.10.4
-pymongo==4.19.0
+pymongo==4.20.0
 pytest==9.2.0
 redis==8.1.0
 requests>=2.34.2
