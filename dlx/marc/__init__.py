@@ -58,14 +58,14 @@ class Decorators():
         def wrapper(*args, **kwargs):
             if not DB.connected:
                 raise Exception('Must be connected to DB before exececuting this function')
-                
+
             return method(*args, **kwargs)
 
         return wrapper
 
 ### Set classes
 
-class MarcSet(): 
+class MarcSet():
     """Handles sets of MARC records.
 
     Atrributes
@@ -84,7 +84,7 @@ class MarcSet():
         ----------
         filter : (dict|bson.SON), dlx.marc.Query
             A valid Pymongo query filter against the database or a dlx.marc.Query object
-        *args, **kwargs : 
+        *args, **kwargs :
             Passes all remaining arguments to `pymongo.collection.Collection.find())
 
         Returns
@@ -92,7 +92,7 @@ class MarcSet():
         MarcSet
         """
         self = cls()
-        
+
         if isinstance(args[0], Query):
             for cond in args[0].conditions:
                 #if not isinstance(cond, Or):
@@ -105,7 +105,7 @@ class MarcSet():
             query = args[0].compile()
         elif isinstance(args[0], (list, tuple)):
             conditions = args[0]
-            
+
             for cond in conditions:
                 if not isinstance(cond, Or):
                     cond.record_type = self.record_type
@@ -144,13 +144,13 @@ class MarcSet():
 
     @classmethod
     def sort_table_header(cls, header: list) -> list:
-        # Sorts the header of a MarcSet in util.Table for for use in 
+        # Sorts the header of a MarcSet in util.Table for for use in
         # (de)serialization
 
         try:
             return sorted(
-                header, 
-                key=lambda x: ( 
+                header,
+                key=lambda x: (
                     (re.match(r'\d+\.(\w{3})', x)).group(1), # sort by tag
                     int(re.match(r'(\d+)\.', x).group(1)), # sort by prefix group
                     (re.match(r'\d+\.\d{3}\$?(\w)?', x)).group(1) # sort by subfield code
@@ -169,7 +169,7 @@ class MarcSet():
         for temp_id in table.index.keys():
             record = cls().record_class()
 
-            # Sort the headers so that subfield $0 is always first for use in 
+            # Sort the headers so that subfield $0 is always first for use in
             # subsequent subfields
             header_fields = list(table.index[temp_id].keys())
             header_fields = MarcSet.sort_table_header(header_fields)
@@ -178,7 +178,7 @@ class MarcSet():
                 instance = 0
                 value = table.index[temp_id][field_name]
                 tag, code, is_indicator_col = '', '', False
-                
+
                 # parse the column header
                 if match := re.match(r'^(([1-9]\d*)\.)?(\d{3})(\$|__)?([a-z0-9])?', str(field_name)):
                     if match.group(1):
@@ -186,7 +186,7 @@ class MarcSet():
                         instance -= 1 # place numbers start at 1 in col headers instead of 0
 
                     if match.group(4) == '__':
-                        # indicator column 
+                        # indicator column
                         tag = match.group(3)
                         is_indicator_col = True
                     else:
@@ -207,7 +207,7 @@ class MarcSet():
                 # this lets us have access to all the data at the same time later.
                 field = record.get_field(tag, place=instance)
                 address = [instance] if field else ['+']
-                
+
                 if is_indicator_col:
                     if not value:
                         pass
@@ -260,7 +260,7 @@ class MarcSet():
                                 else:
                                     # resolve ambiguous
                                     auth_ctrled = [s for s in field.subfields if Config.is_authority_controlled(record_type=rtype, tag=tag, code=s.code)]
-                                    
+
                                     if xref := Auth.resolve_ambiguous(tag=tag, subfields=auth_ctrled, record_type=rtype):
                                         field.subfields[i] = Linked(code, xrefs.pop()) # replace the subfield with a linked subfield using the found xref
                                     else:
@@ -269,7 +269,7 @@ class MarcSet():
                             else:
                                 exceptions.append(InvalidAuthValue(rtype, tag, code, value))
                                 continue
-                    
+
                 # remove subfield 0
                 if auth_control and delete_subfield_zero:
                     field.subfields = [x for x in field.subfields if x.code != '0']
@@ -293,7 +293,7 @@ class MarcSet():
     def from_xml_raw(cls, root, *, auth_control=False, delete_subfield_zero=True):
         assert isinstance(root, ElementTree.Element)
         self = cls()
-        
+
         i = 0
 
         for r in root.findall('record'):
@@ -301,7 +301,7 @@ class MarcSet():
             self.records.append(self.record_class.from_xml_raw(r, auth_control=auth_control, delete_subfield_zero=delete_subfield_zero))
 
         return self
-        
+
     @classmethod
     def from_xml(cls, string, auth_control=False, delete_subfield_zero=True):
         return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control, delete_subfield_zero=delete_subfield_zero)
@@ -314,15 +314,15 @@ class MarcSet():
 
             record = self.record_class.from_mrk(record, auth_control=auth_control)
 
-            if isinstance(record, Marc) and len(record.fields) > 0: 
+            if isinstance(record, Marc) and len(record.fields) > 0:
                 self.records.append(record)
 
         return self
-    
+
     # instance
 
     def __iter__(self): return self
-    def __next__(self): return next(self.records) 
+    def __next__(self): return next(self.records)
 
     def __init__(self):
         self.records = [] # records # can be any type of iterable
@@ -383,7 +383,7 @@ class MarcSet():
 
     def to_mrk(self, *, write_id=True):
         return '\n'.join([r.to_mrk(write_id=write_id) for r in self.records])
-        
+
     def to_str(self):
         return '\n'.join([r.to_str() for r in self.records])
 
@@ -397,7 +397,7 @@ class MarcSet():
             # field names in the table header are the in the form of f{place}.{tag}${subfield_code}
             # each record is one table row
             i += 1
-            
+
             if write_id and record.id is not None:
                 table.set(i, '1.001', str(record.id))
             elif field := record.get_field('001'):
@@ -412,10 +412,10 @@ class MarcSet():
 
                     for subfield in field.subfields:
                         table.set(i, f'{place}.{field.tag}${subfield.code}', subfield.value)
-                        
+
                         if hasattr(subfield, 'xref'):
                             xref = subfield.xref
-                    
+
                     if xref:
                         table.set(i, f'{place}.{field.tag}$0', str(xref))
 
@@ -426,7 +426,7 @@ class MarcSet():
 
     def to_csv(self, *, write_id=True) -> str:
         return self.to_table(write_id=write_id).to_csv()
-    
+
     def to_tsv(self, *, write_id=True) -> str:
         return self.to_table(write_id=write_id).to_tsv()
 
@@ -462,7 +462,7 @@ class Marc(object):
         if result:
             if result['count'] <= cls.max_id():
                 raise Exception('The ID incrementer is out of sync')
-            
+
             return result['count']
         else:
             # this should only happen once
@@ -474,12 +474,12 @@ class Marc(object):
     @classmethod
     def max_id(cls):
         max_dict = next(cls.handle().aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}]), {})
-        
+
         history_collection = DB.handle[cls.record_type + '_history']
         deleted_dict = next(history_collection.aggregate([{'$sort' : {'_id' : -1}}, {'$limit': 1}, {'$project': {'_id': 1}}]), {})
-        
+
         m, d = max_dict.get('_id') or 0, deleted_dict.get('_id') or 0
-            
+
         return m if m > d else d
 
     @classmethod
@@ -586,7 +586,7 @@ class Marc(object):
         Marc object."""
 
         history_class = BibHistory if cls.record_type == 'bib' else AuthHistory
-        
+
         return history_class.restore(record_id, user=user)
 
     @classmethod
@@ -637,7 +637,7 @@ class Marc(object):
             else:
                 for field in filter(lambda x: [s.get('xref') or s.get('value') for s in x.get('subfields')], doc[tag]):
                     self.fields.append(Datafield.from_dict(record_type=self.record_type, tag=tag, data=field, auth_control=auth_control))
-                
+
     #### "get"-type methods
 
     def get_fields(self, *tags):
@@ -649,7 +649,7 @@ class Marc(object):
     def get_field(self, tag, place=0):
         if place == 0:
             return next(filter(lambda x: True if x.tag == tag else False, self.fields), None)
-        
+
         try:
             return self.get_fields(tag)[place]
         except IndexError:
@@ -658,7 +658,7 @@ class Marc(object):
     def get_values(self, tag, *codes, **kwargs):
         if tag[:2] == '00':
             return [field.value for field in self.get_fields(tag)]
-           
+
         values = [sub.value for sub in self.get_subfields(tag, *codes, place=kwargs.get('place'))]
 
         return list(filter(None, values))
@@ -669,7 +669,7 @@ class Marc(object):
         is given, the value of first instance of the tag and subfield in the
         record is returned.
         '''
-        
+
         if tag[:2] == '00':
             if field := self.get_field(tag, place=0 if address is None else address[0]):
                 return field.value
@@ -683,7 +683,7 @@ class Marc(object):
                     if field := self.get_field(tag, place=address[0]):
                         subfield = field.get_subfield(code, place=address[1])
             else:
-                # get first instance of the subfield code  
+                # get first instance of the subfield code
                 for field in self.get_fields(tag):
                     if subfield := field.get_subfield(code):
                         break
@@ -708,7 +708,7 @@ class Marc(object):
         return xrefs
 
     def get_xref(self, tag, code, address=None):
-        return self.get_subfield(tag, code, address=address).xref 
+        return self.get_subfield(tag, code, address=address).xref
 
     def get_subfield(self, tag, code, address=None):
         if address:
@@ -738,7 +738,7 @@ class Marc(object):
         for field in fields:
             if isinstance(field, Controlfield):
                 return
-            
+
             if not codes:
                 codes = list(set([x.code for x in field.subfields]))
 
@@ -754,7 +754,7 @@ class Marc(object):
     def set(self, tag, code, new_val, *, ind1=None, ind2=None, auth_control=True, address=[]):
         if not new_val and not ind1 and not ind2:
             return self
-            
+
         field_place, subfield_place = 0, 0
 
         if len(address) > 0:
@@ -778,7 +778,7 @@ class Marc(object):
                 field = Controlfield(tag, new_val)
                 self.fields.append(field)
             else:
-                field = Datafield(tag=tag, record_type=self.record_type)            
+                field = Datafield(tag=tag, record_type=self.record_type)
                 field.set(code, new_val, ind1=ind1, ind2=ind2, auth_control=auth_control)
                 self.fields.append(field)
 
@@ -847,12 +847,12 @@ class Marc(object):
     ### store
 
     def validate(self):
-        try:   
+        try:
             jsonschema.validate(instance=self.to_dict(), schema=Config.jmarc_schema, format_checker=jsonschema.FormatChecker())
         except jsonschema.exceptions.ValidationError as e:
             msg = '{} in {} : {}'.format(e.message, str(list(e.path)), self.to_json())
             raise jsonschema.exceptions.ValidationError(msg)
-    
+
     @Decorators.check_connected
     def commit(self, user='admin', auth_check=True, update_attached=True):
         new_record = True if self.id is None else False
@@ -861,9 +861,9 @@ class Marc(object):
         data = self.to_bson()
         self.updated = data['updated'] = datetime.now(timezone.utc)
         self.user = data['user'] = user
-        data['basket'] = self.basket 
+        data['basket'] = self.basket
         previous_state = (DB.bibs if self.record_type == 'bib' else DB.auths).find_one({'_id': self.id})
-        
+
         if previous_state:
             # disregard any provided created data and use existing
             if previous_state.get('created'):
@@ -893,13 +893,13 @@ class Marc(object):
                     # auth control
                     if Config.is_authority_controlled(self.record_type, field.tag, subfield.code):
                         if not hasattr(subfield, 'xref'):
-                           raise InvalidAuthField(self.record_type, field.tag, subfield.code) 
+                           raise InvalidAuthField(self.record_type, field.tag, subfield.code)
 
                         if not Auth.lookup(subfield.xref, subfield.code):
                             raise InvalidAuthXref(self.record_type, field.tag, subfield.code, subfield.xref)
                     else:
-                        if hasattr(subfield, 'xref'):    
-                           raise InvalidNonAuthField(self.record_type, field.tag, subfield.code)  
+                        if hasattr(subfield, 'xref'):
+                           raise InvalidNonAuthField(self.record_type, field.tag, subfield.code)
 
         if auth_check: auth_validate()
 
@@ -907,7 +907,7 @@ class Marc(object):
         for field in self.datafields:
             for subfield in [x for x in field.subfields if hasattr(x, 'xref')]:
                 Auth._cache.get(subfield.xref, {})[subfield.code] = None
-            
+
         # maintenance functions
         # update field text indexes
         def index_field_text(*, threaded=True):
@@ -935,9 +935,9 @@ class Marc(object):
 
                         updates.append(
                             UpdateOne(
-                                {'_id': text}, 
+                                {'_id': text},
                                 {'$set': {'text': f' {scrubbed} ', 'words': list(count.keys())}},
-                            )   
+                            )
                         )
 
                         bulk_write(tag_col, updates)
@@ -962,7 +962,7 @@ class Marc(object):
         else:
             thread1 = threading.Thread(target=index_field_text, args=[])
             thread1.start()
-        
+
         # add logical fields
         def index_logical_fields():
             try:
@@ -982,20 +982,20 @@ class Marc(object):
                         for value in old_values:
                             if value in new_values: continue
 
-                            bibcount, authcount = 0, 0 
-                            
+                            bibcount, authcount = 0, 0
+
                             if logical_field in Config.bib_logical_fields:
                                 found_bibs = list(DB.bibs.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
                                 bibcount = len(found_bibs)
-                                
-                                if bibcount > 1: 
+
+                                if bibcount > 1:
                                     continue
 
                             if logical_field in Config.bib_logical_fields:
-                            
+
                                 found_auths = list(DB.auths.find({logical_field: value}, limit=2, collation=Config.marc_index_default_collation))
                                 authcount = len(found_auths)
-                                
+
                                 if authcount > 1:
                                     continue
 
@@ -1020,7 +1020,7 @@ class Marc(object):
                 for logical_field, values in self.logical_fields().items():
                     if logical_field == '_record_type':
                         continue
-                    
+
                     # text/browse indexes
                     updates = []
 
@@ -1031,7 +1031,7 @@ class Marc(object):
                         updates.append(
                             UpdateOne(
                                 {'_id': val},
-                                {   
+                                {
                                     '$set': {'text': f' {scrubbed} ', 'words': list(count.keys())},
                                     '$addToSet': {'_record_type': self.logical_fields()['_record_type'][0]} # there is  only one record type in the array
                                 },
@@ -1048,7 +1048,7 @@ class Marc(object):
                 raise err
 
         # assign logical fields here
-        for field, vals in self.logical_fields().items(): 
+        for field, vals in self.logical_fields().items():
             data[field] = vals
 
         # get rid of any logical fields in the data that no longer exist
@@ -1105,10 +1105,10 @@ class Marc(object):
 
         # commit
         result = type(self).handle().replace_one({'_id' : int(self.id)}, data, upsert=True)
-        
+
         if not result.acknowledged:
             raise Exception('Commit failed')
-        
+
         # manage caches
         if isinstance(self, Auth):
             # clear these caches
@@ -1121,7 +1121,7 @@ class Marc(object):
                 [data.setdefault(x.code, x.value) for x in hf.subfields]
 
                 if cache := DB.cache:
-                    key = f'authcache:{self.id}'  
+                    key = f'authcache:{self.id}'
                     cache[key] = json.dumps(data)
                 else:
                     Auth._cache.setdefault(self.id, data)
@@ -1136,7 +1136,7 @@ class Marc(object):
                                 xrefs.append(self.id)
                             else:
                                 xrefs = [self.id]
-                              
+
                             cache.set(key, json.dumps({hf.tag: {subfield.code: xrefs}}))
 
                     if previous_state:
@@ -1149,8 +1149,8 @@ class Marc(object):
 
                                     if xrefs := Auth.xlookup(hf.tag, subfield.code, subfield.value, record_type=rtype):
                                         xrefs = [x for x in xrefs if x != self.id]
-                                        cache.set(key, json.dumps({hf.tag: {subfield.code: xrefs}}))                            
-        
+                                        cache.set(key, json.dumps({hf.tag: {subfield.code: xrefs}}))
+
         # auth attached records update
         def update_attached_records(auth):
             try:
@@ -1172,29 +1172,16 @@ class Marc(object):
                                             new_tag = field.tag[0] + self.heading_field.tag[1:]
                                             field.tag = new_tag
 
-                            # if any subfields have been deleted, delete them from the linked record
-                            codes_removed = []
-
-                            for subfield in Auth(previous_state).heading_field.subfields:   
-                                if subfield.code not in [x.code for x in self.heading_field.subfields]:
-                                    codes_removed.append(subfield.code)
+                            # Consolidate all of the previous add/remove subfield methods and apply one
+                            # explicit repopulation from the source auth.
+                            corrected_linked_subfields= []
+                            for ssf in self.heading_field.subfields:
+                                corrected_linked_subfields.append(Linked(ssf.code, self.id, ssf.value))
 
                             for linked_field in record.datafields:
-                                if self.id in [x.xref for x in [y for y in linked_field.subfields if hasattr(y, 'xref')]]:                                        
-                                    linked_field.subfields = [x for x in linked_field.subfields if x.code not in codes_removed]
+                                if self.id in [x.xref for x in [y for y in linked_field.subfields if hasattr(y, "xref")]]:
+                                    linked_field.subfields = corrected_linked_subfields
 
-                            # if any subfields have been added, add them to the linked record
-                            codes_added = []
-
-                            for subfield in self.heading_field.subfields:  
-                                if subfield.code not in [x.code for x in Auth(previous_state).heading_field.subfields]:
-                                    codes_added.append(subfield.code)
-                                    
-                            if codes_added:
-                                for linked_field in record.datafields:
-                                    if self.id in [x.xref for x in [y for y in linked_field.subfields if hasattr(y, 'xref')]]: 
-                                        for code in codes_added:
-                                            linked_field.subfields.append(Linked(code, self.id))
 
                             record.commit(user=auth.user, auth_check=False)
                         except Exception as err:
@@ -1225,19 +1212,19 @@ class Marc(object):
 
                     if heading_serialized != prev_serialized or self.heading_field.tag != previous.heading_field.tag:
                         # the heading has changed
-                        if DB.database_name == 'testing' or Config.threading == False: 
+                        if DB.database_name == 'testing' or Config.threading == False:
                             update_attached_records(self)
                         else:
                             thread4 = threading.Thread(target=update_attached_records, args=[self])
                             thread4.start()
-        
+
         return self
 
     def delete(self, user='admin'):
         if isinstance(self, Auth):
             if self.in_use(usage_type='bib') or self.in_use(usage_type='auth'):
                 raise AuthInUse()
-        
+
             for cache in ('_cache', '_xcache', '_pcache', '_langcache'):
                 getattr(Auth, cache)[self.id] = {}
 
@@ -1254,9 +1241,9 @@ class Marc(object):
             try:
                 # update browse index if necessary
                 for field, values in self.logical_fields().items():
-                    if field == '_record_type': 
+                    if field == '_record_type':
                         continue
-                    
+
                     updates = []
 
                     for val in values:
@@ -1264,7 +1251,7 @@ class Marc(object):
 
                         if field in Config.bib_logical_fields:
                             count += len(list(DB.bibs.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
-                        
+
                         if field in Config.auth_logical_fields:
                             count += len(list(DB.auths.find({field: val}, limit=2, collation=Config.marc_index_default_collation)))
 
@@ -1279,12 +1266,12 @@ class Marc(object):
                 LOGGER.exception(err)
                 raise err
 
-        if DB.database_name == 'testing' or Config.threading == False: 
+        if DB.database_name == 'testing' or Config.threading == False:
             update_browse_collections()
         else:
             thread = threading.Thread(target=update_browse_collections, args=[])
             thread.start()
-        
+
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
 
@@ -1305,10 +1292,10 @@ class Marc(object):
             'user': user,
             'time': datetime.now(timezone.utc)
         })
-        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)    
+        history_collection.replace_one({'_id': self.id}, record_history, upsert=True)
 
         return type(self).handle().delete_one({'_id': self.id})
-    
+
     def history(self):
         history_collection = DB.handle[self.record_type + '_history']
         record_history = history_collection.find_one({'_id': self.id})
@@ -1320,19 +1307,19 @@ class Marc(object):
 
     def logical_fields(self, *names):
         """Returns a dict of the record's logical fields"""
-        
+
         self._logical_fields = {}
-        logical_fields = getattr(Config, self.record_type + '_logical_fields') 
-        
+        logical_fields = getattr(Config, self.record_type + '_logical_fields')
+
         for logical_field, tags in logical_fields.items():
             if names and logical_field not in names:
                 continue
-            
+
             for tag, subfield_groups in tags.items():
                 for group in subfield_groups:
                     for field in self.get_fields(tag):
                         value = ' '.join(field.get_values(*group) or [])
-                        
+
                         if value:
                             self._logical_fields.setdefault(logical_field, [])
                             self._logical_fields[logical_field].append(value)
@@ -1340,7 +1327,7 @@ class Marc(object):
         for subtype, match in Config.bib_type_map.items():
             if self.get_value(*match[:2]) == match[2]:
                 self._logical_fields['_record_type'] = [subtype]
-        
+
         self._logical_fields.setdefault('_record_type', ['default'])
         self._logical_fields['_record_type'].append(self.record_type)
 
@@ -1357,39 +1344,39 @@ class Marc(object):
         if history := self.history():
             if len(history) < version:
                 raise Exception(f'History version {version} does not exist')
-            
+
             self.fields = []
             self.parse(history[version-1].data)
         else:
             raise Exception('History not found')
 
-        return self 
+        return self
 
     #### utlities
 
     def zmerge(self, to_merge):
             # sets any value from to_merge if the field doesn't exist in self
             # does not overwrite any values
-        
+
             for field in to_merge.fields:
-            
+
                 if isinstance(field, Controlfield):
                     val = self.get_value(field.tag)
                     if val:
                         for pos in range(len(val)):
                             if val[pos] in [' ', '|']:
-                                val[pos] = field.value[pos]       
+                                val[pos] = field.value[pos]
                             self.set(field.tag, None, val)
                     else:
-                    
+
                         self.set(field.tag, None, field.value)
                 else:
                     for sub in field.subfields:
                         if not self.get_value(field.tag, sub.code):
                             self.set(field.tag, sub.code, sub.value)
-        
+
             return self
-            
+
     def xmerge(self, to_merge, overwrite=False):
         """Imports the fields from to_merge
 
@@ -1400,7 +1387,7 @@ class Marc(object):
         Keyword Arguments
         -----------------
         overwrite : bool (default: False)
-            If True, overwrites any fields with the same tag from self with 
+            If True, overwrites any fields with the same tag from self with
             fields from to_merge. If False, adds the fields to self if the field
             doesn't already exist in self
 
@@ -1422,7 +1409,7 @@ class Marc(object):
                         val = field.value
 
                         for pos in range(len(val)):
-                            if val[pos] in [' ', '|']: 
+                            if val[pos] in [' ', '|']:
                                 val = val[:pos] + field.value[pos] + val[pos+1:]
 
                         self.set(field.tag, None, val, address=[i])
@@ -1468,7 +1455,7 @@ class Marc(object):
 
         for tag in filter(lambda x: x[0:2] != '00', self.get_tags()):
             fields = list(filter(lambda x: x.get('subfields'), [f.to_dict() for f in self.get_fields(tag)]))
-            
+
             if fields:
                 d[tag] = fields
 
@@ -1522,7 +1509,7 @@ class Marc(object):
             + '22' \
             + base_address \
             + leader[17:20] \
-            + '4500'        
+            + '4500'
 
         return new_leader + directory + data
 
@@ -1534,7 +1521,7 @@ class Marc(object):
 
         if not record.get_value('000'):
             record.set('000', 'None', '****')
-        
+
         return '\n'.join([field.to_mrk(language=language) for field in record.get_fields()]) + '\n'
 
     def to_str(self, *tags, language=None):
@@ -1562,7 +1549,7 @@ class Marc(object):
 
         if write_id and record.id is not None:
             record.set('001', None, str(record.id))
-        
+
         # todo: reimplement with `xml.dom` or `lxml` to enable pretty-printing
         root = ElementTree.Element('record')
 
@@ -1581,10 +1568,10 @@ class Marc(object):
 
                 for sub in field.subfields:
                     val = sub.value
-                    
+
                     if not val:
                         continue
-                    
+
                     if hasattr(sub, 'xref'):
                         xref = sub.xref
 
@@ -1593,7 +1580,7 @@ class Marc(object):
 
                     if language and Config.linked_language_source_tag(record.record_type, field.tag, sub.code, language):
                         subnode.text = sub.translated(language)
-                        continue   
+                        continue
 
                     subnode.text = val
 
@@ -1635,7 +1622,7 @@ class Marc(object):
         '''Parses a MARC21 string (.mrc) into dlx.Marc'''
 
         raise Exception("This method is unfinished")
-        
+
         self = cls()
         base = string[12:17]
         directory = string[24:int(base)-24]
@@ -1645,7 +1632,7 @@ class Marc(object):
             tag = directory[:3]
             length = directory[3:7]
             start = directory[7:12]
-            
+
             directory = directory[12:]
 
     @classmethod
@@ -1654,7 +1641,7 @@ class Marc(object):
         last_tag = 0
 
         for line in filter(None, string.split('\n')):
-            match = re.match(r'=(\w{3})  (.*)', line)            
+            match = re.match(r'=(\w{3})  (.*)', line)
             tag, rest = match.group(1), match.group(2)
             if tag == 'LDR': tag = '000'
 
@@ -1666,14 +1653,14 @@ class Marc(object):
 
             if tag[:2] == '00':
                 field = Controlfield(tag, rest)
-                
+
                 if tag == '001':
                     self.id = int(field.value)
             else:
                 ind1, ind2 = [x.replace('\\', ' ') for x in rest[:2]]
                 field = Datafield(record_type=cls.record_type, tag=tag, ind1=ind1, ind2=ind2)
                 ambiguous = []
-                
+
                 # capture the xref from subfield $0, if exists
                 if match := re.search(r'\$0(\d+)', rest[2:]):
                     xref = int(match.group(1))
@@ -1691,14 +1678,14 @@ class Marc(object):
                         field.set(code, value, place='+', auth_control=auth_control)
                     except(AmbiguousAuthValue):
                         ambiguous.append(Literal(code, value))
-                
+
                 # attempt to use multiple subfields to resolve ambiguity
                 if ambiguous:
                     if xref := Auth.resolve_ambiguous(tag=tag, subfields=ambiguous, record_type=self.record_type):
                         field.set(code, xref, place='+', auth_control=auth_control)
                     else:
                         raise AmbiguousAuthValue(self.record_type, field.tag, '*', str([x.value for x in ambiguous]))
-            
+
                 # remove subfield $0
                 if delete_subfield_zero:
                     field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
@@ -1706,14 +1693,14 @@ class Marc(object):
             self.fields.append(field)
 
         return self
-    
+
     @classmethod
     def from_table(cls, list_of_lists: list[list], auth_control=False, delete_subfield_zero=True):
         if len(list_of_lists) != 2:
             raise Exception('Table must contain exactly one header line and one data line: ' + str(list_of_lists))
 
         return cls.set_class.from_table(Table(list_of_lists)).records[0]
-    
+
     @classmethod
     def from_csv(cls, string: str, auth_control=False, delete_subfield_zero=True):
         rows = [row for row in csv.reader(string.split('\n'))]
@@ -1727,7 +1714,7 @@ class Marc(object):
 
         assert isinstance(root, ElementTree.Element)
         self = cls()
-            
+
         for node in filter(lambda x: re.search('controlfield$', x.tag), root):
             tag, value = node.attrib['tag'], node.text
             field = Controlfield(tag, value)
@@ -1760,7 +1747,7 @@ class Marc(object):
                 else:
                     value = str(subfield_node.text)
 
-                # .set handles auth control. 
+                # .set handles auth control.
                 try:
                     field.set(code, value, auth_control=auth_control, place='+')
                 except(AmbiguousAuthValue):
@@ -1772,14 +1759,14 @@ class Marc(object):
                         field.set(code, xref, auth_control=auth_control, place='+')
                     else:
                         raise AmbiguousAuthValue(self.record_type, tag, '*', str([x.to_str() for x in ambiguous]))
-            
+
             if delete_subfield_zero:
                 field.subfields = list(filter(lambda x: x.code != '0', field.subfields))
-                
+
             self.fields.append(field)
-            
+
         return self
-        
+
     @classmethod
     def from_xml(cls, string, auth_control=True, delete_subfield_zero=True):
         return cls.from_xml_raw(ElementTree.fromstring(string), auth_control=auth_control, delete_subfield_zero=delete_subfield_zero)
@@ -1819,7 +1806,7 @@ class Bib(Marc):
             langs = ['AR', 'ZH', 'EN', 'FR', 'ES', 'RU', 'DE']
 
         symbol = self.symbol()
-        
+
         files = [File.latest_by_identifier_language(Identifier('symbol', symbol), lang) for lang in langs]
 
         return [f.uri for f in filter(None, files)]
@@ -1844,7 +1831,7 @@ class Auth(Marc):
         batch operations'''
 
         total, chars = DB.auths.estimated_document_count(), 0
-        
+
         for i, auth in enumerate(AuthSet.from_query({})):
             j = i + 1
 
@@ -1884,10 +1871,10 @@ class Auth(Marc):
             cached = json.loads(cache[key]).get(code) if cache.exists(key) else None
         else:
             cached = Auth._cache.get(xref, {}).get(code, None)
-            
+
         if cached:
             return cached
-            
+
         label_tags = Config.auth_heading_tags()
         label_tags += Config.auth_language_tags() if language else []
         auth = Auth.from_query({'_id': xref}, projection=dict.fromkeys(label_tags, 1))
@@ -1896,7 +1883,7 @@ class Auth(Marc):
         if language:
             Auth._langcache[xref] = {code: {language: value}}
         else:
-            if cache: 
+            if cache:
                 if cache.exists(xref):
                     data = json.loads(cache[xref])
                     data.update({code: value})
@@ -1918,7 +1905,7 @@ class Auth(Marc):
 
         if auth_tag is None:
             return
-        
+
         if cache := DB.cache:
             key = f'xauthcache:{value}'
 
@@ -1941,7 +1928,7 @@ class Auth(Marc):
     @classmethod
     def xlookup_multi(cls, tag, subfields, *, record_type):
         '''Lookup by multiple subfields'''
-        
+
         # pairs of code and value {'a': 'val1', 'b': 'val2'}
         assert [isinstance(x, Subfield) for x in subfields]
         auth_tag = Config.authority_source_tag(record_type, tag, subfields[0].code) # assume same source tag
@@ -1951,12 +1938,12 @@ class Auth(Marc):
 
         values = ''.join([x.value for x in subfields])
         cached = Auth._xcache.get('__multi__', {}).get(values, {}).get(auth_tag, {})
-        
+
         if cached:
             return cached
 
-        query = Query(Condition(auth_tag, dict(zip([x.code for x in subfields], [x.value for x in subfields])), record_type='auth'))       
-        
+        query = Query(Condition(auth_tag, dict(zip([x.code for x in subfields], [x.value for x in subfields])), record_type='auth'))
+
         auths = AuthSet.from_query(query.compile())
         xrefs = [a.id for a in auths]
         Auth._xcache.setdefault('__multi__', {}).setdefault(values, {})[auth_tag] = xrefs
@@ -1966,13 +1953,13 @@ class Auth(Marc):
     @classmethod
     def resolve_ambiguous(cls, *, tag: str, subfields: list['Subfield'], record_type: str) -> int:
         '''Determines if there is an exact authority match for specific subfields'''
-        
+
         assert [isinstance(x, Subfield) for x in subfields]
         subfields_str = str([(x.code, x.value) for x in subfields])
 
         if xref := Auth._acache.get(subfields_str):
             return xref
-        
+
         if matches := cls.xlookup_multi(tag, subfields, record_type=record_type):
             if len(matches) == 1:
                 Auth._acache.setdefault(subfields_str, matches[0])
@@ -1986,10 +1973,10 @@ class Auth(Marc):
 
                     if [(x.code, x.value) for x in subfields] == [(x.code, x.value) for x in auth_subfields]:
                         candidates.append(xref)
-                    
+
                 if len(candidates) == 1:
                     return candidates.pop()
-               
+
         return None
 
     @classmethod
@@ -2035,7 +2022,7 @@ class Auth(Marc):
             limit=limit
         )
         results = list(auths)
-        
+
         Auth._pcache.setdefault(tag, {}).setdefault(code, {}).update({string: results})
 
         return results
@@ -2045,33 +2032,33 @@ class Auth(Marc):
         self._heading_field = None
         super().__init__(doc, **kwargs)
 
-    @property    
+    @property
     def heading_field(self):
         """Returns the heading field of the authority record.
-        
+
         Returns
         -------
         dlx.marc.Datafield
         """
-            
+
         self._heading_field = next(filter(lambda field: field.tag[0:1] == '1', self.fields), None)
-        
+
         return self._heading_field
 
     def heading_value(self, code, language=None):
-        """Returns the value of the specified subfield of the heading field of 
+        """Returns the value of the specified subfield of the heading field of
         the authority record.
-        
+
         Parameters
         ----------
         code : str
             The code of the subfield of the heading field to get.
-        
+
         Returns
         -------
         str
         """
-        
+
         if language:
             tag = self.heading_field.tag
             lang_tag = Config.language_source_tag(tag, language)
@@ -2090,20 +2077,20 @@ class Auth(Marc):
 
     def in_use(self, *, usage_type=None):
         """Returns the count of records using the authority.
-        
+
         Parameters
         ---------
         usage_type : ("bib"|"auth"), None
             If None, counts total use in both
-        
+
         Returns
         -------
         int
         """
-        
+
         if not self.id:
             return
-        
+
         def count(lookup_class, xref):
             tags = list(Config.bib_authority_controlled.keys()) if lookup_class == Bib else list(Config.auth_authority_controlled.keys())
             set_class = BibSet if lookup_class == Bib else AuthSet
@@ -2112,16 +2099,16 @@ class Auth(Marc):
 
         if usage_type is None:
             total = 0
-            
+
             for cls in (Bib, Auth):
                 total += count(cls, self.id)
-                
+
             return total
         if usage_type == 'bib':
             return count(Bib, self.id)
         elif usage_type == 'auth':
-            return count(Auth, self.id)          
-        else:    
+            return count(Auth, self.id)
+        else:
             raise Exception('Invalid usage_type')
 
     def list_attached(self, usage_type=None):
@@ -2150,34 +2137,34 @@ class Auth(Marc):
 
         def update_records(record_type, gaining, losing):
             authmap = getattr(Config, f'{record_type}_authority_controlled')
-            
+
             # build query for all records that are linked to the losing auth
             conditions = []
-                 
+
             for ref_tag, d in authmap.items():
                 #for subfield_code, auth_tag in d.items():
                 #    if auth_tag == losing.heading_field.tag:
-                
+
                 conditions.append(Raw({f'{ref_tag}.subfields.xref': losing.id}, record_type=record_type))
 
             if len(conditions) == 0:
                 return 0
-            
+
             cls = BibSet if record_type == 'bib' else AuthSet
             query = Query(Or(*conditions))
-            
+
             #  update the records linked to the losing auth with the gaining auth id
             changed = 0
 
             for record in cls.from_query(query):
                 state = record.to_bson()
-                
+
                 for i, field in enumerate(record.fields):
                     if isinstance(field, Datafield):
                         for subfield in field.subfields:
                             if hasattr(subfield, 'xref') and subfield.xref == losing.id:
                                 subfield.xref = gaining.id
-                        
+
                                 if field in record.fields[0:i] + record.fields[i+1:]:
                                     del record.fields[i] # duplicate field
 
@@ -2196,22 +2183,22 @@ class Auth(Marc):
 
                         # for debugging
                         DB.handle['merge_log'].insert_one({'record_type': record_type, 'record_id': record.id, 'action': 'updated', 'time': datetime.now(timezone.utc), 'user': user})
-                    
+
                     if DB.database_name == 'testing' or Config.threading == False:
                         do_commit()
                     else:
                         t = threading.Thread(target=do_commit, args=[])
                         t.start()
-                
+
                 changed += 1
 
             return changed
-        
+
         changed = 0
-        
+
         for record_type in ('bib', 'auth'):
             changed += update_records(record_type, self, losing_record)
-        
+
         i = 0
 
         while changed > 0 and losing_record.in_use(usage_type='bib') or losing_record.in_use(usage_type='auth'):
@@ -2261,17 +2248,17 @@ class Diff():
 
         # fields unique to record a
         self.a = list(filter(lambda x: x not in b.fields, a.fields))
-        
+
         # fields unique to record b
         self.b = list(filter(lambda x: x not in a.fields, b.fields))
-        
+
         # fields common to both records
         self.c = list(filter(lambda x: x in b.fields, a.fields))
-        
+
         # field orders are different
         self.d = [x for x in self.c if self.records[0].get_fields(x.tag).index(x) != self.records[1].get_fields(x.tag).index(x)]
 
-        # fields that are duplicated a different number of times 
+        # fields that are duplicated a different number of times
         a_fields = Counter([x.to_mrk() for x in a.fields])
         b_fields = Counter([x.to_mrk() for x in b.fields])
 
@@ -2289,7 +2276,7 @@ class History():
     @classmethod
     def restore(cls, record_id: int, *, user: str = 'admin') -> Marc:
         """
-        Finds a record by id in the relevant history collection whose status is deleted 
+        Finds a record by id in the relevant history collection whose status is deleted
         and restores that record by re-creating it in the actual collection.
         """
         history_collection = DB.handle[cls.record_type + '_history']
@@ -2298,7 +2285,7 @@ class History():
         # if the record is not found in history, it means it was never deleted using the existin delete method
         if record_history is None:
             raise Exception(f'{cls.record_type} {record_id} not found in history in a deleted state.')
-        
+
         # If the record still exists in the main collection, we cannot restore it
         if cls.record_class.from_id(record_id):
             raise Exception(f'{cls.record_type} {record_id} already exists in the main collection. Cannot restore from history.')
@@ -2308,14 +2295,14 @@ class History():
         # This shouldn't happen
         if not latest_version:
             raise Exception(f'No valid version found for {cls.record_type} {record_id} in history.')
-        
+
         # Create a new instance of the record with the latest version data
         # Q: should this use the commit method instead? The commit method will update the history -- I think that's fine - JB
         # and we should be able to be certain that the original record is not in the main collection
         #restored_record = type(self).handle().replace_one({'_id': self.id}, latest_version, upsert=True)
 
         restored_record = cls.record_class(latest_version)
-    
+
         if result := restored_record.commit():
             # Remove the deleted status from the history -- I don't think we want to do that - JB
             #history_collection.update_one(
@@ -2325,7 +2312,7 @@ class History():
 
             # indicate restored status
             record_history['restored'] = SON({'user': user, 'time': datetime.now(timezone.utc)})
-            
+
             # new field containing list of actions performed on the record. this may ultimately
             # replace the current format of the history data
             record_history.setdefault('actions', [])
@@ -2386,14 +2373,14 @@ class History():
 class BibHistory(History):
     record_class = Bib
     record_type = 'bib'
-    
+
     def __init__(self):
         super().__init__()
 
 class AuthHistory(History):
     record_class = Auth
     record_type = 'auth'
-    
+
     def __init__(self):
         super().__init__()
 
@@ -2410,7 +2397,7 @@ class Controlfield(Field):
     def __eq__(self, other):
         if not isinstance(other, Controlfield):
             return False
-        
+
         if self.tag != other.tag:
             return False
 
@@ -2440,7 +2427,7 @@ class Datafield(Field):
 
         if self.tag != other.tag:
             return False
-        
+
         return self.to_dict() == other.to_dict()
 
     @classmethod
@@ -2453,7 +2440,7 @@ class Datafield(Field):
         self.ind2 = data['indicators'][1]
 
         assert len(data['subfields']) > 0
-        
+
         for sub in data['subfields']:
             if 'xref' in sub:
                 # Ignore the subfield if it is not configured to be authority controlled. Most
@@ -2468,7 +2455,7 @@ class Datafield(Field):
                     self.subfields.append(Linked(sub['code'], sub['xref'], sub.get('value')))
             elif 'value' in sub:
                 #sub['value'] = re.sub(r'[\x00-\x19]', '', sub['value'])
-                
+
                 if auth_control:
                     self.set(sub['code'], str(sub['value']), place='+')
                 else:
@@ -2544,7 +2531,7 @@ class Datafield(Field):
     def set(self, code, new_val, *, ind1=None, ind2=None, place=0, auth_control=True, value=None):
         if not new_val and not ind1 and not ind2:
             return self
-        
+
         if auth_control and not self.record_type:
             raise Exception('Datafield attribute "record_type" must be set to determine authority control')
 
@@ -2575,15 +2562,15 @@ class Datafield(Field):
 
             # walk the tree to replace the subfield object
             i, j = 0, 0
-            
+
             for i, sub in enumerate(self.subfields):
-                
+
                 if sub.code == code:
                     if j == place:
                         self.subfields[i] = Linked(code, new_val, value) if auth_control else Literal(code, new_val)
-            
+
                         return self
-                    
+
                     j += 1
 
             # new subfield
@@ -2605,7 +2592,7 @@ class Datafield(Field):
         return b
 
     def to_dict(self):
-        d = {}        
+        d = {}
         d['indicators'] = [self.ind1, self.ind2]
         d['subfields'] = [sub.to_dict() for sub in filter(lambda x: x.value, self.subfields)]
 
@@ -2635,7 +2622,7 @@ class Datafield(Field):
         for sub in self.subfields:
             if language and Config.linked_language_source_tag(self.record_type, self.tag, sub.code, language):
                 value = sub.translated(language)
-            else: 
+            else:
                 value = sub.value or ''
 
             string += ''.join([delim + sub.code + value])
@@ -2658,7 +2645,7 @@ class Datafield(Field):
         for sub in field.subfields:
             if language and Config.linked_language_source_tag(self.record_type, field.tag, sub.code, language):
                 value = sub.translated(language)
-            else: 
+            else:
                 value = sub.value
 
             string += f'${sub.code}{value}'
@@ -2707,10 +2694,10 @@ class Linked(Subfield):
             return self._value
 
         value = Auth.lookup(self.xref, self.code)
-        
+
         if not value:
             warn(f'Linked authority {self.xref} not found')
-            
+
         return value
 
     def translated(self, language):
